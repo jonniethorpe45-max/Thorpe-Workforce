@@ -604,10 +604,42 @@ class WorkerSubscriptionRead(BaseSchema):
     updated_at: datetime
 
 
+class WorkerRevenueEventRead(BaseSchema):
+    id: uuid.UUID
+    worker_template_id: uuid.UUID
+    creator_user_id: uuid.UUID | None = None
+    workspace_id: uuid.UUID | None = None
+    revenue_type: str
+    gross_cents: int
+    platform_fee_cents: int
+    creator_payout_cents: int
+    currency: str
+    reference_type: str | None = None
+    reference_id: str | None = None
+    created_at: datetime
+
+
+class CreatorRevenueSummaryRead(BaseSchema):
+    total_gross_cents: int
+    total_platform_fee_cents: int
+    total_creator_payout_cents: int
+    recent_events: list[WorkerRevenueEventRead] = Field(default_factory=list)
+
+
 class MarketplaceListingRead(BaseSchema):
     template: WorkerTemplateRead
     is_installed: bool = False
     subscription: WorkerSubscriptionRead | None = None
+
+
+class MarketplaceWorkerDetailRead(BaseSchema):
+    template: WorkerTemplateRead
+    is_installed: bool = False
+    subscription: WorkerSubscriptionRead | None = None
+    reviews: list[WorkerReviewRead] = Field(default_factory=list)
+    tools: list[WorkerToolRead] = Field(default_factory=list)
+    average_rating: float = 0.0
+    installs: int = 0
 
 
 class MarketplaceInstallResponse(BaseSchema):

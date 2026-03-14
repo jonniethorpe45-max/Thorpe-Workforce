@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
     workspace_daily_send_cap: int = 250
+    marketplace_platform_fee_percent: float = 0.30
+    billing_provider: str = "placeholder"
+    stripe_secret_key: str = ""
     internal_worker_builder_enabled: bool = False
     internal_worker_builder_token: str = ""
     cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
@@ -44,6 +47,11 @@ class Settings(BaseSettings):
                 return [parsed.strip()]
             return [part.strip() for part in raw.split(",") if part.strip()]
         return [part.strip() for part in value if part.strip()]
+
+    @field_validator("marketplace_platform_fee_percent")
+    @classmethod
+    def validate_marketplace_fee(cls, value: float) -> float:
+        return max(0.0, min(1.0, float(value)))
 
 
 @lru_cache(maxsize=1)
