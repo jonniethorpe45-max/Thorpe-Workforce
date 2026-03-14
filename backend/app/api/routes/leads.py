@@ -32,7 +32,13 @@ async def import_leads(
         content = await file.read()
         rows = parse_csv_bytes(content)
     elif json_rows:
-        rows = json.loads(json_rows)
+        try:
+            parsed = json.loads(json_rows)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="json_rows must be valid JSON") from exc
+        if not isinstance(parsed, list):
+            raise HTTPException(status_code=400, detail="json_rows must be an array of lead objects")
+        rows = parsed
     else:
         raise HTTPException(status_code=400, detail="Provide CSV file or json_rows payload")
     result = import_leads_from_rows(

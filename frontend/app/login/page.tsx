@@ -31,6 +31,7 @@ export default function LoginPage() {
     <main className="mx-auto flex min-h-screen max-w-md items-center px-6">
       <form className="card w-full space-y-4 p-6" onSubmit={submit}>
         <h1 className="text-2xl font-semibold">Log in to Thorpe Workforce</h1>
+        <p className="text-sm text-slate-600">Access your AI employees, missions, and approval queue.</p>
         <input
           className="w-full rounded-lg border border-slate-200 px-3 py-2"
           type="email"

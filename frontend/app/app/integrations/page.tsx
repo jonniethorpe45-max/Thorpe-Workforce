@@ -17,7 +17,7 @@ export default function IntegrationsPage() {
       <div className="card p-6">
         <h3 className="text-lg font-semibold">Google Calendar</h3>
         <p className="mt-1 text-sm text-slate-600">
-          Connect Google Calendar for meeting scheduling. Outlook support is structured for later extension.
+          Connect Google Calendar so your AI Sales Worker can support meeting booking handoff.
         </p>
         <button
           className="btn-primary mt-4"
@@ -37,7 +37,7 @@ export default function IntegrationsPage() {
       <div className="card p-6">
         <h3 className="text-lg font-semibold">Email Provider</h3>
         <p className="mt-1 text-sm text-slate-600">
-          SendGrid is supported behind a provider abstraction so additional providers can be added safely.
+          SendGrid is abstracted behind a provider layer with mock-safe fallback for local demos.
         </p>
       </div>
     </div>

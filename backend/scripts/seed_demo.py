@@ -52,7 +52,21 @@ def seed() -> None:
             workspace_id=workspace.id,
             name="Outbound SDR Alpha",
             worker_type="ai_sales_worker",
+            worker_category="go_to_market",
+            mission="Book 10 qualified pipeline meetings per month.",
             goal="Book 10 qualified pipeline meetings per month.",
+            plan_version="sales_v1",
+            allowed_actions=[
+                "select_eligible_leads",
+                "research_selected_leads",
+                "generate_messages_for_selected_leads",
+                "dispatch_messages",
+                "monitor_outbound_events",
+                "record_optimization_signals",
+            ],
+            origin_type="built_in",
+            is_custom_worker=False,
+            is_internal=False,
             status="monitoring",
             tone="professional",
             send_limit_per_day=45,
@@ -207,9 +221,9 @@ def seed() -> None:
         db.add(
             WorkerRun(
                 worker_id=worker.id,
-                run_type="campaign_loop",
+                run_type="worker_execution",
                 status="completed",
-                input_json={"campaign_id": str(campaign.id)},
+                input_json={"campaign_id": str(campaign.id), "worker_type": "ai_sales_worker"},
                 output_json={"leads_processed": 3, "emails_sent": 1},
                 error_text=None,
             )

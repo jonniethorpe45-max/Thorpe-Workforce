@@ -2,6 +2,7 @@ def test_create_worker(client, auth_headers):
     payload = {
         "name": "Sales Worker A",
         "goal": "Book meetings",
+        "worker_type": "ai_sales_worker",
         "target_industry": "SaaS",
         "target_roles": ["VP Sales"],
         "target_locations": ["US"],
@@ -12,6 +13,17 @@ def test_create_worker(client, auth_headers):
     res = client.post("/workers", json=payload, headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["name"] == payload["name"]
+    assert res.json()["worker_type"] == "ai_sales_worker"
+    assert res.json()["plan_version"] == "sales_v1"
+    assert res.json()["worker_category"] == "go_to_market"
+    assert "select_eligible_leads" in (res.json()["allowed_actions"] or [])
+
+
+def test_worker_templates_library(client, auth_headers):
+    res = client.get("/workers/templates/library", headers=auth_headers)
+    assert res.status_code == 200
+    templates = res.json()
+    assert any(item["worker_type"] == "ai_sales_worker" for item in templates)
 
 
 def test_create_campaign(client, auth_headers):

@@ -28,7 +28,7 @@ export default function CampaignsPage() {
     return (
       <EmptyState
         title="No campaigns yet"
-        description="Create your first outbound campaign and attach a worker."
+        description="Create your first worker mission and attach an AI Sales Worker."
         action={
           <Link href="/app/campaigns/new" className="btn-primary">
             Create Campaign
@@ -41,18 +41,18 @@ export default function CampaignsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Campaigns</h2>
+        <h2 className="text-2xl font-semibold">Missions</h2>
         <Link href="/app/campaigns/new" className="btn-primary">
-          New Campaign
+          Create Mission
         </Link>
       </div>
       <div className="card overflow-hidden">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-100 text-left text-slate-600">
             <tr>
-              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Mission</th>
               <th className="px-4 py-3">Industry</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Mission Status</th>
             </tr>
           </thead>
           <tbody>

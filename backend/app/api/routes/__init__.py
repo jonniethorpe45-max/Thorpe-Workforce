@@ -1,4 +1,4 @@
-from app.api.routes import analytics, auth, campaigns, leads, meetings, messages, replies, webhooks, workers, workspace
+from app.api.routes import analytics, auth, campaigns, leads, meetings, messages, replies, webhooks, worker_builder, workers, workspace
 
 __all__ = [
     "auth",
@@ -11,4 +11,5 @@ __all__ = [
     "meetings",
     "analytics",
     "webhooks",
+    "worker_builder",
 ]

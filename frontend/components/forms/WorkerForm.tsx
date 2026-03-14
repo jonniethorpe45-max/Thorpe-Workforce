@@ -5,24 +5,28 @@ import { FormEvent, useState } from "react";
 type Payload = {
   name: string;
   goal: string;
+  worker_type: string;
   target_industry: string;
   target_roles: string[];
   target_locations: string[];
   company_size_range: string;
   tone: string;
   daily_send_limit: number;
+  run_interval_minutes: number;
 };
 
 export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promise<void> }) {
   const [payload, setPayload] = useState<Payload>({
-    name: "",
+    name: "AI Sales Worker",
     goal: "",
+    worker_type: "ai_sales_worker",
     target_industry: "",
     target_roles: [],
     target_locations: [],
     company_size_range: "",
     tone: "professional",
-    daily_send_limit: 40
+    daily_send_limit: 40,
+    run_interval_minutes: 60
   });
   const [busy, setBusy] = useState(false);
 
@@ -39,6 +43,9 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
   return (
     <form className="card space-y-4 p-6" onSubmit={submit}>
       <h2 className="text-lg font-semibold">Create AI Sales Worker</h2>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        Template: <span className="font-medium">AI Sales Worker (Built-in)</span>
+      </div>
       <input
         className="w-full rounded-lg border border-slate-200 px-3 py-2"
         placeholder="Worker name"
@@ -105,6 +112,15 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
           onChange={(e) => setPayload((s) => ({ ...s, daily_send_limit: Number(e.target.value) }))}
         />
       </div>
+      <input
+        type="number"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2"
+        min={15}
+        max={1440}
+        value={payload.run_interval_minutes}
+        onChange={(e) => setPayload((s) => ({ ...s, run_interval_minutes: Number(e.target.value) }))}
+        placeholder="Run interval in minutes"
+      />
       <button className="btn-primary" disabled={busy}>
         {busy ? "Creating..." : "Create Worker"}
       </button>

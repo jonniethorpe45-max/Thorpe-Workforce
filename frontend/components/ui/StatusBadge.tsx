@@ -6,6 +6,7 @@ type Props = {
 
 export function StatusBadge({ status }: Props) {
   const lowered = status.toLowerCase();
+  const pretty = status.replaceAll("_", " ");
   return (
     <span
       className={clsx(
@@ -19,7 +20,7 @@ export function StatusBadge({ status }: Props) {
               : "bg-slate-100 text-slate-700"
       )}
     >
-      {status}
+      {pretty}
     </span>
   );
 }

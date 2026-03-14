@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     sendgrid_from_email: str = "sales@thorpeworkforce.com"
     google_client_id: str = ""
     google_client_secret: str = ""
+    workspace_daily_send_cap: int = 250
+    internal_worker_builder_enabled: bool = False
+    internal_worker_builder_token: str = ""
     cors_origins: List[str] = ["http://localhost:3000"]
 
     @field_validator("cors_origins", mode="before")

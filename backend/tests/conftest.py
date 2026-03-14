@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+os.environ["INTERNAL_WORKER_BUILDER_ENABLED"] = "true"
 
 from app.db.base import Base  # noqa: E402
 from app.db.session import get_db  # noqa: E402

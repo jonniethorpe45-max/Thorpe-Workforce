@@ -1,9 +1,10 @@
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import decode_token
 from app.db.session import get_db
 from app.models import User
@@ -27,3 +28,18 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
 
 def get_workspace_id(user: User = Depends(get_current_user)) -> uuid.UUID:
     return user.workspace_id
+
+
+def require_internal_worker_builder_access(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not settings.internal_worker_builder_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    if settings.internal_worker_builder_token:
+        token = request.headers.get("X-Internal-Builder-Token", "")
+        if token != settings.internal_worker_builder_token:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid internal builder token")
+    if current_user.role not in {"owner", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    return current_user

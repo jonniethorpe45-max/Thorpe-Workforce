@@ -23,12 +23,12 @@ export default function MeetingsPage() {
   if (error) return <ErrorState message={error} />;
   if (!meetings) return <LoadingState label="Loading meetings..." />;
   if (!meetings.length) {
-    return <EmptyState title="No meetings booked yet" description="Positive replies can be converted into booked meetings." />;
+    return <EmptyState title="No meetings booked yet" description="Interested replies can be converted into booked meetings." />;
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Meetings</h2>
+      <h2 className="text-2xl font-semibold">Meeting Pipeline</h2>
       <div className="card overflow-hidden">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-100 text-left text-slate-600">

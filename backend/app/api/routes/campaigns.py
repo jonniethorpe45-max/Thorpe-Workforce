@@ -5,11 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import ApprovalStatus, Campaign, EmailSequence, GeneratedMessage, SentEmail, User, Worker
+from app.models import ApprovalStatus, Campaign, EmailSequence, GeneratedMessage, SentEmail, User, Worker, WorkerStatus
 from app.schemas.api import CampaignCreate, CampaignRead, CampaignUpdate
 from app.services.audit import log_audit_event
 from app.services.message_generator import send_approved_messages
-from app.services.worker_service import run_worker_for_campaign
+from app.services.worker_service import queue_worker_run, run_worker_for_campaign
+from app.tasks.dispatcher import enqueue_task
+from app.tasks.jobs import execute_worker_run_task, send_approved_messages_task
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -106,6 +108,8 @@ def launch_campaign(campaign_id: uuid.UUID, current_user: User = Depends(get_cur
     worker = db.get(Worker, campaign.worker_id)
     if not worker or worker.workspace_id != current_user.workspace_id:
         raise HTTPException(status_code=404, detail="Worker not found")
+    if worker.status == WorkerStatus.PAUSED.value:
+        raise HTTPException(status_code=400, detail="Worker is paused. Resume worker before launching mission.")
 
     approved_messages_exist = (
         db.query(GeneratedMessage)
@@ -117,32 +121,73 @@ def launch_campaign(campaign_id: uuid.UUID, current_user: User = Depends(get_cur
         > 0
     )
     if approved_messages_exist:
-        sent = send_approved_messages(db, workspace_id=current_user.workspace_id, campaign_id=campaign.id)
+        task_id = enqueue_task(send_approved_messages_task, str(current_user.workspace_id), str(campaign.id))
+        sent = 0
+        queued = True
+        if not task_id:
+            queued = False
+            sent = send_approved_messages(db, workspace_id=current_user.workspace_id, campaign_id=campaign.id)
         log_audit_event(
             db,
             workspace_id=current_user.workspace_id,
             actor_type="user",
             actor_id=str(current_user.id),
             event_name="campaign_sent_approved_messages",
-            payload={"campaign_id": str(campaign.id), "sent_count": sent},
+            payload={"campaign_id": str(campaign.id), "sent_count": sent, "queued": queued, "task_id": task_id},
         )
         db.commit()
-        return {"success": True, "sent_count": sent, "manual_approval_required": False}
+        return {
+            "success": True,
+            "sent_count": sent,
+            "manual_approval_required": False,
+            "queued": queued,
+            "task_id": task_id,
+        }
 
     prior_sent_count = db.query(SentEmail).filter(SentEmail.workspace_id == current_user.workspace_id).count()
     require_manual_approval = prior_sent_count == 0
     campaign.status = "active"
-    run = run_worker_for_campaign(db, worker=worker, campaign=campaign, require_manual_approval=require_manual_approval)
+    run = queue_worker_run(
+        db,
+        worker=worker,
+        campaign=campaign,
+        actor_id=str(current_user.id),
+        require_manual_approval=require_manual_approval,
+    )
+    db.flush()
+    task_id = enqueue_task(execute_worker_run_task, str(run.id))
+    queued = True
+    if not task_id:
+        queued = False
+        run_worker_for_campaign(
+            db,
+            worker=worker,
+            campaign=campaign,
+            require_manual_approval=require_manual_approval,
+            run=run,
+        )
     log_audit_event(
         db,
         workspace_id=current_user.workspace_id,
         actor_type="user",
         actor_id=str(current_user.id),
         event_name="campaign_launched",
-        payload={"campaign_id": str(campaign.id), "manual_approval_required": require_manual_approval},
+        payload={
+            "campaign_id": str(campaign.id),
+            "manual_approval_required": require_manual_approval,
+            "queued": queued,
+            "task_id": task_id,
+            "run_id": str(run.id),
+        },
     )
     db.commit()
-    return {"success": True, "run_id": str(run.id), "manual_approval_required": require_manual_approval}
+    return {
+        "success": True,
+        "run_id": str(run.id),
+        "manual_approval_required": require_manual_approval,
+        "queued": queued,
+        "task_id": task_id,
+    }
 
 
 @router.post("/{campaign_id}/pause")

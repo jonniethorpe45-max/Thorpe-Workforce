@@ -22,11 +22,13 @@ export default function RepliesPage() {
 
   if (error) return <ErrorState message={error} />;
   if (!replies) return <LoadingState label="Loading replies..." />;
-  if (!replies.length) return <EmptyState title="No replies yet" description="Replies will appear once contacts respond." />;
+  if (!replies.length) {
+    return <EmptyState title="No replies yet" description="Interested replies and objections will appear here." />;
+  }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Replies</h2>
+      <h2 className="text-2xl font-semibold">Interested Replies Inbox</h2>
       <div className="space-y-3">
         {replies.map((reply) => (
           <div className="card p-4" key={reply.id}>

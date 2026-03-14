@@ -37,6 +37,7 @@ export default function SignupPage() {
     <main className="mx-auto flex min-h-screen max-w-lg items-center px-6">
       <form className="card w-full space-y-4 p-6" onSubmit={submit}>
         <h1 className="text-2xl font-semibold">Create your Thorpe Workforce workspace</h1>
+        <p className="text-sm text-slate-600">Deploy your first AI Sales Worker in under 5 minutes.</p>
         <input
           className="w-full rounded-lg border border-slate-200 px-3 py-2"
           placeholder="Full name"
