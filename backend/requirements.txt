@@ -1,0 +1,14 @@
+alembic
+celery
+email-validator
+fastapi
+passlib[bcrypt]
+psycopg2-binary
+pydantic-settings
+python-jose[cryptography]
+python-multipart
+redis
+sqlalchemy
+uvicorn[standard]
+requests
+pytest

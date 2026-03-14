@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: thorpe-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: thorpe_workforce
+    ports:
+      - "5432:5432"
+    volumes:
+      - thorpe_pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: thorpe-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - thorpe_redis_data:/data
+
+volumes:
+  thorpe_pg_data:
+  thorpe_redis_data:
