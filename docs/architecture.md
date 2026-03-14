@@ -42,6 +42,39 @@ Worker run states:
 
 Runs are persisted in `worker_runs` and surfaced via `/workers/{worker_id}/runs`.
 
+## Configuration-Driven Worker Platform Layer
+
+Worker execution is now composed through:
+
+1. **Worker Definition** (`app/workers/definitions.py`)
+   - type/category metadata
+   - allowed actions
+   - ordered step definitions
+   - prompt profile
+2. **Plan Builder** (`app/workers/plan_builder.py`)
+   - assembles executable plan from definition + worker config
+3. **Action Registry** (`app/workers/actions.py`)
+   - modular handlers for each worker action
+4. **Executor** (`app/workers/executor.py`)
+   - runs plan steps in order
+   - records step logs + run outputs
+   - manages lifecycle status transitions
+
+The current AI Sales Worker is implemented as the first built-in definition, not as a one-off hardcoded path.
+
+## Worker Templates
+
+`worker_templates` stores built-in template metadata and future template-ready fields:
+
+- worker type/category
+- plan version
+- default config
+- allowed actions
+- prompt profile
+- visibility flags (`is_public`, `is_active`)
+
+Current MVP exposes only AI Sales Worker publicly, while allowing future extension for additional built-in and custom workers.
+
 ## Worker Loop Execution Sequence
 
 1. Select eligible leads (suppression + duplicate checks)

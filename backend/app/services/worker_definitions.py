@@ -34,6 +34,7 @@ def ensure_builtin_worker_templates(db: Session) -> None:
                 is_active=True,
             )
         )
+    db.flush()
 
 
 def resolve_worker_definition(worker_type: str) -> WorkerDefinition:
