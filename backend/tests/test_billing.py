@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models import BillingEventLog, User, WorkerSubscription, Workspace, WorkspaceSubscription
+from app.models import BillingEventLog, SubscriptionPlan, User, WorkerSubscription, Workspace, WorkspaceSubscription
 from app.services.subscription_plans import ensure_default_subscription_plans, get_plan_by_code
 
 
@@ -280,13 +280,42 @@ def test_worker_purchase_checkout_and_entitlement_gated_install(client, auth_hea
 
 
 def test_usage_limit_enforcement_for_worker_runs(client, auth_headers):
-    _set_workspace_plan("free")
-
     db = SessionLocal()
     try:
-        free_plan = get_plan_by_code(db, "free", include_inactive=True)
-        assert free_plan is not None
-        free_plan.max_worker_runs_per_month = 0
+        ensure_default_subscription_plans(db)
+        user = db.query(User).filter(User.email == "tester@example.com").first()
+        assert user is not None
+        plan = SubscriptionPlan(
+            code="runlimit",
+            name="Run Limit Plan",
+            description="Test-only plan with zero run allowance.",
+            monthly_price_cents=0,
+            annual_price_cents=None,
+            max_worker_drafts=None,
+            max_published_workers=None,
+            max_worker_installs_per_workspace=None,
+            max_worker_runs_per_month=0,
+            allow_worker_builder=True,
+            allow_marketplace_publishing=True,
+            allow_private_workers=True,
+            allow_public_workers=True,
+            allow_marketplace_install=True,
+            allow_team_features=False,
+            is_active=False,
+        )
+        db.add(plan)
+        db.flush()
+        workspace = db.get(Workspace, user.workspace_id)
+        assert workspace is not None
+        workspace.subscription_plan = "runlimit"
+        subscription = (
+            db.query(WorkspaceSubscription)
+            .filter(WorkspaceSubscription.workspace_id == user.workspace_id)
+            .order_by(WorkspaceSubscription.updated_at.desc())
+            .first()
+        )
+        assert subscription is not None
+        subscription.plan_id = plan.id
         db.commit()
     finally:
         db.close()
