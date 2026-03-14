@@ -6,8 +6,9 @@ from app.services.email_safety import is_lead_send_eligible
 
 class WorkerPlanner:
     def build_execution_plan(self, db: Session, worker: Worker, campaign: Campaign) -> dict:
-        # Current planner implementation supports built-in sales-style lead workflows.
-        if worker.worker_type != "ai_sales_worker":
+        # Current planner implementation supports sales-style lead workflows used by
+        # built-in AI Sales Worker and internal custom workers built from these actions.
+        if worker.worker_type not in {"ai_sales_worker", "custom_worker"}:
             return {
                 "worker_id": str(worker.id),
                 "campaign_id": str(campaign.id),
