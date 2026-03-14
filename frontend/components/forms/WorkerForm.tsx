@@ -11,18 +11,20 @@ type Payload = {
   company_size_range: string;
   tone: string;
   daily_send_limit: number;
+  run_interval_minutes: number;
 };
 
 export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promise<void> }) {
   const [payload, setPayload] = useState<Payload>({
-    name: "",
+    name: "AI Sales Worker",
     goal: "",
     target_industry: "",
     target_roles: [],
     target_locations: [],
     company_size_range: "",
     tone: "professional",
-    daily_send_limit: 40
+    daily_send_limit: 40,
+    run_interval_minutes: 60
   });
   const [busy, setBusy] = useState(false);
 
@@ -105,6 +107,15 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
           onChange={(e) => setPayload((s) => ({ ...s, daily_send_limit: Number(e.target.value) }))}
         />
       </div>
+      <input
+        type="number"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2"
+        min={15}
+        max={1440}
+        value={payload.run_interval_minutes}
+        onChange={(e) => setPayload((s) => ({ ...s, run_interval_minutes: Number(e.target.value) }))}
+        placeholder="Run interval in minutes"
+      />
       <button className="btn-primary" disabled={busy}>
         {busy ? "Creating..." : "Create Worker"}
       </button>

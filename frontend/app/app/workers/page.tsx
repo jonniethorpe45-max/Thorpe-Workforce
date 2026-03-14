@@ -28,7 +28,7 @@ export default function WorkersPage() {
     return (
       <EmptyState
         title="No workers yet"
-        description="Create your first AI Sales Worker to start building outbound campaigns."
+        description="Create your first AI Sales Worker to launch a recurring mission."
         action={
           <Link href="/app/workers/new" className="btn-primary">
             Create Worker
@@ -41,9 +41,9 @@ export default function WorkersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Workers</h2>
+        <h2 className="text-2xl font-semibold">AI Sales Workers</h2>
         <Link href="/app/workers/new" className="btn-primary">
-          New Worker
+          Create Worker
         </Link>
       </div>
       <div className="card overflow-hidden">
@@ -52,8 +52,9 @@ export default function WorkersPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Goal</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Worker Status</th>
               <th className="px-4 py-3">Daily Limit</th>
+              <th className="px-4 py-3">Next Run</th>
             </tr>
           </thead>
           <tbody>
@@ -69,6 +70,9 @@ export default function WorkersPage() {
                   <StatusBadge status={worker.status} />
                 </td>
                 <td className="px-4 py-3">{worker.send_limit_per_day}</td>
+                <td className="px-4 py-3 text-slate-600">
+                  {worker.next_run_at ? new Date(worker.next_run_at).toLocaleString() : "Not scheduled"}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
 const navItems = [
-  { href: "/app", label: "Overview" },
-  { href: "/app/workers", label: "Workers" },
-  { href: "/app/campaigns", label: "Campaigns" },
+  { href: "/app", label: "Mission Control" },
+  { href: "/app/workers", label: "AI Sales Workers" },
+  { href: "/app/campaigns", label: "Missions" },
   { href: "/app/leads", label: "Leads" },
-  { href: "/app/replies", label: "Replies" },
-  { href: "/app/meetings", label: "Meetings" },
+  { href: "/app/replies", label: "Interested Replies" },
+  { href: "/app/meetings", label: "Meeting Pipeline" },
   { href: "/app/integrations", label: "Integrations" },
   { href: "/app/settings", label: "Settings" }
 ];
@@ -21,7 +21,7 @@ export function Sidebar() {
     <aside className="hidden w-64 border-r border-slate-200 bg-white p-4 lg:block">
       <div className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Thorpe Workforce</p>
-        <h2 className="mt-1 text-lg font-semibold text-slate-900">AI Workforce OS</h2>
+        <h2 className="mt-1 text-lg font-semibold text-slate-900">Deploy AI Employees</h2>
       </div>
       <nav className="space-y-1">
         {navItems.map((item) => (

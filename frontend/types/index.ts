@@ -5,15 +5,34 @@ export type Worker = {
   status: string;
   tone: string;
   send_limit_per_day: number;
+  run_interval_minutes: number;
+  last_run_at?: string | null;
+  next_run_at?: string | null;
+  last_error_text?: string | null;
 };
 
 export type Campaign = {
   id: string;
   name: string;
   status: string;
+  worker_id?: string | null;
   target_industry?: string;
   target_roles?: string[];
   target_locations?: string[];
+};
+
+export type WorkerRun = {
+  id: string;
+  worker_id: string;
+  campaign_id?: string | null;
+  run_type: string;
+  started_at: string;
+  finished_at?: string | null;
+  status: string;
+  attempts: number;
+  input_json?: Record<string, unknown> | null;
+  output_json?: Record<string, unknown> | null;
+  error_text?: string | null;
 };
 
 export type Lead = {

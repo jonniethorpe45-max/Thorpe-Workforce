@@ -27,7 +27,7 @@ export default function NewCampaignPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">New Campaign</h2>
+      <h2 className="text-2xl font-semibold">Create Worker Mission</h2>
       <CampaignForm
         workerOptions={workers}
         onSubmit={async (payload) => {

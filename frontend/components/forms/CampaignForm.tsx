@@ -47,10 +47,10 @@ export function CampaignForm({
 
   return (
     <form className="card space-y-4 p-6" onSubmit={submit}>
-      <h2 className="text-lg font-semibold">Create Campaign</h2>
+      <h2 className="text-lg font-semibold">Create Worker Mission</h2>
       <input
         className="w-full rounded-lg border border-slate-200 px-3 py-2"
-        placeholder="Campaign name"
+        placeholder="Mission name"
         value={payload.name}
         onChange={(e) => setPayload((s) => ({ ...s, name: e.target.value }))}
         required
@@ -69,7 +69,7 @@ export function CampaignForm({
       </select>
       <textarea
         className="w-full rounded-lg border border-slate-200 px-3 py-2"
-        placeholder="Ideal customer profile"
+        placeholder="Mission brief (ideal customer profile)"
         value={payload.ideal_customer_profile}
         onChange={(e) => setPayload((s) => ({ ...s, ideal_customer_profile: e.target.value }))}
       />
@@ -107,8 +107,14 @@ export function CampaignForm({
           }
         />
       </div>
+      <input
+        className="w-full rounded-lg border border-slate-200 px-3 py-2"
+        placeholder="Primary CTA (e.g. Open to a 15-minute intro next week?)"
+        value={payload.cta_text}
+        onChange={(e) => setPayload((s) => ({ ...s, cta_text: e.target.value }))}
+      />
       <button className="btn-primary" disabled={busy}>
-        {busy ? "Creating..." : "Create Campaign"}
+        {busy ? "Creating..." : "Create Mission"}
       </button>
     </form>
   );
