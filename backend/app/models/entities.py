@@ -108,7 +108,15 @@ class Worker(Base, TimestampMixin):
     workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     worker_type: Mapped[str] = mapped_column(String(50), default="ai_sales_worker", nullable=False)
+    worker_category: Mapped[str] = mapped_column(String(80), default="go_to_market", nullable=False)
+    mission: Mapped[str] = mapped_column(Text, nullable=False, default="")
     goal: Mapped[str] = mapped_column(Text, nullable=False)
+    plan_version: Mapped[str] = mapped_column(String(40), default="v1", nullable=False)
+    allowed_actions: Mapped[list[str] | None] = mapped_column(JSON)
+    template_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("worker_templates.id"))
+    origin_type: Mapped[str] = mapped_column(String(40), default="built_in", nullable=False)
+    is_custom_worker: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_internal: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default=WorkerStatus.IDLE.value, nullable=False)
     tone: Mapped[str] = mapped_column(String(50), default="professional", nullable=False)
     send_limit_per_day: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
@@ -253,6 +261,22 @@ class WorkerRun(Base):
     input_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     error_text: Mapped[str | None] = mapped_column(Text)
+
+
+class WorkerTemplate(Base, TimestampMixin):
+    __tablename__ = "worker_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    template_key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    worker_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    worker_category: Mapped[str] = mapped_column(String(80), nullable=False)
+    plan_version: Mapped[str] = mapped_column(String(40), nullable=False, default="v1")
+    default_config_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    allowed_actions: Mapped[list[str] | None] = mapped_column(JSON)
+    prompt_profile: Mapped[str | None] = mapped_column(String(80))
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
 class AuditLog(Base):

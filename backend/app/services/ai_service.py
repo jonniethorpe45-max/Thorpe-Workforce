@@ -1,9 +1,17 @@
 from app.integrations.ai.factory import get_ai_provider
 from app.integrations.ai.base import CompanyResearchResult, OutreachEmailResult, ReplyClassificationResult
 from app.services.ai_utils import clamp_score, enforce_single_cta, enforce_word_limit, normalize_whitespace, sanitize_list
+from app.services.prompt_registry import get_prompt_bundle
 
 
-def generate_company_research(company_name: str, website: str | None, industry: str | None):
+def generate_company_research(
+    company_name: str,
+    website: str | None,
+    industry: str | None,
+    worker_type: str = "ai_sales_worker",
+):
+    prompt_bundle = get_prompt_bundle(worker_type)
+    _prompt = prompt_bundle.company_research(company_name=company_name, website=website, industry=industry)
     result = get_ai_provider().generate_company_research(company_name=company_name, website=website, industry=industry)
     return CompanyResearchResult(
         summary=normalize_whitespace(result.summary) or f"{company_name} appears to be a fit for outbound optimization.",
@@ -15,7 +23,15 @@ def generate_company_research(company_name: str, website: str | None, industry: 
     )
 
 
-def generate_outreach_email(lead_name: str, company_name: str, title: str | None, cta: str):
+def generate_outreach_email(
+    lead_name: str,
+    company_name: str,
+    title: str | None,
+    cta: str,
+    worker_type: str = "ai_sales_worker",
+):
+    prompt_bundle = get_prompt_bundle(worker_type)
+    _prompt = prompt_bundle.outreach(lead_name=lead_name, company_name=company_name, title=title, cta=cta)
     result = get_ai_provider().generate_outreach_email(
         lead_name=lead_name,
         company_name=company_name,
@@ -26,11 +42,23 @@ def generate_outreach_email(lead_name: str, company_name: str, title: str | None
     return OutreachEmailResult(
         subject=normalize_whitespace(result.subject) or f"Quick idea for {company_name}",
         body=body,
-        personalization=result.personalization if isinstance(result.personalization, dict) else {},
+        personalization=(
+            {**result.personalization, "worker_type": worker_type}
+            if isinstance(result.personalization, dict)
+            else {"worker_type": worker_type}
+        ),
     )
 
 
-def generate_followup_email(lead_name: str, company_name: str, step: int, cta: str):
+def generate_followup_email(
+    lead_name: str,
+    company_name: str,
+    step: int,
+    cta: str,
+    worker_type: str = "ai_sales_worker",
+):
+    prompt_bundle = get_prompt_bundle(worker_type)
+    _prompt = prompt_bundle.followup(lead_name=lead_name, company_name=company_name, step=step, cta=cta)
     result = get_ai_provider().generate_followup_email(
         lead_name=lead_name,
         company_name=company_name,
@@ -41,11 +69,17 @@ def generate_followup_email(lead_name: str, company_name: str, step: int, cta: s
     return OutreachEmailResult(
         subject=normalize_whitespace(result.subject) or f"Quick follow-up for {company_name}",
         body=body,
-        personalization=result.personalization if isinstance(result.personalization, dict) else {"step": step},
+        personalization=(
+            {**result.personalization, "worker_type": worker_type}
+            if isinstance(result.personalization, dict)
+            else {"step": step, "worker_type": worker_type}
+        ),
     )
 
 
-def classify_reply(reply_text: str):
+def classify_reply(reply_text: str, worker_type: str = "ai_sales_worker"):
+    prompt_bundle = get_prompt_bundle(worker_type)
+    _prompt = prompt_bundle.reply_classification(reply_text=reply_text)
     result = get_ai_provider().classify_reply(reply_text=reply_text)
     return ReplyClassificationResult(
         intent=normalize_whitespace(result.intent) or "unknown",

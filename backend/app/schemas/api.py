@@ -58,6 +58,8 @@ class WorkspaceUpdate(BaseSchema):
 class WorkerCreate(BaseSchema):
     name: str
     goal: str
+    worker_type: str = "ai_sales_worker"
+    template_id: uuid.UUID | None = None
     target_industry: str | None = None
     target_roles: list[str] = Field(default_factory=list)
     target_locations: list[str] = Field(default_factory=list)
@@ -69,11 +71,15 @@ class WorkerCreate(BaseSchema):
 
 class WorkerUpdate(BaseSchema):
     name: str | None = None
+    mission: str | None = None
     goal: str | None = None
     tone: str | None = None
     daily_send_limit: int | None = None
     run_interval_minutes: int | None = None
     status: str | None = None
+    plan_version: str | None = None
+    allowed_actions: list[str] | None = None
+    is_internal: bool | None = None
     config_json: dict[str, Any] | None = None
 
 
@@ -82,7 +88,15 @@ class WorkerRead(BaseSchema):
     workspace_id: uuid.UUID
     name: str
     worker_type: str
+    worker_category: str
+    mission: str
     goal: str
+    plan_version: str
+    allowed_actions: list[str] | None = None
+    template_id: uuid.UUID | None = None
+    origin_type: str
+    is_custom_worker: bool
+    is_internal: bool
     status: str
     tone: str
     send_limit_per_day: int
@@ -91,6 +105,22 @@ class WorkerRead(BaseSchema):
     next_run_at: datetime | None = None
     last_error_text: str | None = None
     config_json: dict[str, Any] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkerTemplateRead(BaseSchema):
+    id: uuid.UUID
+    template_key: str
+    display_name: str
+    worker_type: str
+    worker_category: str
+    plan_version: str
+    default_config_json: dict[str, Any] | None = None
+    allowed_actions: list[str] | None = None
+    prompt_profile: str | None = None
+    is_public: bool
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 

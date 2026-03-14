@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 type Payload = {
   name: string;
   goal: string;
+  worker_type: string;
   target_industry: string;
   target_roles: string[];
   target_locations: string[];
@@ -18,6 +19,7 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
   const [payload, setPayload] = useState<Payload>({
     name: "AI Sales Worker",
     goal: "",
+    worker_type: "ai_sales_worker",
     target_industry: "",
     target_roles: [],
     target_locations: [],
@@ -41,6 +43,9 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
   return (
     <form className="card space-y-4 p-6" onSubmit={submit}>
       <h2 className="text-lg font-semibold">Create AI Sales Worker</h2>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        Template: <span className="font-medium">AI Sales Worker (Built-in)</span>
+      </div>
       <input
         className="w-full rounded-lg border border-slate-200 px-3 py-2"
         placeholder="Worker name"

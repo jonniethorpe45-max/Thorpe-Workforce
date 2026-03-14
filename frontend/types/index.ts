@@ -1,7 +1,16 @@
 export type Worker = {
   id: string;
   name: string;
+  worker_type: string;
+  worker_category: string;
+  mission: string;
   goal: string;
+  plan_version: string;
+  allowed_actions?: string[] | null;
+  template_id?: string | null;
+  origin_type: string;
+  is_custom_worker: boolean;
+  is_internal: boolean;
   status: string;
   tone: string;
   send_limit_per_day: number;

@@ -4,11 +4,17 @@ from app.models import CompanyResearch, Lead, LeadStatus
 from app.services.ai_service import generate_company_research
 
 
-def research_lead(db: Session, lead: Lead, industry_hint: str | None = None) -> CompanyResearch:
+def research_lead(
+    db: Session,
+    lead: Lead,
+    industry_hint: str | None = None,
+    worker_type: str = "ai_sales_worker",
+) -> CompanyResearch:
     result = generate_company_research(
         company_name=lead.company_name,
         website=lead.website,
         industry=industry_hint or lead.lead_source,
+        worker_type=worker_type,
     )
     existing = db.query(CompanyResearch).filter(CompanyResearch.lead_id == lead.id).first()
     if existing:

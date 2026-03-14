@@ -31,7 +31,18 @@ def generate_messages_task(campaign_id: str, lead_id: str, require_approval: boo
         campaign = db.get(Campaign, uuid.UUID(campaign_id))
         lead = db.get(Lead, uuid.UUID(lead_id))
         if campaign and lead:
-            generate_initial_sequence(db, campaign=campaign, lead=lead, require_approval=require_approval)
+            worker_type = "ai_sales_worker"
+            if campaign.worker_id:
+                worker = db.get(Worker, campaign.worker_id)
+                if worker:
+                    worker_type = worker.worker_type
+            generate_initial_sequence(
+                db,
+                campaign=campaign,
+                lead=lead,
+                require_approval=require_approval,
+                worker_type=worker_type,
+            )
             db.commit()
     finally:
         db.close()

@@ -16,6 +16,7 @@ from app.models.entities import (
     Worker,
     WorkerRun,
     WorkerRunStatus,
+    WorkerTemplate,
     WorkerStatus,
     Workspace,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "Reply",
     "Meeting",
     "WorkerRun",
+    "WorkerTemplate",
     "AuditLog",
     "WorkerStatus",
     "WorkerRunStatus",

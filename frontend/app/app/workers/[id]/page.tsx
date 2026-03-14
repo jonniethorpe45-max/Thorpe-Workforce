@@ -44,7 +44,10 @@ export default function WorkerDetailPage() {
           <h2 className="text-2xl font-semibold">{worker.name}</h2>
           <StatusBadge status={worker.status} />
         </div>
-        <p className="mt-2 text-slate-600">Mission: {worker.goal}</p>
+        <p className="mt-2 text-slate-600">Mission: {worker.mission || worker.goal}</p>
+        <p className="text-sm text-slate-500">
+          Definition: {worker.worker_type} • Plan {worker.plan_version}
+        </p>
         <p className="mt-3 text-sm text-slate-500">Daily send limit: {worker.send_limit_per_day}</p>
         <p className="text-sm text-slate-500">Run cadence: every {worker.run_interval_minutes} minutes</p>
         <p className="text-sm text-slate-500">

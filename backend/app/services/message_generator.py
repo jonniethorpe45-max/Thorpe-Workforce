@@ -10,7 +10,13 @@ from app.services.ai_service import generate_followup_email, generate_outreach_e
 from app.services.email_safety import is_lead_send_eligible, remaining_send_capacity
 
 
-def generate_initial_sequence(db: Session, campaign: Campaign, lead: Lead, require_approval: bool = True) -> list[GeneratedMessage]:
+def generate_initial_sequence(
+    db: Session,
+    campaign: Campaign,
+    lead: Lead,
+    require_approval: bool = True,
+    worker_type: str = "ai_sales_worker",
+) -> list[GeneratedMessage]:
     cta = campaign.cta_text or "Would you be open to a 15-minute intro next week?"
     lead_name = lead.first_name or lead.full_name or "there"
     existing_steps = {
@@ -20,7 +26,13 @@ def generate_initial_sequence(db: Session, campaign: Campaign, lead: Lead, requi
         .all()
     }
 
-    step1 = generate_outreach_email(lead_name=lead_name, company_name=lead.company_name, title=lead.title, cta=cta)
+    step1 = generate_outreach_email(
+        lead_name=lead_name,
+        company_name=lead.company_name,
+        title=lead.title,
+        cta=cta,
+        worker_type=worker_type,
+    )
     generated: list[GeneratedMessage] = []
     if 1 not in existing_steps:
         generated.append(
@@ -42,6 +54,7 @@ def generate_initial_sequence(db: Session, campaign: Campaign, lead: Lead, requi
             company_name=lead.company_name,
             step=step - 1,
             cta=cta,
+            worker_type=worker_type,
         )
         generated.append(
             GeneratedMessage(
@@ -59,17 +72,30 @@ def generate_initial_sequence(db: Session, campaign: Campaign, lead: Lead, requi
     return generated
 
 
-def regenerate_message(db: Session, message: GeneratedMessage, campaign: Campaign, lead: Lead) -> GeneratedMessage:
+def regenerate_message(
+    db: Session,
+    message: GeneratedMessage,
+    campaign: Campaign,
+    lead: Lead,
+    worker_type: str = "ai_sales_worker",
+) -> GeneratedMessage:
     cta = campaign.cta_text or "Would a short intro call be helpful?"
     lead_name = lead.first_name or lead.full_name or "there"
     if message.sequence_step == 1:
-        result = generate_outreach_email(lead_name=lead_name, company_name=lead.company_name, title=lead.title, cta=cta)
+        result = generate_outreach_email(
+            lead_name=lead_name,
+            company_name=lead.company_name,
+            title=lead.title,
+            cta=cta,
+            worker_type=worker_type,
+        )
     else:
         result = generate_followup_email(
             lead_name=lead_name,
             company_name=lead.company_name,
             step=message.sequence_step - 1,
             cta=cta,
+            worker_type=worker_type,
         )
     message.subject_line = result.subject
     message.body_text = result.body

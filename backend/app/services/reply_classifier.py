@@ -1,13 +1,19 @@
 from sqlalchemy.orm import Session
 
-from app.models import Lead, LeadStatus, Reply, ReplyIntent, SentEmail
+from app.models import Campaign, Lead, LeadStatus, Reply, ReplyIntent, SentEmail, Worker
 from app.services.analytics_recorder import record_worker_signal
 from app.services.ai_service import classify_reply
 from app.services.audit import log_audit_event
 
 
 def classify_and_store_reply(db: Session, sent_email: SentEmail, reply_text: str) -> Reply:
-    result = classify_reply(reply_text)
+    worker_type = "ai_sales_worker"
+    campaign = db.get(Campaign, sent_email.campaign_id)
+    if campaign and campaign.worker_id:
+        worker = db.get(Worker, campaign.worker_id)
+        if worker:
+            worker_type = worker.worker_type
+    result = classify_reply(reply_text, worker_type=worker_type)
     sent_email.reply_detected = True
     sent_email.delivery_status = "replied"
     lead = db.get(Lead, sent_email.lead_id)

@@ -1,14 +1,19 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import Campaign, User, Worker, WorkerStatus
-from app.schemas.api import WorkerCreate, WorkerRead, WorkerRunRead, WorkerUpdate
+from app.models import Campaign, User, Worker, WorkerStatus, WorkerTemplate
+from app.schemas.api import WorkerCreate, WorkerRead, WorkerRunRead, WorkerTemplateRead, WorkerUpdate
 from app.services.audit import log_audit_event
+from app.services.worker_definitions import (
+    build_worker_config,
+    ensure_builtin_worker_templates,
+    resolve_worker_definition,
+)
 from app.services.worker_service import list_worker_runs, pause_worker, queue_worker_run, resume_worker, run_worker_for_campaign
 from app.tasks.dispatcher import enqueue_task
 from app.tasks.jobs import execute_worker_run_task
@@ -18,21 +23,48 @@ router = APIRouter(prefix="/workers", tags=["workers"])
 
 @router.post("", response_model=WorkerRead)
 def create_worker(payload: WorkerCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    ensure_builtin_worker_templates(db)
+    try:
+        definition = resolve_worker_definition(payload.worker_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not definition.public_available:
+        raise HTTPException(status_code=403, detail="Worker type is not publicly available")
+
+    selected_template: WorkerTemplate | None = None
+    if payload.template_id:
+        selected_template = db.get(WorkerTemplate, payload.template_id)
+        if not selected_template:
+            raise HTTPException(status_code=404, detail="Worker template not found")
+        if selected_template.worker_type != definition.worker_type:
+            raise HTTPException(status_code=400, detail="Template does not match worker type")
+    if not selected_template:
+        selected_template = db.query(WorkerTemplate).filter(WorkerTemplate.template_key == definition.worker_type).first()
+
     worker = Worker(
         workspace_id=current_user.workspace_id,
         name=payload.name,
-        worker_type="ai_sales_worker",
+        worker_type=definition.worker_type,
+        worker_category=definition.worker_category,
+        mission=payload.goal,
         goal=payload.goal,
+        plan_version=definition.plan_version,
+        allowed_actions=list(definition.allowed_actions),
+        template_id=selected_template.id if selected_template else None,
+        origin_type=definition.origin_type,
+        is_custom_worker=False,
+        is_internal=False,
         tone=payload.tone,
         send_limit_per_day=payload.daily_send_limit,
         run_interval_minutes=max(payload.run_interval_minutes, 15),
         next_run_at=datetime.now(UTC) + timedelta(minutes=max(payload.run_interval_minutes, 15)),
-        config_json={
-            "target_industry": payload.target_industry,
-            "target_roles": payload.target_roles,
-            "target_locations": payload.target_locations,
-            "company_size_range": payload.company_size_range,
-        },
+        config_json=build_worker_config(
+            definition,
+            target_industry=payload.target_industry,
+            target_roles=payload.target_roles,
+            target_locations=payload.target_locations,
+            company_size_range=payload.company_size_range,
+        ),
     )
     db.add(worker)
     log_audit_event(
@@ -61,6 +93,21 @@ def get_worker(worker_id: uuid.UUID, current_user: User = Depends(get_current_us
     return worker
 
 
+@router.get("/templates/library", response_model=list[WorkerTemplateRead])
+def list_worker_templates(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    include_internal: bool = Query(default=False),
+):
+    ensure_builtin_worker_templates(db)
+    query = db.query(WorkerTemplate).filter(WorkerTemplate.is_active.is_(True))
+    if not include_internal:
+        query = query.filter(WorkerTemplate.is_public.is_(True))
+    templates = query.order_by(WorkerTemplate.display_name.asc()).all()
+    db.commit()
+    return templates
+
+
 @router.patch("/{worker_id}", response_model=WorkerRead)
 def update_worker(
     worker_id: uuid.UUID,
@@ -79,7 +126,19 @@ def update_worker(
             worker.next_run_at = datetime.now(UTC) + timedelta(minutes=worker.run_interval_minutes)
     if payload.status is not None and payload.status not in {item.value for item in WorkerStatus}:
         raise HTTPException(status_code=400, detail="Invalid worker status")
-    for field in ["name", "goal", "tone", "status", "config_json"]:
+    if payload.goal is not None and payload.mission is None:
+        worker.mission = payload.goal
+    for field in [
+        "name",
+        "mission",
+        "goal",
+        "tone",
+        "status",
+        "config_json",
+        "plan_version",
+        "allowed_actions",
+        "is_internal",
+    ]:
         value = getattr(payload, field)
         if value is not None:
             setattr(worker, field, value)

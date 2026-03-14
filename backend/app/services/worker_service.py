@@ -61,9 +61,13 @@ def queue_worker_run(
     run = WorkerRun(
         worker_id=worker.id,
         campaign_id=campaign.id,
-        run_type="campaign_loop",
+        run_type="worker_execution",
         status=WorkerRunStatus.QUEUED.value,
-        input_json={"campaign_id": str(campaign.id), "require_manual_approval": require_manual_approval},
+        input_json={
+            "campaign_id": str(campaign.id),
+            "require_manual_approval": require_manual_approval,
+            "worker_type": worker.worker_type,
+        },
     )
     db.add(run)
     worker.status = WorkerStatus.PROSPECTING.value

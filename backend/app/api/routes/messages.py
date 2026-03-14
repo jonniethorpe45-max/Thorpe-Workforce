@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import ApprovalStatus, Campaign, GeneratedMessage, Lead, User
+from app.models import ApprovalStatus, Campaign, GeneratedMessage, Lead, User, Worker
 from app.schemas.api import MessageRead
 from app.services.message_generator import regenerate_message
 
@@ -60,7 +60,12 @@ def regenerate(message_id: uuid.UUID, current_user: User = Depends(get_current_u
     lead = db.get(Lead, message.lead_id)
     if not campaign or campaign.workspace_id != current_user.workspace_id or not lead:
         raise HTTPException(status_code=404, detail="Campaign or lead not found")
-    regenerate_message(db, message=message, campaign=campaign, lead=lead)
+    worker_type = "ai_sales_worker"
+    if campaign.worker_id:
+        worker = db.get(Worker, campaign.worker_id)
+        if worker:
+            worker_type = worker.worker_type
+    regenerate_message(db, message=message, campaign=campaign, lead=lead, worker_type=worker_type)
     db.commit()
     db.refresh(message)
     return message

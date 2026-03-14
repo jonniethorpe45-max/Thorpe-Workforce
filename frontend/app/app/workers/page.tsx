@@ -52,6 +52,7 @@ export default function WorkersPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Goal</th>
+              <th className="px-4 py-3">Template</th>
               <th className="px-4 py-3">Worker Status</th>
               <th className="px-4 py-3">Daily Limit</th>
               <th className="px-4 py-3">Next Run</th>
@@ -66,6 +67,7 @@ export default function WorkersPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-slate-600">{worker.goal}</td>
+                <td className="px-4 py-3 text-slate-600">{worker.worker_type}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={worker.status} />
                 </td>

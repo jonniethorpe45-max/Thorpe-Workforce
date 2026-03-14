@@ -9,17 +9,10 @@ from app.services.ai_utils import (
     parse_json_object,
     sanitize_list,
 )
-from app.services.prompt_templates import (
-    company_research_prompt,
-    followup_prompt,
-    outreach_prompt,
-    reply_classification_prompt,
-)
 
 
 class MockAIProvider(AIProvider):
     def generate_company_research(self, company_name: str, website: str | None, industry: str | None) -> CompanyResearchResult:
-        _prompt = company_research_prompt(company_name=company_name, website=website, industry=industry)
         raw_response = json.dumps(
             {
                 "summary": (
@@ -55,7 +48,6 @@ class MockAIProvider(AIProvider):
         )
 
     def generate_outreach_email(self, lead_name: str, company_name: str, title: str | None, cta: str) -> OutreachEmailResult:
-        _prompt = outreach_prompt(lead_name=lead_name, company_name=company_name, title=title, cta=cta)
         raw_response = json.dumps(
             {
                 "subject": f"Idea for {company_name}'s outbound pipeline",
@@ -84,7 +76,6 @@ class MockAIProvider(AIProvider):
         )
 
     def generate_followup_email(self, lead_name: str, company_name: str, step: int, cta: str) -> OutreachEmailResult:
-        _prompt = followup_prompt(lead_name=lead_name, company_name=company_name, step=step, cta=cta)
         raw_response = json.dumps(
             {
                 "subject": f"Quick follow-up on outbound at {company_name}",
@@ -115,7 +106,6 @@ class MockAIProvider(AIProvider):
         )
 
     def classify_reply(self, reply_text: str) -> ReplyClassificationResult:
-        _prompt = reply_classification_prompt(reply_text=reply_text)
         text = reply_text.lower()
         classification = {"intent": "unknown", "confidence": 0.55, "requires_human_review": True, "sentiment": "neutral"}
         if "unsubscribe" in text:
