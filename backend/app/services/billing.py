@@ -1,11 +1,10 @@
-import json
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -14,12 +13,10 @@ from app.models import (
     BillingEventStatus,
     BillingInterval,
     CreatorMonetizationProfile,
-    Lead,
     SubscriptionPlan,
     WorkerAccessType,
     WorkerEntitlementStatus,
     WorkerInstance,
-    WorkerMemoryScope,
     WorkerRun,
     WorkerSubscription,
     WorkerTemplate,

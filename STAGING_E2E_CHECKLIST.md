@@ -11,6 +11,7 @@ Use this checklist before promoting to production.
 - [ ] Celery worker connected and processing tasks
 - [ ] Frontend points to staging API URL
 - [ ] `WORKER_CREATOR_ENABLED` set correctly for staged rollout plan
+- [ ] Stripe env variables configured for staging billing flow
 
 ## B. Auth & workspace boundary checks
 
@@ -51,6 +52,8 @@ Use this checklist before promoting to production.
 - [ ] Marketplace detail by id/slug resolves correctly
 - [ ] Install marketplace worker creates/updates subscription state
 - [ ] Review create/update works and rating aggregates update
+- [ ] Paid worker install is blocked before purchase entitlement
+- [ ] Paid worker checkout creates Stripe session and install is allowed after webhook sync
 
 ## F. Public worker library checks
 
@@ -73,6 +76,7 @@ Use this checklist before promoting to production.
 - [ ] Frontend lint/build pass in staging CI
 - [ ] No migration drift after deploy (`alembic heads` matches expected head)
 - [ ] API logs show no auth leaks or unhandled exceptions in core workflows
+- [ ] Billing webhook idempotency verified (`billing_event_logs` has no duplicate `stripe_event_id`)
 
 ## I. Sign-off criteria
 

@@ -9,6 +9,14 @@ The backend is now structured as a **configuration-driven worker platform**:
 - action registry
 - run executor with step logs
 
+The platform now includes a **Stripe-ready monetization layer** with:
+
+- subscription plans and workspace subscriptions
+- billing checkout + billing portal flows
+- webhook-driven billing state sync
+- centralized feature gating and usage limits
+- paid worker entitlement checks before install/run
+
 The current public worker remains AI Sales Worker, while the architecture supports future built-in and custom worker types.
 
 ## Monorepo Structure
@@ -89,6 +97,7 @@ Implemented endpoint groups:
 - Workers (`/workers*`)
 - Worker templates library (`/workers/templates/library`)
 - Worker Creator drafts (`/workers/builder/*`, feature-flagged)
+- Billing (`/billing/plans`, `/billing/subscription`, `/billing/checkout/*`, `/billing/portal`, `/billing/entitlements`, `/billing/webhooks/stripe`)
 - Worker runs (`/workers/{worker_id}/runs`, `/workers/{worker_id}/execute`)
 - Campaigns (`/campaigns*`)
 - Leads (`/leads*`)
@@ -108,6 +117,7 @@ Alembic migration file:
 - `backend/migrations/versions/0004_template_workspace_scope.py`
 - `backend/migrations/versions/0005_workforce_os_core.py`
 - `backend/migrations/versions/0006_worker_creator_drafts.py`
+- `backend/migrations/versions/0007_billing_core.py`
 
 ## Tests
 
@@ -139,3 +149,57 @@ Includes baseline coverage for:
 - Current AI/email/calendar providers include mock implementations to keep local MVP runnable without third-party keys.
 - Safe sending defaults include workspace daily cap, worker campaign cap, duplicate step prevention, and unsubscribe/bounce suppression.
 - Worker Creator is disabled by default; enable with `WORKER_CREATOR_ENABLED=true` for internal template-draft workflows.
+- Billing plan seeds are idempotent and include `free`, `pro`, `creator`, and `enterprise` (plus a legacy `starter` compatibility plan).
+- Server-side entitlements enforce:
+  - worker builder access
+  - marketplace publishing access
+  - install limits
+  - worker run monthly limits
+  - paid worker entitlement checks
+
+## Stripe environment variables
+
+Set these in `backend/.env` for Stripe-enabled billing:
+
+- `BILLING_PROVIDER=stripe` (or keep `placeholder` for local non-payment testing)
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID_PRO_MONTHLY`
+- `STRIPE_PRICE_ID_PRO_ANNUAL`
+- `STRIPE_PRICE_ID_CREATOR_MONTHLY`
+- `STRIPE_PRICE_ID_CREATOR_ANNUAL`
+- `STRIPE_PRICE_ID_ENTERPRISE_MONTHLY` (optional if enterprise is sales-led)
+- `APP_BASE_URL`
+- `STRIPE_BILLING_PORTAL_RETURN_URL`
+
+## Local Stripe webhook testing (Stripe CLI)
+
+1) Start backend:
+
+```bash
+cd backend
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+2) Start Stripe listener forwarding to backend:
+
+```bash
+stripe listen --forward-to localhost:8000/billing/webhooks/stripe
+```
+
+3) Copy the printed signing secret (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
+
+4) Trigger test events:
+
+```bash
+stripe trigger checkout.session.completed
+stripe trigger customer.subscription.updated
+stripe trigger invoice.paid
+```
+
+5) Verify billing sync:
+
+- `GET /billing/subscription`
+- `GET /billing/entitlements`
+- check `billing_event_logs` records
