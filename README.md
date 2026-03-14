@@ -98,6 +98,9 @@ Implemented endpoint groups:
 - Worker templates library (`/workers/templates/library`)
 - Worker Creator drafts (`/workers/builder/*`, feature-flagged)
 - Billing (`/billing/plans`, `/billing/subscription`, `/billing/checkout/*`, `/billing/portal`, `/billing/entitlements`, `/billing/webhooks/stripe`)
+- Creator analytics (`/creator/dashboard/summary`, `/creator/workers`, `/creator/workers/{id}/analytics`, `/creator/payouts/summary`, `/creator/activity`)
+- Workspace analytics (`/analytics/workspace/summary`, `/analytics/workspace/activity`, `/analytics/workspace/usage-history`)
+- Admin analytics + moderation (`/admin/analytics/summary`, `/admin/workers*`, `/admin/creators`, `/admin/billing/summary`)
 - Worker runs (`/workers/{worker_id}/runs`, `/workers/{worker_id}/execute`)
 - Campaigns (`/campaigns*`)
 - Leads (`/leads*`)
@@ -118,6 +121,7 @@ Alembic migration file:
 - `backend/migrations/versions/0005_workforce_os_core.py`
 - `backend/migrations/versions/0006_worker_creator_drafts.py`
 - `backend/migrations/versions/0007_billing_core.py`
+- `backend/migrations/versions/0008_analytics_ops.py`
 
 ## Tests
 
@@ -156,6 +160,13 @@ Includes baseline coverage for:
   - install limits
   - worker run monthly limits
   - paid worker entitlement checks
+- Moderation foundation:
+  - `worker_templates.moderation_status` controls public/marketplace visibility
+  - users can submit template reports via `POST /workers/{worker_id}/report`
+  - admins can approve/reject/hide via `POST /admin/workers/{worker_id}/moderate`
+- Revenue reporting foundation:
+  - creator/admin revenue values are **estimates** based on billing and marketplace events
+  - payout settlement, refunds, and tax/accounting truth are intentionally separate future flows
 
 ## Stripe environment variables
 
