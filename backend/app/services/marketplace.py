@@ -18,7 +18,7 @@ from app.models import (
     WorkerRevenueEvent,
 )
 from app.schemas.api import WorkerReviewCreate, WorkerTemplatePublishRequest
-from app.services.billing import BillingResult, get_billing_service
+from app.services.billing import BillingResult
 from app.services.worker_templates import (
     TemplateInstallResult,
     get_worker_template_details,
@@ -32,6 +32,8 @@ from app.services.worker_templates import (
 class MarketplaceTemplateDetail:
     template: WorkerTemplate
     is_installed: bool
+    has_active_entitlement: bool
+    purchase_required: bool
     subscription: WorkerSubscription | None
     reviews: list[WorkerReview]
     tools: list[WorkerTool]
@@ -129,6 +131,7 @@ def list_marketplace_workers(
         .filter(
             WorkerSubscription.workspace_id == workspace_id,
             WorkerSubscription.is_active.is_(True),
+            WorkerSubscription.status.in_(("active", "pending")),
             WorkerSubscription.worker_template_id.in_(template_ids) if template_ids else False,
         )
         .all()
@@ -139,6 +142,7 @@ def list_marketplace_workers(
             WorkerSubscription.workspace_id == workspace_id,
             WorkerSubscription.worker_template_id.in_(template_ids) if template_ids else False,
             WorkerSubscription.is_active.is_(True),
+            WorkerSubscription.status.in_(("active", "pending")),
         )
         .all()
     )
@@ -147,6 +151,11 @@ def list_marketplace_workers(
         {
             "template": template,
             "is_installed": template.id in installed_template_ids,
+            "has_active_entitlement": template.pricing_type in {"free", "internal"}
+            or template.id in installed_template_ids,
+            "purchase_required": template.pricing_type not in {"free", "internal"}
+            and int(template.price_cents or 0) > 0
+            and template.id not in installed_template_ids,
             "subscription": subscription_by_template.get(template.id),
         }
         for template in items
@@ -175,6 +184,7 @@ def get_marketplace_worker_detail(
             WorkerSubscription.workspace_id == workspace_id,
             WorkerSubscription.worker_template_id == template.id,
             WorkerSubscription.is_active.is_(True),
+            WorkerSubscription.status.in_(("active", "pending")),
         )
         .order_by(WorkerSubscription.started_at.desc())
         .first()
@@ -190,6 +200,10 @@ def get_marketplace_worker_detail(
     return MarketplaceTemplateDetail(
         template=template,
         is_installed=subscription is not None,
+        has_active_entitlement=template.pricing_type in {"free", "internal"} or subscription is not None,
+        purchase_required=template.pricing_type not in {"free", "internal"}
+        and int(template.price_cents or 0) > 0
+        and subscription is None,
         subscription=subscription,
         reviews=reviews,
         tools=tools,
@@ -208,36 +222,6 @@ def publish_template_to_marketplace(
     )
     published = publish_worker_template(db, template=template, workspace_id=workspace_id, payload=publish_payload)
     return published
-
-
-def _upsert_subscription_from_billing(
-    db: Session,
-    *,
-    install_result: TemplateInstallResult,
-    billing_result: BillingResult,
-    installer_user_id: uuid.UUID | None,
-    template: WorkerTemplate,
-    workspace_id: uuid.UUID,
-) -> WorkerSubscription:
-    subscription = install_result.subscription
-    if not subscription:
-        subscription = WorkerSubscription(
-            workspace_id=workspace_id,
-            worker_template_id=template.id,
-            purchaser_user_id=installer_user_id,
-            billing_status=billing_result.billing_status,
-            price_cents=template.price_cents,
-            currency=template.currency,
-            is_active=True,
-        )
-        db.add(subscription)
-    subscription.billing_status = billing_result.billing_status
-    subscription.price_cents = template.price_cents
-    subscription.currency = template.currency
-    if not billing_result.is_captured and template.price_cents > 0:
-        subscription.is_active = True
-    db.flush()
-    return subscription
 
 
 def create_revenue_event(
@@ -290,24 +274,24 @@ def install_marketplace_worker(
         schedule_expression=schedule_expression,
         memory_scope=memory_scope,
     )
-    billing_result = get_billing_service().process_marketplace_subscription(template)
-    subscription = _upsert_subscription_from_billing(
-        db,
-        install_result=install_result,
-        billing_result=billing_result,
-        installer_user_id=installer_user_id,
-        template=template,
-        workspace_id=workspace_id,
+    billing_result = BillingResult(
+        billing_status="active",
+        is_captured=True,
+        message="Template installed successfully",
     )
+    subscription = install_result.subscription
+    if subscription:
+        subscription.billing_status = "active"
+        if int(template.price_cents or 0) > 0:
+            subscription.status = "active"
+            subscription.access_type = template.pricing_type
+        db.flush()
     if template.price_cents <= 0:
         revenue_type = "free_install"
         gross = 0
-    elif billing_result.is_captured:
+    else:
         revenue_type = "purchase_captured"
         gross = template.price_cents
-    else:
-        revenue_type = "purchase_pending"
-        gross = 0
     revenue_event = create_revenue_event(
         db,
         template=template,

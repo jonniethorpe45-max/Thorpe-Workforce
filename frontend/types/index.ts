@@ -294,12 +294,16 @@ export type WorkerReviewRead = {
 export type MarketplaceListingRead = {
   template: WorkerTemplateCatalogRead;
   is_installed: boolean;
+  has_active_entitlement: boolean;
+  purchase_required: boolean;
   subscription?: WorkerSubscriptionRead | null;
 };
 
 export type MarketplaceWorkerDetailRead = {
   template: WorkerTemplateCatalogRead;
   is_installed: boolean;
+  has_active_entitlement: boolean;
+  purchase_required: boolean;
   subscription?: WorkerSubscriptionRead | null;
   reviews: WorkerReviewRead[];
   tools: WorkerToolCatalogRead[];
@@ -388,4 +392,63 @@ export type WorkerDraftPublishResponse = {
   published_template_id: string;
   is_published: boolean;
   template: WorkerTemplateRead;
+};
+
+export type BillingPlanRead = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  monthly_price_cents: number;
+  annual_price_cents?: number | null;
+  max_worker_drafts?: number | null;
+  max_published_workers?: number | null;
+  max_worker_installs_per_workspace?: number | null;
+  max_worker_runs_per_month?: number | null;
+  allow_worker_builder: boolean;
+  allow_marketplace_publishing: boolean;
+  allow_private_workers: boolean;
+  allow_public_workers: boolean;
+  allow_marketplace_install: boolean;
+  allow_team_features: boolean;
+  is_active: boolean;
+};
+
+export type BillingSubscriptionRead = {
+  id: string;
+  workspace_id: string;
+  plan_id?: string | null;
+  plan_code: string;
+  plan_name: string;
+  status: string;
+  billing_interval: "monthly" | "annual";
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_checkout_session_id?: string | null;
+  current_period_start?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end: boolean;
+  subscribed_at: string;
+  canceled_at?: string | null;
+  trial_ends_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingEntitlementsRead = {
+  plan: BillingPlanRead;
+  subscription?: BillingSubscriptionRead | null;
+  features: Record<string, boolean>;
+  limits: Record<string, number | null>;
+  usage: Record<string, number>;
+};
+
+export type BillingCheckoutSessionResponse = {
+  session_id: string;
+  checkout_url: string;
+  mode: "payment" | "subscription";
+};
+
+export type BillingPortalResponse = {
+  portal_url: string;
 };

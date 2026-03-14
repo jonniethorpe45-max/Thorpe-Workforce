@@ -8,6 +8,8 @@ from app.db.session import get_db
 from app.models import User, Workspace
 from app.schemas.api import LoginRequest, SignUpRequest, TokenResponse, UserRead
 from app.services.audit import log_audit_event
+from app.services.billing import ensure_workspace_subscription
+from app.services.subscription_plans import ensure_default_subscription_plans
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -35,6 +37,8 @@ def signup(payload: SignUpRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.flush()
+    ensure_default_subscription_plans(db)
+    ensure_workspace_subscription(db, workspace=workspace)
     log_audit_event(
         db,
         workspace_id=workspace.id,

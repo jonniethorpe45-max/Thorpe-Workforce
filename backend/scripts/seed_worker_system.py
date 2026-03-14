@@ -17,6 +17,7 @@ def seed() -> None:
         print("Ensured system worker templates and common worker tools.")
         print(f"Templates created: {summary.templates_created}")
         print(f"Tools created: {summary.tools_created}")
+        print(f"Subscription plans ensured: {summary.plans_upserted}")
         print(f"Templates available: {', '.join(summary.template_names)}")
         print(f"Common tools available: {', '.join(summary.common_tool_slugs)}")
     finally:

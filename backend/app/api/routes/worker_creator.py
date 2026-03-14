@@ -20,6 +20,16 @@ from app.schemas.api import (
     WorkerTemplateInstallRequest,
 )
 from app.services.audit import log_audit_event
+from app.services.billing import (
+    ensure_creator_monetization_profile,
+    require_marketplace_publish_access,
+    require_published_worker_capacity,
+    require_template_visibility_access,
+    require_worker_builder_access,
+    require_worker_draft_creation_access,
+    require_worker_install_access,
+    require_paid_worker_entitlement,
+)
 from app.services.worker_creator import (
     create_worker_draft,
     get_worker_draft,
@@ -56,6 +66,7 @@ def create_draft(
     current_user: User = Depends(require_worker_creator_access),
     db: Session = Depends(get_db),
 ):
+    require_worker_draft_creation_access(db, workspace_id=current_user.workspace_id)
     draft = create_worker_draft(
         db,
         workspace_id=current_user.workspace_id,
@@ -77,12 +88,14 @@ def create_draft(
 
 @router.get("/drafts", response_model=WorkerDraftListResponse)
 def list_drafts(current_user: User = Depends(require_worker_creator_access), db: Session = Depends(get_db)):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     drafts = list_worker_drafts(db, workspace_id=current_user.workspace_id, creator_user_id=current_user.id)
     return WorkerDraftListResponse(items=drafts, total=len(drafts))
 
 
 @router.get("/drafts/{draft_id}", response_model=WorkerDraftRead)
 def get_draft(draft_id: uuid.UUID, current_user: User = Depends(require_worker_creator_access), db: Session = Depends(get_db)):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     return get_worker_draft(
         db,
         draft_id=draft_id,
@@ -98,6 +111,7 @@ def patch_draft(
     current_user: User = Depends(require_worker_creator_access),
     db: Session = Depends(get_db),
 ):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     draft = get_worker_draft(
         db,
         draft_id=draft_id,
@@ -131,6 +145,7 @@ def run_draft_test(
     current_user: User = Depends(require_worker_creator_access),
     db: Session = Depends(get_db),
 ):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     draft = get_worker_draft(
         db,
         draft_id=draft_id,
@@ -156,12 +171,23 @@ def publish_draft(
     current_user: User = Depends(require_worker_creator_access),
     db: Session = Depends(get_db),
 ):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     draft = get_worker_draft(
         db,
         draft_id=draft_id,
         workspace_id=current_user.workspace_id,
         creator_user_id=current_user.id,
     )
+    require_template_visibility_access(
+        db,
+        workspace_id=current_user.workspace_id,
+        visibility=draft.visibility,
+    )
+    if draft.visibility in {"public", "marketplace"}:
+        require_published_worker_capacity(db, workspace_id=current_user.workspace_id)
+    if draft.visibility == "marketplace":
+        require_marketplace_publish_access(db, workspace_id=current_user.workspace_id)
+        ensure_creator_monetization_profile(db, user_id=current_user.id)
     template = publish_worker_draft(db, draft=draft, creator=current_user)
     log_audit_event(
         db,
@@ -188,6 +214,7 @@ def unpublish_draft(
     current_user: User = Depends(require_worker_creator_access),
     db: Session = Depends(get_db),
 ):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     draft = get_worker_draft(
         db,
         draft_id=draft_id,
@@ -221,6 +248,7 @@ def install_published_draft(
     current_user: User = Depends(require_worker_creator_access),
     db: Session = Depends(get_db),
 ):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
     draft = get_worker_draft(
         db,
         draft_id=draft_id,
@@ -232,6 +260,12 @@ def install_published_draft(
     template = db.get(WorkerTemplate, draft.published_template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Published template not found")
+    require_worker_install_access(db, workspace_id=current_user.workspace_id)
+    require_paid_worker_entitlement(
+        db,
+        workspace_id=current_user.workspace_id,
+        worker_template=template,
+    )
     result = install_worker_template(
         db,
         template=template,

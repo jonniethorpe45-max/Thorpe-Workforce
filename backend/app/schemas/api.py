@@ -6,16 +6,20 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models import (
+    BillingInterval,
     WorkerBuilderCategory,
     WorkerChainStatus,
     WorkerChainTriggerType,
+    WorkerEntitlementStatus,
     WorkerInstanceStatus,
     WorkerMemoryScope,
     WorkerPricingType,
     WorkerRunStatus,
     WorkerRunTriggerType,
+    WorkerAccessType,
     WorkerTemplateStatus,
     WorkerTemplateVisibility,
+    WorkspaceSubscriptionStatus,
 )
 
 
@@ -85,6 +89,85 @@ class WorkspaceUpdate(BaseSchema):
     website: str | None = None
     industry: str | None = None
     subscription_plan: str | None = None
+
+
+class BillingPlanRead(BaseSchema):
+    id: uuid.UUID
+    code: str
+    name: str
+    description: str | None = None
+    monthly_price_cents: int
+    annual_price_cents: int | None = None
+    max_worker_drafts: int | None = None
+    max_published_workers: int | None = None
+    max_worker_installs_per_workspace: int | None = None
+    max_worker_runs_per_month: int | None = None
+    allow_worker_builder: bool
+    allow_marketplace_publishing: bool
+    allow_private_workers: bool
+    allow_public_workers: bool
+    allow_marketplace_install: bool
+    allow_team_features: bool
+    is_active: bool
+
+
+class BillingSubscriptionRead(BaseSchema):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    plan_id: uuid.UUID | None = None
+    plan_code: str
+    plan_name: str
+    status: WorkspaceSubscriptionStatus
+    billing_interval: BillingInterval
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    stripe_checkout_session_id: str | None = None
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
+    cancel_at_period_end: bool = False
+    subscribed_at: datetime
+    canceled_at: datetime | None = None
+    trial_ends_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class BillingEntitlementsRead(BaseSchema):
+    plan: BillingPlanRead
+    subscription: BillingSubscriptionRead | None = None
+    features: dict[str, bool] = Field(default_factory=dict)
+    limits: dict[str, int | None] = Field(default_factory=dict)
+    usage: dict[str, int] = Field(default_factory=dict)
+
+
+class BillingCheckoutSubscriptionRequest(BaseSchema):
+    plan_code: str = Field(min_length=2, max_length=50)
+    billing_interval: BillingInterval = BillingInterval.MONTHLY
+
+    @field_validator("plan_code")
+    @classmethod
+    def normalize_plan_code(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class BillingCheckoutSessionResponse(BaseSchema):
+    session_id: str
+    checkout_url: str
+    mode: str
+
+
+class BillingPortalResponse(BaseSchema):
+    portal_url: str
+
+
+class BillingWorkerCheckoutRequest(BaseSchema):
+    purchase_type: WorkerAccessType | None = None
+
+
+class BillingWebhookResponse(BaseSchema):
+    received: bool = True
+    event_id: str
+    status: str
 
 
 class WorkerCreate(BaseSchema):
@@ -841,8 +924,15 @@ class WorkerSubscriptionRead(BaseSchema):
     worker_template_id: uuid.UUID
     purchaser_user_id: uuid.UUID | None = None
     billing_status: str
+    access_type: WorkerAccessType = WorkerAccessType.FREE
+    status: WorkerEntitlementStatus = WorkerEntitlementStatus.ACTIVE
     price_cents: int
     currency: str
+    stripe_checkout_session_id: str | None = None
+    stripe_payment_intent_id: str | None = None
+    stripe_subscription_id: str | None = None
+    granted_at: datetime | None = None
+    expires_at: datetime | None = None
     started_at: datetime
     ends_at: datetime | None = None
     is_active: bool
@@ -875,12 +965,16 @@ class CreatorRevenueSummaryRead(BaseSchema):
 class MarketplaceListingRead(BaseSchema):
     template: WorkerTemplateCatalogRead
     is_installed: bool = False
+    has_active_entitlement: bool = False
+    purchase_required: bool = False
     subscription: WorkerSubscriptionRead | None = None
 
 
 class MarketplaceWorkerDetailRead(BaseSchema):
     template: WorkerTemplateCatalogRead
     is_installed: bool = False
+    has_active_entitlement: bool = False
+    purchase_required: bool = False
     subscription: WorkerSubscriptionRead | None = None
     reviews: list[WorkerReviewCatalogRead] = Field(default_factory=list)
     tools: list[WorkerToolCatalogRead] = Field(default_factory=list)

@@ -36,7 +36,8 @@ def seed() -> None:
         print(
             "Ensured system worker templates/tools "
             f"(templates_created={system_seed_summary.templates_created}, "
-            f"tools_created={system_seed_summary.tools_created})."
+            f"tools_created={system_seed_summary.tools_created}, "
+            f"plans_upserted={system_seed_summary.plans_upserted})."
         )
 
         existing = db.query(User).filter(User.email == "demo@thorpeworkforce.com").first()
