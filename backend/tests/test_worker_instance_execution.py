@@ -107,5 +107,26 @@ def test_execute_worker_instance_manual_route(client, auth_headers):
             .first()
         )
         assert memory is not None
+        run_summary_memory = (
+            db.query(WorkerMemory)
+            .filter(
+                WorkerMemory.workspace_id == refreshed_instance.workspace_id,
+                WorkerMemory.instance_id == refreshed_instance.id,
+                WorkerMemory.memory_key == "last_run_summary",
+            )
+            .first()
+        )
+        assert run_summary_memory is not None
+        metadata_memory = (
+            db.query(WorkerMemory)
+            .filter(
+                WorkerMemory.workspace_id == refreshed_instance.workspace_id,
+                WorkerMemory.instance_id == refreshed_instance.id,
+                WorkerMemory.memory_key == "last_run_metadata",
+            )
+            .first()
+        )
+        assert metadata_memory is not None
+        assert metadata_memory.memory_value_json["run_id"] == execute_payload["run_id"]
     finally:
         db.close()

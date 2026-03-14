@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.integrations.ai.base import WorkerModelResponse
@@ -14,7 +13,6 @@ from app.models import (
     Worker,
     WorkerInstance,
     WorkerInstanceStatus,
-    WorkerMemory,
     WorkerMemoryScope,
     WorkerRun,
     WorkerRunStatus,
@@ -24,6 +22,7 @@ from app.models import (
 )
 from app.services.ai_utils import normalize_whitespace, parse_json_object
 from app.services.audit import log_audit_event
+from app.services.worker_memory import build_worker_memory_bundle, store_worker_run_context, upsert_worker_memory
 
 
 @dataclass
@@ -100,26 +99,6 @@ class WorkerExecutionEngine:
         instance.legacy_worker_id = worker.id
         return worker
 
-    def _load_memory_context(self, db: Session, instance: WorkerInstance, template: WorkerTemplate) -> dict[str, Any]:
-        scope = instance.memory_scope or WorkerMemoryScope.INSTANCE.value
-        if scope == WorkerMemoryScope.NONE.value:
-            return {}
-
-        query = db.query(WorkerMemory).filter(WorkerMemory.workspace_id == instance.workspace_id)
-        if scope == WorkerMemoryScope.INSTANCE.value:
-            query = query.filter(WorkerMemory.instance_id == instance.id)
-        else:
-            query = query.filter(or_(WorkerMemory.instance_id.is_(None), WorkerMemory.instance_id == instance.id))
-
-        records = query.order_by(WorkerMemory.updated_at.desc()).limit(100).all()
-        memory: dict[str, Any] = {}
-        for record in records:
-            key = normalize_whitespace(record.memory_key)
-            if not key or key in memory:
-                continue
-            memory[key] = record.memory_value_json
-        return memory
-
     def build_execution_context(
         self,
         db: Session,
@@ -164,7 +143,17 @@ class WorkerExecutionEngine:
         allowed_actions = self._sanitize_string_list(template.allowed_actions or template.actions_json or [])
         allowed_tools = self._sanitize_string_list(template.tools_json or [])
         capabilities = template.capabilities_json if isinstance(template.capabilities_json, dict) else {}
-        memory_context = self._load_memory_context(db, instance, template) if template.memory_enabled else {}
+        memory_context = (
+            build_worker_memory_bundle(
+                db,
+                workspace_id=instance.workspace_id,
+                scope=instance.memory_scope,
+                instance_id=instance.id,
+                template_id=template.id,
+            )
+            if template.memory_enabled
+            else {}
+        )
         model_name = normalize_whitespace(template.model_name or "") or "mock-ai-v1"
         return WorkerExecutionContext(
             db=db,
@@ -315,52 +304,6 @@ class WorkerExecutionEngine:
             "metadata": model_response.metadata,
         }
 
-    def _persist_memory_updates(self, context: WorkerExecutionContext, memory_updates: dict[str, Any]) -> None:
-        if not context.template.memory_enabled or not memory_updates:
-            return
-        if context.instance.memory_scope == WorkerMemoryScope.NONE.value:
-            return
-
-        for key, value in memory_updates.items():
-            if context.instance.memory_scope == WorkerMemoryScope.WORKSPACE.value:
-                memory = (
-                    context.db.query(WorkerMemory)
-                    .filter(
-                        WorkerMemory.workspace_id == context.instance.workspace_id,
-                        WorkerMemory.instance_id.is_(None),
-                        WorkerMemory.memory_key == key,
-                    )
-                    .first()
-                )
-                target_instance_id = None
-            else:
-                memory = (
-                    context.db.query(WorkerMemory)
-                    .filter(
-                        WorkerMemory.workspace_id == context.instance.workspace_id,
-                        WorkerMemory.instance_id == context.instance.id,
-                        WorkerMemory.memory_key == key,
-                    )
-                    .first()
-                )
-                target_instance_id = context.instance.id
-
-            payload = value if isinstance(value, dict) else {"value": value}
-            if memory:
-                memory.memory_value_json = payload
-                memory.template_id = context.template.id
-                continue
-            context.db.add(
-                WorkerMemory(
-                    workspace_id=context.instance.workspace_id,
-                    instance_id=target_instance_id,
-                    template_id=context.template.id,
-                    memory_key=key,
-                    memory_value_json=payload,
-                    memory_type="episodic",
-                )
-            )
-
     def persist_run(
         self,
         context: WorkerExecutionContext,
@@ -396,6 +339,23 @@ class WorkerExecutionEngine:
             context.worker.last_error_text = message
             context.worker.last_run_at = now
             context.worker.next_run_at = now + timedelta(minutes=15)
+            if context.template.memory_enabled:
+                store_worker_run_context(
+                    context.db,
+                    workspace_id=context.instance.workspace_id,
+                    scope=context.instance.memory_scope,
+                    instance_id=context.instance.id,
+                    template_id=context.template.id,
+                    run_id=run.id,
+                    summary=run.summary or "Execution failed",
+                    runtime_input=context.runtime_input,
+                    output={"error": message},
+                    suggested_actions=[],
+                    notes=["execution_failed"],
+                    token_usage_input=run.token_usage_input,
+                    token_usage_output=run.token_usage_output,
+                    cost_cents=run.cost_cents,
+                )
             log_audit_event(
                 context.db,
                 workspace_id=context.instance.workspace_id,
@@ -430,7 +390,34 @@ class WorkerExecutionEngine:
         context.worker.last_run_at = now
         context.worker.next_run_at = context.instance.next_run_at
 
-        self._persist_memory_updates(context, output.get("memory_updates", {}))
+        if context.template.memory_enabled:
+            for key, value in (output.get("memory_updates", {}) or {}).items():
+                upsert_worker_memory(
+                    context.db,
+                    workspace_id=context.instance.workspace_id,
+                    memory_key=key,
+                    memory_value=value,
+                    scope=context.instance.memory_scope,
+                    instance_id=context.instance.id,
+                    template_id=context.template.id,
+                    memory_type="episodic",
+                )
+            store_worker_run_context(
+                context.db,
+                workspace_id=context.instance.workspace_id,
+                scope=context.instance.memory_scope,
+                instance_id=context.instance.id,
+                template_id=context.template.id,
+                run_id=run.id,
+                summary=run.summary or "Execution completed",
+                runtime_input=context.runtime_input,
+                output=output.get("output", {}),
+                suggested_actions=output.get("suggested_actions", []),
+                notes=output.get("notes", []),
+                token_usage_input=run.token_usage_input,
+                token_usage_output=run.token_usage_output,
+                cost_cents=run.cost_cents,
+            )
         log_audit_event(
             context.db,
             workspace_id=context.instance.workspace_id,
