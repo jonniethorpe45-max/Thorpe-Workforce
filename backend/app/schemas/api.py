@@ -555,6 +555,33 @@ class WorkerChainListResponse(BaseSchema):
     total: int
 
 
+class WorkerChainRunRequest(BaseSchema):
+    runtime_input: dict[str, Any] = Field(default_factory=dict)
+    max_steps: int | None = Field(default=None, ge=1, le=500)
+
+
+class WorkerChainStepExecutionRead(BaseSchema):
+    step_order: int
+    status: str
+    run_id: uuid.UUID | None = None
+    worker_instance_id: uuid.UUID | None = None
+    worker_template_id: uuid.UUID | None = None
+    summary: str | None = None
+    error: str | None = None
+    next_step_order: int | None = None
+    skipped_reason: str | None = None
+
+
+class WorkerChainRunResponse(BaseSchema):
+    success: bool
+    chain_id: uuid.UUID
+    chain_run_id: str
+    status: str
+    executed_steps: list[WorkerChainStepExecutionRead] = Field(default_factory=list)
+    total_steps_executed: int = 0
+    final_output: dict[str, Any] = Field(default_factory=dict)
+
+
 class WorkerReviewCreate(BaseSchema):
     rating: int = Field(ge=1, le=5)
     review_text: str | None = None

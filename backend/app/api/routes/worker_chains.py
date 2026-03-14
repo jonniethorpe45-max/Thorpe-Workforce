@@ -10,10 +10,14 @@ from app.schemas.api import (
     WorkerChainCreate,
     WorkerChainListResponse,
     WorkerChainRead,
+    WorkerChainRunRequest,
+    WorkerChainRunResponse,
     WorkerChainStepCreate,
+    WorkerChainStepExecutionRead,
     WorkerChainStepRead,
     WorkerChainUpdate,
 )
+from app.services.worker_chain import run_worker_chain_manually
 from app.services.worker_templates import get_worker_template_details
 
 router = APIRouter(prefix="/worker-chains", tags=["worker_chains"])
@@ -142,3 +146,44 @@ def update_chain(
     db.commit()
     db.refresh(chain)
     return _serialize_chain(db, chain)
+
+
+@router.post("/{chain_id}/run", response_model=WorkerChainRunResponse)
+def run_chain(
+    chain_id: uuid.UUID,
+    payload: WorkerChainRunRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    chain = _get_workspace_chain(db, chain_id=chain_id, workspace_id=current_user.workspace_id)
+    result = run_worker_chain_manually(
+        db,
+        chain=chain,
+        workspace_id=current_user.workspace_id,
+        actor_user_id=current_user.id,
+        runtime_input=payload.runtime_input,
+        max_steps=payload.max_steps,
+    )
+    db.commit()
+    return WorkerChainRunResponse(
+        success=result.success,
+        chain_id=result.chain_id,
+        chain_run_id=result.chain_run_id,
+        status=result.status,
+        executed_steps=[
+            WorkerChainStepExecutionRead(
+                step_order=item.step_order,
+                status=item.status,
+                run_id=item.run_id,
+                worker_instance_id=item.worker_instance_id,
+                worker_template_id=item.worker_template_id,
+                summary=item.summary,
+                error=item.error,
+                next_step_order=item.next_step_order,
+                skipped_reason=item.skipped_reason,
+            )
+            for item in result.executed_steps
+        ],
+        total_steps_executed=result.total_steps_executed,
+        final_output=result.final_output,
+    )
