@@ -41,7 +41,7 @@ def test_execute_worker_instance_manual_route(client, auth_headers):
                 config_json={"mission": "run"},
                 capabilities_json={"can_reason": True},
                 actions_json=["monitor_outbound_events"],
-                tools_json=["crm_lookup"],
+                tools_json=["internal_note_writer"],
                 memory_enabled=True,
                 chain_enabled=False,
                 is_marketplace_listed=False,
@@ -86,7 +86,10 @@ def test_execute_worker_instance_manual_route(client, auth_headers):
         assert run.status == WorkerRunStatus.COMPLETED.value
         assert run.summary
         assert run.output_json is not None
-        assert run.output_json["tool_calls"] == [{"tool": "crm_lookup", "input": {"source": "mock"}}]
+        assert run.output_json["tool_calls"] == [
+            {"tool": "internal_note_writer", "input": {"note": "Mock runtime note", "note_type": "worker_runtime"}}
+        ]
+        assert run.output_json["tool_results"] == [{"tool": "internal_note_writer", "success": True, "output": {"stored": True}}]
         assert run.output_json["rejected_tool_calls"] == [{"tool": "disallowed_tool", "reason": "tool_not_allowed"}]
         assert run.token_usage_input > 0
         assert run.token_usage_output > 0

@@ -158,6 +158,16 @@ class MockAIProvider(AIProvider):
         context: dict[str, Any],
     ) -> WorkerModelResponse:
         preferred_tool = tools[0] if tools else None
+        tool_input: dict[str, Any] = {"source": "mock"}
+        if preferred_tool == "internal_note_writer":
+            tool_input = {"note": "Mock runtime note", "note_type": "worker_runtime"}
+        elif preferred_tool == "sms_sender":
+            tool_input = {"to": "+15550000000", "message": "Mock SMS from worker runtime"}
+        elif preferred_tool == "webhook_caller":
+            tool_input = {"url": "https://example.com/hook", "method": "POST", "body": {"source": "mock"}}
+        elif preferred_tool == "lead_recorder":
+            tool_input = {"company_name": "Mock Corp", "email": "mock.lead@example.com", "lead_source": "worker_tool"}
+
         output: dict[str, Any] = {
             "summary": "Worker instance executed successfully with structured output.",
             "output": {
@@ -169,7 +179,7 @@ class MockAIProvider(AIProvider):
             "memory_updates": {},
         }
         if preferred_tool:
-            output["tool_calls"].append({"tool": preferred_tool, "input": {"source": "mock"}})
+            output["tool_calls"].append({"tool": preferred_tool, "input": tool_input})
         # Include one invalid tool call so the execution layer can verify suppression.
         output["tool_calls"].append({"tool": "disallowed_tool", "input": {"source": "mock"}})
         output["memory_updates"] = {"last_runtime_input": runtime_input}

@@ -23,6 +23,11 @@ from app.models import (
 from app.services.ai_utils import normalize_whitespace, parse_json_object
 from app.services.audit import log_audit_event
 from app.services.worker_memory import build_worker_memory_bundle, store_worker_run_context, upsert_worker_memory
+from app.services.worker_tools import (
+    ensure_system_worker_tools,
+    invoke_tool_calls,
+    resolve_template_allowed_tool_slugs,
+)
 
 
 @dataclass
@@ -141,7 +146,8 @@ class WorkerExecutionEngine:
                 run.input_json = payload
 
         allowed_actions = self._sanitize_string_list(template.allowed_actions or template.actions_json or [])
-        allowed_tools = self._sanitize_string_list(template.tools_json or [])
+        ensure_system_worker_tools(db)
+        allowed_tools = resolve_template_allowed_tool_slugs(db, template)
         capabilities = template.capabilities_json if isinstance(template.capabilities_json, dict) else {}
         memory_context = (
             build_worker_memory_bundle(
@@ -375,6 +381,7 @@ class WorkerExecutionEngine:
         run.output_json = {
             "output": output.get("output", {}),
             "tool_calls": output.get("tool_calls", []),
+            "tool_results": output.get("tool_results", []),
             "rejected_tool_calls": output.get("rejected_tool_calls", []),
             "suggested_actions": output.get("suggested_actions", []),
             "notes": output.get("notes", []),
@@ -451,6 +458,27 @@ class WorkerExecutionEngine:
             context.prompt = self.assemble_worker_prompt(context)
             model_response = self.invoke_model(context, context.prompt)
             processed_output = self.postprocess_output(context, model_response)
+            tool_results, tool_rejections = invoke_tool_calls(
+                context.db,
+                workspace_id=context.instance.workspace_id,
+                instance_id=context.instance.id,
+                template_id=context.template.id,
+                worker_id=context.worker.id,
+                run_id=context.run.id,
+                tool_calls=processed_output.get("tool_calls", []) if isinstance(processed_output, dict) else [],
+                allowed_tool_slugs=context.allowed_tools,
+            )
+            processed_output["tool_results"] = tool_results
+            existing_rejections = processed_output.get("rejected_tool_calls", [])
+            if not isinstance(existing_rejections, list):
+                existing_rejections = []
+            processed_output["rejected_tool_calls"] = existing_rejections + tool_rejections
+            if tool_rejections:
+                notes = processed_output.get("notes", [])
+                if not isinstance(notes, list):
+                    notes = []
+                notes.append("Some tool invocations were rejected at runtime.")
+                processed_output["notes"] = notes
         except Exception as exc:  # pragma: no cover - protection for unexpected runtime issues
             error = exc
 
