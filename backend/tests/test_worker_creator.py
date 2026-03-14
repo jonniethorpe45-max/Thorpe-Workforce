@@ -1,3 +1,6 @@
+from app.core.config import settings
+
+
 def _signup_user(client, *, email: str, company: str):
     payload = {
         "full_name": "Creator User",
@@ -105,3 +108,18 @@ def test_worker_creator_test_publish_install_flow(client, auth_headers):
     unpublish_response = client.post(f"/workers/builder/drafts/{draft_id}/unpublish", headers=auth_headers, json={})
     assert unpublish_response.status_code == 200
     assert unpublish_response.json()["is_published"] is False
+
+
+def test_worker_creator_categories_contract(client, auth_headers):
+    response = client.get("/workers/builder/categories", headers=auth_headers)
+    assert response.status_code == 200
+    keys = {item["key"] for item in response.json()}
+    assert "custom" in keys
+    assert "sales" in keys
+    assert "real_estate" in keys
+
+
+def test_worker_creator_feature_flag_off_returns_404(client, auth_headers, monkeypatch):
+    monkeypatch.setattr(settings, "worker_creator_enabled", False)
+    response = client.get("/workers/builder/drafts", headers=auth_headers)
+    assert response.status_code == 404

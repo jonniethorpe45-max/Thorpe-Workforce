@@ -118,6 +118,7 @@ Platform/feature vars:
 - Marketplace/public payloads are intentionally sanitized and do not expose internal template config internals.
 - Local Docker is required for full Postgres/Redis parity checks.
 - Worker Creator endpoints are intentionally hidden when `WORKER_CREATOR_ENABLED=false`.
+- Alembic migrations are production-targeted for PostgreSQL; SQLite local dev is supported via ORM create_all/test fixtures, not full migration replay.
 
 ## Test/verification status
 
