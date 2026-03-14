@@ -11,10 +11,14 @@ from app.schemas.api import LeadCreate
 def import_leads_from_rows(db: Session, workspace_id, rows: Iterable[dict], campaign_id=None) -> dict:
     created = 0
     skipped_duplicates = 0
+    seen_batch_emails: set[str] = set()
     for row in rows:
         email = (row.get("email") or "").strip().lower()
         company_name = (row.get("company_name") or "").strip()
         if not email or not company_name:
+            continue
+        if email in seen_batch_emails:
+            skipped_duplicates += 1
             continue
         existing = db.query(Lead).filter(Lead.workspace_id == workspace_id, Lead.email == email).first()
         if existing:
@@ -38,6 +42,7 @@ def import_leads_from_rows(db: Session, workspace_id, rows: Iterable[dict], camp
             enrichment_json={},
         )
         db.add(lead)
+        seen_batch_emails.add(email)
         created += 1
     return {"created": created, "skipped_duplicates": skipped_duplicates}
 

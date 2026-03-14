@@ -11,4 +11,5 @@ redis
 sqlalchemy
 uvicorn[standard]
 requests
+httpx
 pytest
