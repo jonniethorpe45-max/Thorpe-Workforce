@@ -19,11 +19,20 @@ from app.models import (
     WorkerRun,
     Workspace,
 )
+from app.services.system_seed import seed_system_worker_templates_and_tools
 
 
 def seed() -> None:
     db = SessionLocal()
     try:
+        system_seed_summary = seed_system_worker_templates_and_tools(db)
+        db.commit()
+        print(
+            "Ensured system worker templates/tools "
+            f"(templates_created={system_seed_summary.templates_created}, "
+            f"tools_created={system_seed_summary.tools_created})."
+        )
+
         existing = db.query(User).filter(User.email == "demo@thorpeworkforce.com").first()
         if existing:
             print("Demo data already exists.")

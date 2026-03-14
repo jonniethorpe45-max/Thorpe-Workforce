@@ -47,6 +47,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 alembic upgrade head
+python scripts/seed_worker_system.py
 python scripts/seed_demo.py
 uvicorn app.main:app --reload --port 8000
 ```
