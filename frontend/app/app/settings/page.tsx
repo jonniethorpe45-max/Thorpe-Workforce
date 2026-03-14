@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+const INTERNAL_BUILDER_ENABLED = process.env.NEXT_PUBLIC_INTERNAL_WORKER_BUILDER_ENABLED === "true";
+
 export default function SettingsPage() {
   return (
     <div className="space-y-4">
@@ -7,6 +11,17 @@ export default function SettingsPage() {
           Workspace controls for team access, sending limits, and billing are staged here for the next release.
         </p>
       </div>
+      {INTERNAL_BUILDER_ENABLED ? (
+        <div className="card border-amber-200 bg-amber-50 p-6">
+          <h3 className="text-base font-semibold text-amber-900">Internal Tools</h3>
+          <p className="mt-1 text-sm text-amber-800">
+            Worker Builder is intended for internal architecture testing and is hidden unless enabled via environment flag.
+          </p>
+          <Link href="/app/internal/worker-builder" className="mt-3 inline-block text-sm font-medium text-brand-700 hover:underline">
+            Open Internal Worker Builder
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

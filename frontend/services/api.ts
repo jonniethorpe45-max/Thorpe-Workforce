@@ -17,6 +17,10 @@ export function clearAuthToken() {
   document.cookie = "thorpe_token=; path=/; max-age=0; samesite=lax";
 }
 
+type RequestOptions = {
+  headers?: Record<string, string>;
+};
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -35,15 +39,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path, { method: "GET" }),
-  post: <T>(path: string, body?: unknown) =>
+  get: <T>(path: string, options?: RequestOptions) =>
+    request<T>(path, {
+      method: "GET",
+      headers: options?.headers
+    }),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, {
       method: "POST",
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      headers: options?.headers
     }),
-  patch: <T>(path: string, body?: unknown) =>
+  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, {
       method: "PATCH",
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      headers: options?.headers
     })
 };
