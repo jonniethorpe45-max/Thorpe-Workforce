@@ -1,14 +1,13 @@
-import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models import Worker, WorkerTemplate
-from app.schemas.api import InternalWorkerFromTemplateCreate, InternalWorkerTemplateCreate
+from app.models import Worker, WorkerPricingType, WorkerTemplate, WorkerTemplateStatus, WorkerTemplateVisibility
+from app.schemas.api import InternalWorkerFromTemplateCreate, InternalWorkerTemplateCreate, WorkerTemplateCreate
 from app.services.worker_definitions import resolve_worker_definition
+from app.services.worker_templates import create_worker_template, get_worker_template_details, list_worker_templates
 from app.workers.actions import ACTION_CATALOG, list_action_catalog
 
 
@@ -34,43 +33,67 @@ def create_internal_template(
     db: Session,
     workspace_id,
     payload: InternalWorkerTemplateCreate,
+    creator_user_id=None,
 ) -> WorkerTemplate:
     steps = [item.model_dump() for item in payload.steps]
     _validate_steps_and_actions(payload.allowed_actions, steps)
 
     definition = resolve_worker_definition(payload.worker_type)
-    template_key = f"ws-{workspace_id}-{payload.display_name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:8]}"
-    template = WorkerTemplate(
+    config_blob = {
+        "config_defaults": payload.config_defaults,
+        "mission_default": payload.mission_default or "",
+        "execution_steps": steps,
+    }
+    template = create_worker_template(
+        db,
         workspace_id=workspace_id,
-        template_key=template_key,
-        display_name=payload.display_name,
-        worker_type=payload.worker_type,
-        worker_category=payload.worker_category or definition.worker_category,
-        plan_version=payload.plan_version,
-        default_config_json={
-            "config_defaults": payload.config_defaults,
-            "mission_default": payload.mission_default or "",
-            "execution_steps": steps,
-        },
-        allowed_actions=payload.allowed_actions,
-        prompt_profile=payload.prompt_profile,
-        is_public=False,
-        is_active=payload.is_active,
+        creator_user_id=creator_user_id,
+        payload=WorkerTemplateCreate(
+            name=payload.display_name,
+            slug=None,
+            short_description=None,
+            description=None,
+            category=payload.worker_category or definition.worker_category,
+            worker_type=payload.worker_type,
+            worker_category=payload.worker_category or definition.worker_category,
+            visibility=WorkerTemplateVisibility.WORKSPACE,
+            status=WorkerTemplateStatus.ACTIVE if payload.is_active else WorkerTemplateStatus.DRAFT,
+            instructions=None,
+            model_name=None,
+            config_json=config_blob,
+            capabilities_json={},
+            actions_json=list(payload.allowed_actions),
+            tools_json=[],
+            memory_enabled=True,
+            chain_enabled=False,
+            is_marketplace_listed=False,
+            pricing_type=WorkerPricingType.INTERNAL,
+            price_cents=0,
+            currency="USD",
+            tags_json=[],
+        ),
     )
-    db.add(template)
+    template.plan_version = payload.plan_version
+    template.prompt_profile = payload.prompt_profile
+    template.default_config_json = dict(config_blob)
+    template.config_json = dict(config_blob)
+    template.allowed_actions = list(payload.allowed_actions)
+    template.actions_json = list(payload.allowed_actions)
+    template.is_public = False
+    template.is_active = payload.is_active
+    template.status = WorkerTemplateStatus.ACTIVE.value if payload.is_active else WorkerTemplateStatus.DRAFT.value
     db.flush()
     return template
 
 
 def list_internal_templates(db: Session, workspace_id) -> list[WorkerTemplate]:
-    return (
-        db.query(WorkerTemplate)
-        .filter(
-            WorkerTemplate.is_active.is_(True),
-            or_(WorkerTemplate.workspace_id == workspace_id, WorkerTemplate.workspace_id.is_(None)),
-        )
-        .order_by(WorkerTemplate.workspace_id.desc(), WorkerTemplate.created_at.desc())
-        .all()
+    return list_worker_templates(
+        db,
+        workspace_id=workspace_id,
+        include_workspace_templates=True,
+        include_public_templates=False,
+        include_global_non_public_templates=True,
+        include_inactive=False,
     )
 
 
@@ -79,11 +102,13 @@ def create_worker_from_template(
     workspace_id,
     payload: InternalWorkerFromTemplateCreate,
 ) -> Worker:
-    template = db.get(WorkerTemplate, payload.template_id)
-    if not template:
-        raise HTTPException(status_code=404, detail="Worker template not found")
-    if template.workspace_id and template.workspace_id != workspace_id:
-        raise HTTPException(status_code=403, detail="Template not available for this workspace")
+    template = get_worker_template_details(
+        db,
+        template_id=payload.template_id,
+        workspace_id=workspace_id,
+        include_public=False,
+        include_global_non_public=True,
+    )
     if not template.is_active:
         raise HTTPException(status_code=400, detail="Template is not active")
 

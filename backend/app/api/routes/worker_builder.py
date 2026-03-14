@@ -49,7 +49,12 @@ def create_template(
     db: Session = Depends(get_db),
 ):
     ensure_builtin_worker_templates(db)
-    template = create_internal_template(db, workspace_id=current_user.workspace_id, payload=payload)
+    template = create_internal_template(
+        db,
+        workspace_id=current_user.workspace_id,
+        payload=payload,
+        creator_user_id=current_user.id,
+    )
     log_audit_event(
         db,
         workspace_id=current_user.workspace_id,
