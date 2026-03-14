@@ -336,3 +336,56 @@ export type PublicWorkerDetailRead = {
   average_rating: number;
   installs: number;
 };
+
+export type WorkerDraftRead = {
+  id: string;
+  workspace_id: string;
+  creator_user_id: string;
+  published_template_id: string | null;
+  name: string;
+  slug: string;
+  description: string | null;
+  category: string;
+  prompt_template: string;
+  input_schema_json: Record<string, unknown> | null;
+  output_schema_json: Record<string, unknown> | null;
+  tools_json: Array<{ label: string; enabled: boolean; config?: Record<string, unknown> }> | null;
+  visibility: "private" | "workspace" | "public" | "marketplace";
+  price_monthly: number | null;
+  price_onetime: number | null;
+  icon: string | null;
+  screenshots_json: string[] | null;
+  tags_json: string[] | null;
+  usage_examples_json: Array<Record<string, unknown>> | null;
+  is_published: boolean;
+  creator_revenue_percent: number;
+  platform_revenue_percent: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkerDraftListResponse = {
+  items: WorkerDraftRead[];
+  total: number;
+};
+
+export type WorkerDraftCreateResponse = {
+  worker_draft_id: string;
+  draft: WorkerDraftRead;
+};
+
+export type WorkerDraftTestResponse = {
+  worker_draft_id: string;
+  run_id: string;
+  status: string;
+  rendered_prompt: string;
+  execution_result: Record<string, unknown>;
+  normalized_output: Record<string, unknown>;
+};
+
+export type WorkerDraftPublishResponse = {
+  worker_draft_id: string;
+  published_template_id: string;
+  is_published: boolean;
+  template: WorkerTemplateRead;
+};

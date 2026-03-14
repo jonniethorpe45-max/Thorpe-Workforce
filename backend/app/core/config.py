@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     internal_worker_builder_enabled: bool = False
     internal_worker_builder_token: str = ""
+    worker_creator_enabled: bool = False
     cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
 
     @field_validator("cors_origins", mode="before")

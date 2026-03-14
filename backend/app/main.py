@@ -14,6 +14,7 @@ from app.api.routes import (
     webhooks,
     worker_chains,
     worker_builder,
+    worker_creator,
     worker_instances,
     worker_runs,
     worker_tools,
@@ -49,6 +50,7 @@ app.include_router(meetings.router)
 app.include_router(analytics.router)
 app.include_router(webhooks.router)
 app.include_router(worker_builder.router)
+app.include_router(worker_creator.router)
 
 
 @app.get("/health")

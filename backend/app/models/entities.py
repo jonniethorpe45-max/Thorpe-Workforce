@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Float,
+    Numeric,
     ForeignKey,
     Index,
     Integer,
@@ -99,6 +100,18 @@ class WorkerChainTriggerType(StrEnum):
     SCHEDULE = "schedule"
     EVENT = "event"
     API = "api"
+
+
+class WorkerBuilderCategory(StrEnum):
+    REAL_ESTATE = "real_estate"
+    MARKETING = "marketing"
+    FINANCE = "finance"
+    SALES = "sales"
+    ECOMMERCE = "ecommerce"
+    CONTENT = "content"
+    RESEARCH = "research"
+    AUTOMATION = "automation"
+    CUSTOM = "custom"
 
 
 class LeadStatus(StrEnum):
@@ -355,6 +368,8 @@ class WorkerTemplate(Base, TimestampMixin):
     __tablename__ = "worker_templates"
     __table_args__ = (
         UniqueConstraint("workspace_id", "slug", name="uq_worker_templates_workspace_slug"),
+        CheckConstraint("creator_revenue_percent >= 0 AND creator_revenue_percent <= 100", name="ck_worker_templates_creator_revenue_percent"),
+        CheckConstraint("platform_revenue_percent >= 0 AND platform_revenue_percent <= 100", name="ck_worker_templates_platform_revenue_percent"),
         Index("ix_worker_templates_slug", "slug"),
         Index("ix_worker_templates_visibility_status", "visibility", "status"),
         Index("ix_worker_templates_marketplace_listed", "is_marketplace_listed"),
@@ -393,10 +408,51 @@ class WorkerTemplate(Base, TimestampMixin):
     pricing_type: Mapped[str] = mapped_column(String(30), default=WorkerPricingType.INTERNAL.value, nullable=False)
     price_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="USD", nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(255))
+    screenshots_json: Mapped[list[str] | None] = mapped_column(JSON)
+    usage_examples_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    creator_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=70.0, nullable=False)
+    platform_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=30.0, nullable=False)
     install_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     rating_avg: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tags_json: Mapped[list[str] | None] = mapped_column(JSON)
+
+
+class WorkerTemplateDraft(Base, TimestampMixin):
+    __tablename__ = "worker_template_drafts"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "slug", name="uq_worker_template_drafts_workspace_slug"),
+        CheckConstraint("creator_revenue_percent >= 0 AND creator_revenue_percent <= 100", name="ck_worker_template_drafts_creator_revenue_percent"),
+        CheckConstraint("platform_revenue_percent >= 0 AND platform_revenue_percent <= 100", name="ck_worker_template_drafts_platform_revenue_percent"),
+        Index("ix_worker_template_drafts_workspace_creator", "workspace_id", "creator_user_id"),
+        Index("ix_worker_template_drafts_category", "category"),
+        Index("ix_worker_template_drafts_published", "is_published"),
+        Index("ix_worker_template_drafts_slug", "slug"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    creator_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    published_template_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("worker_templates.id"))
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    slug: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(50), default=WorkerBuilderCategory.CUSTOM.value, nullable=False)
+    prompt_template: Mapped[str] = mapped_column(Text, nullable=False)
+    input_schema_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    output_schema_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    tools_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    visibility: Mapped[str] = mapped_column(String(30), default=WorkerTemplateVisibility.PRIVATE.value, nullable=False)
+    price_monthly: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    price_onetime: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    icon: Mapped[str | None] = mapped_column(String(255))
+    screenshots_json: Mapped[list[str] | None] = mapped_column(JSON)
+    tags_json: Mapped[list[str] | None] = mapped_column(JSON)
+    usage_examples_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    creator_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=70.0, nullable=False)
+    platform_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=30.0, nullable=False)
 
 
 class WorkerInstance(Base, TimestampMixin):

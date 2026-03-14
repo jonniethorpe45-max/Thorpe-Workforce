@@ -43,3 +43,9 @@ def require_internal_worker_builder_access(
     if current_user.role not in {"owner", "admin"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return current_user
+
+
+def require_worker_creator_access(current_user: User = Depends(get_current_user)) -> User:
+    if not settings.worker_creator_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return current_user
