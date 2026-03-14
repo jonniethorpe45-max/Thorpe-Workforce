@@ -1,7 +1,7 @@
 """workforce os core models
 
 Revision ID: 0005_workforce_os_core
-Revises: 0004_worker_template_workspace_scope
+Revises: 0004_template_workspace_scope
 Create Date: 2026-03-14 17:15:00.000000
 """
 
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "0005_workforce_os_core"
-down_revision = "0004_worker_template_workspace_scope"
+down_revision = "0004_template_workspace_scope"
 branch_labels = None
 depends_on = None
 
