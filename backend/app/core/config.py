@@ -1,8 +1,9 @@
+import json
 from functools import lru_cache
-from typing import List
+from typing import Annotated, List
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -24,14 +25,25 @@ class Settings(BaseSettings):
     workspace_daily_send_cap: int = 250
     internal_worker_builder_enabled: bool = False
     internal_worker_builder_token: str = ""
-    cors_origins: List[str] = ["http://localhost:3000"]
+    cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
 
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_cors(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
-            return [part.strip() for part in value.split(",") if part.strip()]
-        return value
+            raw = value.strip()
+            if not raw:
+                return []
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError:
+                parsed = None
+            if isinstance(parsed, list):
+                return [str(part).strip() for part in parsed if str(part).strip()]
+            if isinstance(parsed, str) and parsed.strip():
+                return [parsed.strip()]
+            return [part.strip() for part in raw.split(",") if part.strip()]
+        return [part.strip() for part in value if part.strip()]
 
 
 @lru_cache(maxsize=1)
