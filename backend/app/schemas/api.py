@@ -432,6 +432,19 @@ class WorkerInstanceUpdate(BaseSchema):
     memory_scope: WorkerMemoryScope | None = None
 
 
+class WorkerInstanceExecuteRequest(BaseSchema):
+    runtime_input: dict[str, Any] = Field(default_factory=dict)
+    trigger_source: str | None = Field(default=None, max_length=255)
+
+
+class WorkerInstanceExecuteResponse(BaseSchema):
+    success: bool
+    queued: bool
+    run_id: uuid.UUID
+    task_id: str | None = None
+    status: WorkerRunStatus
+
+
 class WorkerChainStepCreate(BaseSchema):
     step_order: int = Field(ge=1)
     worker_instance_id: uuid.UUID | None = None

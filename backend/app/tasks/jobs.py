@@ -8,6 +8,7 @@ from app.services.followup_scheduler import schedule_followups
 from app.services.lead_researcher import research_lead
 from app.services.message_generator import generate_initial_sequence, send_approved_messages
 from app.services.reply_classifier import classify_and_store_reply
+from app.services.worker_execution import execute_worker_instance_run
 from app.workers.executor import WorkerExecutor
 from app.tasks.celery_app import celery_app
 
@@ -137,6 +138,30 @@ def execute_worker_run_task(run_id: str):
             run.attempts = max((run.attempts or 1) + 1, 1)
             run.status = WorkerRunStatus.FAILED.value
             run.error_text = str(exc)
+            db.commit()
+        return {"success": False, "error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task
+def execute_worker_instance_run_task(run_id: str):
+    db = SessionLocal()
+    try:
+        run = db.get(WorkerRun, uuid.UUID(run_id))
+        if not run:
+            return {"success": False, "error": "run_not_found"}
+        execute_worker_instance_run(db, run_id=uuid.UUID(run_id))
+        db.commit()
+        return {"success": True, "run_id": run_id, "status": run.status}
+    except Exception as exc:
+        db.rollback()
+        run = db.get(WorkerRun, uuid.UUID(run_id))
+        if run:
+            run.status = WorkerRunStatus.FAILED.value
+            run.error_message = str(exc)
+            run.error_text = str(exc)
+            run.attempts = max((run.attempts or 1) + 1, 1)
             db.commit()
         return {"success": False, "error": str(exc)}
     finally:

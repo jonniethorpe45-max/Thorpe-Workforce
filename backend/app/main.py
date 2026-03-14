@@ -1,7 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analytics, auth, campaigns, leads, meetings, messages, replies, webhooks, worker_builder, workers, workspace
+from app.api.routes import (
+    analytics,
+    auth,
+    campaigns,
+    leads,
+    meetings,
+    messages,
+    replies,
+    webhooks,
+    worker_builder,
+    worker_instances,
+    workers,
+    workspace,
+)
 from app.core.config import settings
 
 app = FastAPI(title=settings.app_name)
@@ -17,6 +30,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(workspace.router)
 app.include_router(workers.router)
+app.include_router(worker_instances.router)
 app.include_router(campaigns.router)
 app.include_router(leads.router)
 app.include_router(messages.router)

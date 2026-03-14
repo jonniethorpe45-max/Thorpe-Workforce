@@ -1,6 +1,7 @@
 import json
+from typing import Any
 
-from app.integrations.ai.base import AIProvider, CompanyResearchResult, OutreachEmailResult, ReplyClassificationResult
+from app.integrations.ai.base import AIProvider, CompanyResearchResult, OutreachEmailResult, ReplyClassificationResult, WorkerModelResponse
 from app.services.ai_utils import (
     clamp_score,
     enforce_single_cta,
@@ -145,4 +146,41 @@ class MockAIProvider(AIProvider):
         return (
             f"Hi {lead_name},\n\nGreat to connect. I can hold 30 minutes this week. "
             "Would Tuesday or Thursday morning work best?\n\nBest,\nThorpe Workforce"
+        )
+
+    def execute_worker(
+        self,
+        *,
+        model_name: str,
+        prompt: str,
+        tools: list[str],
+        runtime_input: dict[str, Any],
+        context: dict[str, Any],
+    ) -> WorkerModelResponse:
+        preferred_tool = tools[0] if tools else None
+        output: dict[str, Any] = {
+            "summary": "Worker instance executed successfully with structured output.",
+            "output": {
+                "mission_status": "completed",
+                "runtime_echo": runtime_input,
+                "capability_count": len(context.get("capabilities", {})) if isinstance(context.get("capabilities"), dict) else 0,
+            },
+            "tool_calls": [],
+            "memory_updates": {},
+        }
+        if preferred_tool:
+            output["tool_calls"].append({"tool": preferred_tool, "input": {"source": "mock"}})
+        # Include one invalid tool call so the execution layer can verify suppression.
+        output["tool_calls"].append({"tool": "disallowed_tool", "input": {"source": "mock"}})
+        output["memory_updates"] = {"last_runtime_input": runtime_input}
+
+        input_tokens = max(len(prompt) // 4, 1)
+        output_tokens = max(len(json.dumps(output)) // 4, 1)
+        return WorkerModelResponse(
+            text=json.dumps(output),
+            model=model_name or "mock-ai-v1",
+            token_usage_input=input_tokens,
+            token_usage_output=output_tokens,
+            cost_cents=max((input_tokens + output_tokens) // 200, 1),
+            metadata={"provider": "mock", "tool_count": len(tools)},
         )
