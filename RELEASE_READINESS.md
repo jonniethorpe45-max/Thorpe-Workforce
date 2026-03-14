@@ -13,6 +13,7 @@ This document summarizes production hardening status for the AI Workforce OS rel
   - Worker chains orchestration (manual run, step handoff, failure branching)
   - Marketplace services (listing/filtering/detail/install/reviews/revenue summary)
   - Public worker library endpoints
+  - Feature-flagged Worker Creator API (`/workers/builder/*`) with draft create/edit/test/publish/unpublish/install
 - Frontend screens:
   - Worker Builder
   - Worker Instances
@@ -20,6 +21,7 @@ This document summarizes production hardening status for the AI Workforce OS rel
   - Worker Chains
   - Marketplace (list + detail)
   - Public Worker Library (list + detail)
+  - Worker Creator UI (`/app/worker-builder`, alias redirect `/dashboard/worker-builder`)
 - Idempotent system seeding for templates/tools.
 
 ## Local startup steps
@@ -69,7 +71,7 @@ alembic upgrade head
 ```
 
 Notes:
-- Alembic head should resolve to `0005_workforce_os_core`.
+- Alembic head should resolve to `0006_worker_creator_drafts`.
 - Revision chain has been validated (`alembic heads`, `alembic history`).
 
 ## Seed steps
@@ -107,6 +109,7 @@ Platform/feature vars:
 - `STRIPE_SECRET_KEY`
 - `INTERNAL_WORKER_BUILDER_ENABLED`
 - `INTERNAL_WORKER_BUILDER_TOKEN`
+- `WORKER_CREATOR_ENABLED`
 
 ## Known limitations
 
@@ -114,6 +117,7 @@ Platform/feature vars:
 - Chain trigger types beyond manual are scaffolded but not fully event/schedule orchestrated yet.
 - Marketplace/public payloads are intentionally sanitized and do not expose internal template config internals.
 - Local Docker is required for full Postgres/Redis parity checks.
+- Worker Creator endpoints are intentionally hidden when `WORKER_CREATOR_ENABLED=false`.
 
 ## Test/verification status
 

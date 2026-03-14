@@ -88,6 +88,7 @@ Implemented endpoint groups:
 - Workspace (`/workspace`)
 - Workers (`/workers*`)
 - Worker templates library (`/workers/templates/library`)
+- Worker Creator drafts (`/workers/builder/*`, feature-flagged)
 - Worker runs (`/workers/{worker_id}/runs`, `/workers/{worker_id}/execute`)
 - Campaigns (`/campaigns*`)
 - Leads (`/leads*`)
@@ -104,6 +105,9 @@ Alembic migration file:
 - `backend/migrations/versions/0001_initial_schema.py`
 - `backend/migrations/versions/0002_worker_lifecycle_and_runs.py`
 - `backend/migrations/versions/0003_worker_platform_generalization.py`
+- `backend/migrations/versions/0004_template_workspace_scope.py`
+- `backend/migrations/versions/0005_workforce_os_core.py`
+- `backend/migrations/versions/0006_worker_creator_drafts.py`
 
 ## Tests
 
@@ -134,3 +138,4 @@ Includes baseline coverage for:
 - Celery tasks are wired for worker execution, approved sends, reply classification, follow-up scheduling, and analytics hooks.
 - Current AI/email/calendar providers include mock implementations to keep local MVP runnable without third-party keys.
 - Safe sending defaults include workspace daily cap, worker campaign cap, duplicate step prevention, and unsubscribe/bounce suppression.
+- Worker Creator is disabled by default; enable with `WORKER_CREATOR_ENABLED=true` for internal template-draft workflows.
