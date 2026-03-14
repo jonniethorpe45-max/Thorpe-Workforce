@@ -22,6 +22,14 @@ class WorkerStatus(StrEnum):
     ERROR = "error"
 
 
+class WorkerRunStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PAUSED = "paused"
+
+
 class LeadStatus(StrEnum):
     NEW = "new"
     RESEARCHING = "researching"
@@ -104,6 +112,10 @@ class Worker(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(50), default=WorkerStatus.IDLE.value, nullable=False)
     tone: Mapped[str] = mapped_column(String(50), default="professional", nullable=False)
     send_limit_per_day: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
+    run_interval_minutes: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error_text: Mapped[str | None] = mapped_column(Text)
     config_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
@@ -232,10 +244,12 @@ class WorkerRun(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     worker_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workers.id"), nullable=False)
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("campaigns.id"))
     run_type: Mapped[str] = mapped_column(String(50), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(50), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     input_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     error_text: Mapped[str | None] = mapped_column(Text)

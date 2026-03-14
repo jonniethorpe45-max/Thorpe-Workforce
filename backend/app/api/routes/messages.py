@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import Campaign, GeneratedMessage, Lead, User
+from app.models import ApprovalStatus, Campaign, GeneratedMessage, Lead, User
 from app.schemas.api import MessageRead
 from app.services.message_generator import regenerate_message
 
@@ -33,7 +33,7 @@ def approve_message(message_id: uuid.UUID, current_user: User = Depends(get_curr
     campaign = db.get(Campaign, message.campaign_id)
     if not campaign or campaign.workspace_id != current_user.workspace_id:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    message.approval_status = "approved"
+    message.approval_status = ApprovalStatus.APPROVED.value
     db.commit()
     return {"success": True}
 
@@ -46,7 +46,7 @@ def reject_message(message_id: uuid.UUID, current_user: User = Depends(get_curre
     campaign = db.get(Campaign, message.campaign_id)
     if not campaign or campaign.workspace_id != current_user.workspace_id:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    message.approval_status = "rejected"
+    message.approval_status = ApprovalStatus.REJECTED.value
     db.commit()
     return {"success": True}
 

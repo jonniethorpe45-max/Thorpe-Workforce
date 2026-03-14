@@ -1,14 +1,17 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import User, Worker
-from app.schemas.api import WorkerCreate, WorkerRead, WorkerUpdate
+from app.models import Campaign, User, Worker, WorkerStatus
+from app.schemas.api import WorkerCreate, WorkerRead, WorkerRunRead, WorkerUpdate
 from app.services.audit import log_audit_event
-from app.services.worker_service import pause_worker, resume_worker
+from app.services.worker_service import list_worker_runs, pause_worker, queue_worker_run, resume_worker, run_worker_for_campaign
+from app.tasks.dispatcher import enqueue_task
+from app.tasks.jobs import execute_worker_run_task
 
 router = APIRouter(prefix="/workers", tags=["workers"])
 
@@ -22,6 +25,8 @@ def create_worker(payload: WorkerCreate, current_user: User = Depends(get_curren
         goal=payload.goal,
         tone=payload.tone,
         send_limit_per_day=payload.daily_send_limit,
+        run_interval_minutes=max(payload.run_interval_minutes, 15),
+        next_run_at=datetime.now(UTC) + timedelta(minutes=max(payload.run_interval_minutes, 15)),
         config_json={
             "target_industry": payload.target_industry,
             "target_roles": payload.target_roles,
@@ -68,6 +73,12 @@ def update_worker(
         raise HTTPException(status_code=404, detail="Worker not found")
     if payload.daily_send_limit is not None:
         worker.send_limit_per_day = payload.daily_send_limit
+    if payload.run_interval_minutes is not None:
+        worker.run_interval_minutes = max(payload.run_interval_minutes, 15)
+        if worker.status != WorkerStatus.PAUSED.value:
+            worker.next_run_at = datetime.now(UTC) + timedelta(minutes=worker.run_interval_minutes)
+    if payload.status is not None and payload.status not in {item.value for item in WorkerStatus}:
+        raise HTTPException(status_code=400, detail="Invalid worker status")
     for field in ["name", "goal", "tone", "status", "config_json"]:
         value = getattr(payload, field)
         if value is not None:
@@ -97,3 +108,47 @@ def resume(worker_id: uuid.UUID, current_user: User = Depends(get_current_user),
     db.commit()
     db.refresh(worker)
     return worker
+
+
+@router.get("/{worker_id}/runs", response_model=list[WorkerRunRead])
+def worker_runs(worker_id: uuid.UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    worker = db.get(Worker, worker_id)
+    if not worker or worker.workspace_id != current_user.workspace_id:
+        raise HTTPException(status_code=404, detail="Worker not found")
+    return list_worker_runs(db, worker_id=worker.id)
+
+
+@router.post("/{worker_id}/execute")
+def execute_worker(
+    worker_id: uuid.UUID,
+    campaign_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    worker = db.get(Worker, worker_id)
+    if not worker or worker.workspace_id != current_user.workspace_id:
+        raise HTTPException(status_code=404, detail="Worker not found")
+    campaign = db.get(Campaign, campaign_id)
+    if not campaign or campaign.workspace_id != current_user.workspace_id:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    run = queue_worker_run(
+        db,
+        worker=worker,
+        campaign=campaign,
+        actor_id=str(current_user.id),
+        require_manual_approval=False,
+    )
+    db.flush()
+    task_id = enqueue_task(execute_worker_run_task, str(run.id))
+    queued = True
+    if not task_id:
+        queued = False
+        run_worker_for_campaign(
+            db=db,
+            worker=worker,
+            campaign=campaign,
+            require_manual_approval=False,
+            run=run,
+        )
+    db.commit()
+    return {"success": True, "run_id": str(run.id), "queued": queued, "task_id": task_id}

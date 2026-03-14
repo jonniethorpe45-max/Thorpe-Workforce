@@ -59,11 +59,12 @@ class WorkerCreate(BaseSchema):
     name: str
     goal: str
     target_industry: str | None = None
-    target_roles: list[str] = []
-    target_locations: list[str] = []
+    target_roles: list[str] = Field(default_factory=list)
+    target_locations: list[str] = Field(default_factory=list)
     company_size_range: str | None = None
     tone: str = "professional"
     daily_send_limit: int = 40
+    run_interval_minutes: int = 60
 
 
 class WorkerUpdate(BaseSchema):
@@ -71,6 +72,7 @@ class WorkerUpdate(BaseSchema):
     goal: str | None = None
     tone: str | None = None
     daily_send_limit: int | None = None
+    run_interval_minutes: int | None = None
     status: str | None = None
     config_json: dict[str, Any] | None = None
 
@@ -84,9 +86,27 @@ class WorkerRead(BaseSchema):
     status: str
     tone: str
     send_limit_per_day: int
+    run_interval_minutes: int
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
+    last_error_text: str | None = None
     config_json: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class WorkerRunRead(BaseSchema):
+    id: uuid.UUID
+    worker_id: uuid.UUID
+    campaign_id: uuid.UUID | None = None
+    run_type: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    status: str
+    attempts: int
+    input_json: dict[str, Any] | None = None
+    output_json: dict[str, Any] | None = None
+    error_text: str | None = None
 
 
 class CampaignCreate(BaseSchema):
@@ -94,13 +114,13 @@ class CampaignCreate(BaseSchema):
     name: str
     ideal_customer_profile: str | None = None
     target_industry: str | None = None
-    target_roles: list[str] = []
-    target_locations: list[str] = []
+    target_roles: list[str] = Field(default_factory=list)
+    target_locations: list[str] = Field(default_factory=list)
     company_size_min: int | None = None
     company_size_max: int | None = None
     cta_text: str | None = None
-    exclusions: list[str] = []
-    scheduling_settings: dict[str, Any] = {}
+    exclusions: list[str] = Field(default_factory=list)
+    scheduling_settings: dict[str, Any] = Field(default_factory=dict)
 
 
 class CampaignUpdate(BaseSchema):
@@ -221,10 +241,14 @@ class AnalyticsOverview(BaseSchema):
     active_workers: int
     campaigns: int
     leads_found: int
+    leads_researched: int
+    messages_awaiting_approval: int
     emails_sent: int
     replies: int
+    interested_replies: int
     meetings_booked: int
     recent_activity: list[dict[str, Any]]
+    recent_worker_runs: list[dict[str, Any]]
 
 
 class CampaignAnalytics(BaseSchema):
@@ -247,7 +271,7 @@ class WebhookPayload(BaseSchema):
     provider_message_id: str | None = None
     email: str | None = None
     event: str | None = None
-    data: dict[str, Any] = {}
+    data: dict[str, Any] = Field(default_factory=dict)
 
 
 class CalendarConnectRequest(BaseSchema):

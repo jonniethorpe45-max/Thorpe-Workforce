@@ -35,9 +35,9 @@ def connect_calendar(
             ConnectedAccount(
                 workspace_id=current_user.workspace_id,
                 provider_type="google_calendar",
-                access_token_encrypted="placeholder",
-                refresh_token_encrypted="placeholder",
-                metadata_json={"connected": result.get("connected", False)},
+                access_token_encrypted="managed-by-provider",
+                refresh_token_encrypted="managed-by-provider",
+                metadata_json={"connected": result.get("connected", False), "provider": result.get("provider", "google")},
             )
         )
     db.commit()

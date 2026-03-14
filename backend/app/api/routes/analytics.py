@@ -1,11 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import User
+from app.models import User, Worker
 from app.schemas.api import AnalyticsOverview, CampaignAnalytics, WorkerAnalytics
 from app.services.analytics import get_campaign_analytics, get_overview, get_worker_analytics
 
@@ -24,5 +24,7 @@ def campaign_analytics(campaign_id: uuid.UUID, current_user: User = Depends(get_
 
 @router.get("/worker/{worker_id}", response_model=WorkerAnalytics)
 def worker_analytics(worker_id: uuid.UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Worker ownership checks are done in service consumers; kept simple for MVP.
+    worker = db.get(Worker, worker_id)
+    if not worker or worker.workspace_id != current_user.workspace_id:
+        raise HTTPException(status_code=404, detail="Worker not found")
     return get_worker_analytics(db, worker_id=worker_id)

@@ -34,11 +34,12 @@ def signup(payload: SignUpRequest, db: Session = Depends(get_db)):
         role="owner",
     )
     db.add(user)
+    db.flush()
     log_audit_event(
         db,
         workspace_id=workspace.id,
         actor_type="user",
-        actor_id="pending",
+        actor_id=str(user.id),
         event_name="user_signed_up",
         payload={"email": user.email},
     )

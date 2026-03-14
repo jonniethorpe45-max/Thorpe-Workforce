@@ -4,8 +4,12 @@ from app.models import CompanyResearch, Lead, LeadStatus
 from app.services.ai_service import generate_company_research
 
 
-def research_lead(db: Session, lead: Lead) -> CompanyResearch:
-    result = generate_company_research(company_name=lead.company_name, website=lead.website, industry=lead.lead_source)
+def research_lead(db: Session, lead: Lead, industry_hint: str | None = None) -> CompanyResearch:
+    result = generate_company_research(
+        company_name=lead.company_name,
+        website=lead.website,
+        industry=industry_hint or lead.lead_source,
+    )
     existing = db.query(CompanyResearch).filter(CompanyResearch.lead_id == lead.id).first()
     if existing:
         existing.summary = result.summary
