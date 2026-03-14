@@ -151,6 +151,21 @@ class WorkerEntitlementStatus(StrEnum):
     PENDING = "pending"
 
 
+class WorkerModerationStatus(StrEnum):
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    HIDDEN = "hidden"
+
+
+class WorkerReportStatus(StrEnum):
+    OPEN = "open"
+    REVIEWED = "reviewed"
+    DISMISSED = "dismissed"
+    ACTIONED = "actioned"
+
+
 class LeadStatus(StrEnum):
     NEW = "new"
     RESEARCHING = "researching"
@@ -538,6 +553,11 @@ class WorkerTemplate(Base, TimestampMixin):
     rating_avg: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tags_json: Mapped[list[str] | None] = mapped_column(JSON)
+    moderation_status: Mapped[str] = mapped_column(String(30), default=WorkerModerationStatus.APPROVED.value, nullable=False)
+    moderation_notes: Mapped[str | None] = mapped_column(Text)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    report_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class WorkerTemplateDraft(Base, TimestampMixin):
@@ -744,6 +764,71 @@ class WorkerReview(Base, TimestampMixin):
     workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     review_text: Mapped[str | None] = mapped_column(Text)
+
+
+class WorkerReport(Base):
+    __tablename__ = "worker_reports"
+    __table_args__ = (
+        Index("ix_worker_reports_template_status", "worker_template_id", "status"),
+        Index("ix_worker_reports_created_at", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    worker_template_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("worker_templates.id"), nullable=False)
+    reporter_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("workspaces.id"))
+    reason: Mapped[str] = mapped_column(String(120), nullable=False)
+    details: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default=WorkerReportStatus.OPEN.value, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+
+
+class WorkerAnalyticsDaily(Base, TimestampMixin):
+    __tablename__ = "worker_analytics_daily"
+    __table_args__ = (
+        UniqueConstraint("worker_template_id", "workspace_id", "date", name="uq_worker_analytics_daily_scope_date"),
+        Index("ix_worker_analytics_daily_date", "date"),
+        Index("ix_worker_analytics_daily_worker_date", "worker_template_id", "date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    worker_template_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("worker_templates.id"), nullable=False)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("workspaces.id"))
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    install_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    uninstall_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    run_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unique_running_workspaces: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unique_running_users: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    test_run_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    publish_views: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installs_from_marketplace: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installs_from_public_page: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    paid_purchase_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_gross_revenue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_platform_revenue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_creator_revenue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class WorkspaceUsageDaily(Base, TimestampMixin):
+    __tablename__ = "workspace_usage_daily"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "date", name="uq_workspace_usage_daily_workspace_date"),
+        Index("ix_workspace_usage_daily_workspace_date", "workspace_id", "date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    worker_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    chain_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installed_workers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    published_workers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    successful_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failed_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    active_users_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class AuditLog(Base):

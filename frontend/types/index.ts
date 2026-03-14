@@ -452,3 +452,163 @@ export type BillingCheckoutSessionResponse = {
 export type BillingPortalResponse = {
   portal_url: string;
 };
+
+export type AnalyticsPointRead = {
+  date: string;
+  value: number;
+};
+
+export type CreatorActivityItemRead = {
+  event_name: string;
+  created_at: string;
+  payload: Record<string, unknown>;
+};
+
+export type CreatorDashboardSummaryRead = {
+  published_workers_count: number;
+  total_installs: number;
+  total_runs: number;
+  active_workers_count: number;
+  paid_workers_count: number;
+  free_workers_count: number;
+  estimated_total_revenue: number;
+  estimated_platform_share: number;
+  estimated_creator_share: number;
+  recent_install_trend: AnalyticsPointRead[];
+  recent_run_trend: AnalyticsPointRead[];
+};
+
+export type CreatorWorkerSummaryRead = {
+  worker_template_id: string;
+  name: string;
+  slug?: string | null;
+  category: string;
+  pricing_type: "free" | "subscription" | "one_time" | "internal";
+  installs: number;
+  runs: number;
+  active_workspaces: number;
+  purchase_count: number;
+  estimated_revenue: number;
+  moderation_status: string;
+  created_at: string;
+  published_at?: string | null;
+};
+
+export type CreatorWorkerAnalyticsRead = {
+  worker_template_id: string;
+  installs_over_time: AnalyticsPointRead[];
+  runs_over_time: AnalyticsPointRead[];
+  active_workspaces_over_time: AnalyticsPointRead[];
+  purchases_over_time: AnalyticsPointRead[];
+  revenue_over_time: AnalyticsPointRead[];
+  recent_failures: Array<Record<string, unknown>>;
+};
+
+export type CreatorPayoutsSummaryRead = {
+  estimated_gross_revenue: number;
+  estimated_creator_share: number;
+  estimated_platform_share: number;
+  pending_payout_estimate: number;
+  paid_out_estimate: number;
+  refund_estimate: number;
+  disclaimer: string;
+};
+
+export type WorkspaceAnalyticsSummaryRead = {
+  installed_workers_count: number;
+  published_workers_count: number;
+  total_runs: number;
+  runs_this_period: number;
+  chain_runs_this_period: number;
+  success_rate: number;
+  failed_runs: number;
+  top_used_workers: Array<Record<string, unknown>>;
+  plan: BillingPlanRead;
+  limits: Record<string, number | null>;
+  usage: Record<string, number>;
+  percent_of_limit_used: Record<string, number>;
+};
+
+export type WorkspaceActivityRead = {
+  event_name: string;
+  created_at: string;
+  payload: Record<string, unknown>;
+};
+
+export type WorkspaceUsageHistoryPointRead = {
+  date: string;
+  worker_runs: number;
+  chain_runs: number;
+  installs: number;
+  successful_runs: number;
+  failed_runs: number;
+};
+
+export type AdminAnalyticsSummaryRead = {
+  total_users: number;
+  total_workspaces: number;
+  total_subscriptions_active: number;
+  subscriptions_by_plan: Record<string, number>;
+  total_published_workers: number;
+  total_marketplace_workers: number;
+  total_public_workers: number;
+  total_installs: number;
+  total_runs: number;
+  total_paid_purchases: number;
+  estimated_mrr: number;
+  estimated_arr_run_rate: number;
+  top_workers: Array<Record<string, unknown>>;
+  top_creators: Array<Record<string, unknown>>;
+};
+
+export type AdminWorkerListItemRead = {
+  worker_template_id: string;
+  name: string;
+  slug?: string | null;
+  category: string;
+  pricing_type: "free" | "subscription" | "one_time" | "internal";
+  visibility: "private" | "workspace" | "public" | "marketplace";
+  moderation_status: string;
+  report_count: number;
+  installs: number;
+  runs: number;
+  creator_user_id?: string | null;
+};
+
+export type AdminWorkerDetailRead = {
+  template: WorkerTemplateRead;
+  creator?: {
+    id: string;
+    full_name: string;
+    email: string;
+  } | null;
+  installs: number;
+  runs: number;
+  estimated_revenue: number;
+  moderation_status: string;
+  report_count: number;
+  recent_reports: Array<Record<string, unknown>>;
+  recent_activity: Array<Record<string, unknown>>;
+};
+
+export type AdminCreatorListItemRead = {
+  creator_user_id: string;
+  email: string;
+  full_name: string;
+  published_workers: number;
+  installs: number;
+  runs: number;
+  estimated_revenue: number;
+  moderation_issues_count: number;
+  payouts_enabled: boolean;
+  onboarding_complete: boolean;
+};
+
+export type AdminBillingSummaryRead = {
+  active_subscriptions_by_plan: Record<string, number>;
+  churned_subscriptions_count: number;
+  failed_payments_count: number;
+  estimated_platform_revenue: number;
+  top_grossing_workers: Array<Record<string, unknown>>;
+  top_grossing_creators: Array<Record<string, unknown>>;
+};

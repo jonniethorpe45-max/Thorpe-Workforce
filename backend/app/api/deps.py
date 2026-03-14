@@ -49,3 +49,9 @@ def require_worker_creator_access(current_user: User = Depends(get_current_user)
     if not settings.worker_creator_enabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return current_user
+
+
+def require_platform_admin_access(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in {"admin", "super_admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user

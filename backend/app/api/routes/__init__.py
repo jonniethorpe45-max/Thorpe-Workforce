@@ -1,6 +1,8 @@
 from app.api.routes import (
     analytics,
+    admin_analytics,
     auth,
+    creator_dashboard,
     billing,
     campaigns,
     leads,
@@ -17,6 +19,8 @@ from app.api.routes import (
 __all__ = [
     "auth",
     "billing",
+    "creator_dashboard",
+    "admin_analytics",
     "workspace",
     "workers",
     "campaigns",

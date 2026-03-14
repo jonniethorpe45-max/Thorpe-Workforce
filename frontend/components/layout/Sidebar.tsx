@@ -11,6 +11,8 @@ const navItems = [
   { href: "/app/worker-instances", label: "Worker Instances" },
   { href: "/app/worker-runs", label: "Worker Runs" },
   { href: "/app/worker-chains", label: "Worker Chains" },
+  { href: "/app/analytics", label: "Workspace Analytics" },
+  { href: "/app/creator", label: "Creator Dashboard" },
   { href: "/app/marketplace", label: "Marketplace" },
   { href: "/app/campaigns", label: "Missions" },
   { href: "/app/leads", label: "Leads" },
@@ -18,6 +20,7 @@ const navItems = [
   { href: "/app/meetings", label: "Meeting Pipeline" },
   { href: "/app/integrations", label: "Integrations" },
   { href: "/app/settings/billing", label: "Billing" },
+  { href: "/app/admin", label: "Admin" },
   { href: "/app/settings", label: "Settings" }
 ];
 

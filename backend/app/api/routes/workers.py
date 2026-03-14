@@ -14,6 +14,8 @@ from app.schemas.api import (
     WorkerInstanceRead,
     WorkerInstanceUpdate,
     WorkerRead,
+    WorkerReportCreate,
+    WorkerReportRead,
     WorkerRunRead,
     WorkerTemplateCreate,
     WorkerTemplateDuplicateRequest,
@@ -50,6 +52,7 @@ from app.services.worker_templates import (
     publish_worker_template,
     update_worker_template,
 )
+from app.services.platform_analytics import create_worker_report
 from app.tasks.dispatcher import enqueue_task
 from app.tasks.jobs import execute_worker_instance_run_task, execute_worker_run_task
 
@@ -352,6 +355,57 @@ def duplicate_template(
     db.commit()
     db.refresh(duplicated)
     return duplicated
+
+
+@router.post("/templates/{template_id}/report", response_model=WorkerReportRead)
+def report_template(
+    template_id: uuid.UUID,
+    payload: WorkerReportCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    template = get_worker_template_details(
+        db,
+        template_id=template_id,
+        workspace_id=current_user.workspace_id,
+        include_public=True,
+        include_global_non_public=False,
+    )
+    report = create_worker_report(
+        db,
+        worker_template_id=template.id,
+        reporter_user_id=current_user.id,
+        workspace_id=current_user.workspace_id,
+        reason=payload.reason,
+        details=payload.details,
+    )
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="worker_template_reported",
+        payload={"worker_template_id": str(template.id), "reason": payload.reason},
+    )
+    db.commit()
+    db.refresh(report)
+    return report
+
+
+@router.post("/{worker_id}/report", response_model=WorkerReportRead)
+def report_template_alias(
+    worker_id: uuid.UUID,
+    payload: WorkerReportCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Compatibility alias using worker-like path; treats worker_id as worker template id.
+    return report_template(
+        template_id=worker_id,
+        payload=payload,
+        current_user=current_user,
+        db=db,
+    )
 
 
 @router.get("/instances", response_model=list[WorkerInstanceRead])

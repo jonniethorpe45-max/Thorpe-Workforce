@@ -12,8 +12,10 @@ from app.models import (
     WorkerChainTriggerType,
     WorkerEntitlementStatus,
     WorkerInstanceStatus,
+    WorkerModerationStatus,
     WorkerMemoryScope,
     WorkerPricingType,
+    WorkerReportStatus,
     WorkerRunStatus,
     WorkerRunTriggerType,
     WorkerAccessType,
@@ -170,6 +172,185 @@ class BillingWebhookResponse(BaseSchema):
     status: str
 
 
+class AnalyticsPointRead(BaseSchema):
+    date: str
+    value: int | float
+
+
+class CreatorActivityItemRead(BaseSchema):
+    event_name: str
+    created_at: datetime
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreatorDashboardSummaryRead(BaseSchema):
+    published_workers_count: int = 0
+    total_installs: int = 0
+    total_runs: int = 0
+    active_workers_count: int = 0
+    paid_workers_count: int = 0
+    free_workers_count: int = 0
+    estimated_total_revenue: int = 0
+    estimated_platform_share: int = 0
+    estimated_creator_share: int = 0
+    recent_install_trend: list[AnalyticsPointRead] = Field(default_factory=list)
+    recent_run_trend: list[AnalyticsPointRead] = Field(default_factory=list)
+
+
+class CreatorWorkerSummaryRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    name: str
+    slug: str | None = None
+    category: str
+    pricing_type: WorkerPricingType
+    installs: int = 0
+    runs: int = 0
+    active_workspaces: int = 0
+    purchase_count: int = 0
+    estimated_revenue: int = 0
+    moderation_status: WorkerModerationStatus = WorkerModerationStatus.APPROVED
+    created_at: datetime
+    published_at: datetime | None = None
+
+
+class CreatorWorkerAnalyticsRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    installs_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    runs_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    active_workspaces_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    purchases_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    revenue_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    recent_failures: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class CreatorPayoutsSummaryRead(BaseSchema):
+    estimated_gross_revenue: int = 0
+    estimated_creator_share: int = 0
+    estimated_platform_share: int = 0
+    pending_payout_estimate: int = 0
+    paid_out_estimate: int = 0
+    refund_estimate: int = 0
+    disclaimer: str
+
+
+class WorkspaceAnalyticsSummaryRead(BaseSchema):
+    installed_workers_count: int = 0
+    published_workers_count: int = 0
+    total_runs: int = 0
+    runs_this_period: int = 0
+    chain_runs_this_period: int = 0
+    success_rate: float = 0.0
+    failed_runs: int = 0
+    top_used_workers: list[dict[str, Any]] = Field(default_factory=list)
+    plan: BillingPlanRead
+    limits: dict[str, int | None] = Field(default_factory=dict)
+    usage: dict[str, int] = Field(default_factory=dict)
+    percent_of_limit_used: dict[str, float] = Field(default_factory=dict)
+
+
+class WorkspaceActivityRead(BaseSchema):
+    event_name: str
+    created_at: datetime
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkspaceUsageHistoryPointRead(BaseSchema):
+    date: str
+    worker_runs: int = 0
+    chain_runs: int = 0
+    installs: int = 0
+    successful_runs: int = 0
+    failed_runs: int = 0
+
+
+class AdminAnalyticsSummaryRead(BaseSchema):
+    total_users: int = 0
+    total_workspaces: int = 0
+    total_subscriptions_active: int = 0
+    subscriptions_by_plan: dict[str, int] = Field(default_factory=dict)
+    total_published_workers: int = 0
+    total_marketplace_workers: int = 0
+    total_public_workers: int = 0
+    total_installs: int = 0
+    total_runs: int = 0
+    total_paid_purchases: int = 0
+    estimated_mrr: int = 0
+    estimated_arr_run_rate: int = 0
+    top_workers: list[dict[str, Any]] = Field(default_factory=list)
+    top_creators: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AdminWorkerListItemRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    name: str
+    slug: str | None = None
+    category: str
+    pricing_type: WorkerPricingType
+    visibility: WorkerTemplateVisibility
+    moderation_status: WorkerModerationStatus
+    report_count: int = 0
+    installs: int = 0
+    runs: int = 0
+    creator_user_id: uuid.UUID | None = None
+
+
+class AdminWorkerDetailRead(BaseSchema):
+    template: WorkerTemplateRead
+    creator: UserRead | None = None
+    installs: int = 0
+    runs: int = 0
+    estimated_revenue: int = 0
+    moderation_status: WorkerModerationStatus
+    report_count: int = 0
+    recent_reports: list[dict[str, Any]] = Field(default_factory=list)
+    recent_activity: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AdminModerationRequest(BaseSchema):
+    action: str = Field(min_length=2, max_length=40)
+    moderation_notes: str | None = Field(default=None, max_length=2000)
+
+
+class AdminCreatorListItemRead(BaseSchema):
+    creator_user_id: uuid.UUID
+    email: str
+    full_name: str
+    published_workers: int = 0
+    installs: int = 0
+    runs: int = 0
+    estimated_revenue: int = 0
+    moderation_issues_count: int = 0
+    payouts_enabled: bool = False
+    onboarding_complete: bool = False
+
+
+class AdminBillingSummaryRead(BaseSchema):
+    active_subscriptions_by_plan: dict[str, int] = Field(default_factory=dict)
+    churned_subscriptions_count: int = 0
+    failed_payments_count: int = 0
+    estimated_platform_revenue: int = 0
+    top_grossing_workers: list[dict[str, Any]] = Field(default_factory=list)
+    top_grossing_creators: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkerReportCreate(BaseSchema):
+    reason: str = Field(min_length=2, max_length=120)
+    details: str | None = Field(default=None, max_length=2000)
+
+
+class WorkerReportRead(BaseSchema):
+    id: uuid.UUID
+    worker_template_id: uuid.UUID
+    reporter_user_id: uuid.UUID
+    workspace_id: uuid.UUID | None = None
+    reason: str
+    details: str | None = None
+    status: WorkerReportStatus
+    created_at: datetime
+    reviewed_at: datetime | None = None
+    reviewed_by_user_id: uuid.UUID | None = None
+
+
 class WorkerCreate(BaseSchema):
     name: str
     goal: str
@@ -267,6 +448,11 @@ class WorkerTemplateRead(BaseSchema):
     rating_avg: float = 0.0
     rating_count: int = 0
     tags_json: list[str] | None = None
+    moderation_status: WorkerModerationStatus = WorkerModerationStatus.APPROVED
+    moderation_notes: str | None = None
+    reviewed_by_user_id: uuid.UUID | None = None
+    reviewed_at: datetime | None = None
+    report_count: int = 0
     created_at: datetime
     updated_at: datetime
 
