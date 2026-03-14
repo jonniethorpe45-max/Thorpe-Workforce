@@ -17,6 +17,13 @@ from app.schemas.api import (
     WorkerTemplateInstallRequest,
 )
 from app.services.audit import log_audit_event
+from app.services.billing import (
+    ensure_creator_monetization_profile,
+    require_marketplace_publish_access,
+    require_paid_worker_entitlement,
+    require_published_worker_capacity,
+    require_worker_install_access,
+)
 from app.services.marketplace import (
     create_or_update_review,
     get_creator_revenue_summary,
@@ -68,6 +75,8 @@ def get_marketplace_template_by_id(
     return MarketplaceWorkerDetailRead(
         template=detail.template,
         is_installed=detail.is_installed,
+        has_active_entitlement=detail.has_active_entitlement,
+        purchase_required=detail.purchase_required,
         subscription=detail.subscription,
         reviews=detail.reviews,
         tools=detail.tools,
@@ -90,6 +99,8 @@ def get_marketplace_template_by_slug(
     return MarketplaceWorkerDetailRead(
         template=detail.template,
         is_installed=detail.is_installed,
+        has_active_entitlement=detail.has_active_entitlement,
+        purchase_required=detail.purchase_required,
         subscription=detail.subscription,
         reviews=detail.reviews,
         tools=detail.tools,
@@ -108,6 +119,9 @@ def publish_to_marketplace(
     template = db.get(WorkerTemplate, template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Worker template not found")
+    require_marketplace_publish_access(db, workspace_id=current_user.workspace_id)
+    require_published_worker_capacity(db, workspace_id=current_user.workspace_id)
+    ensure_creator_monetization_profile(db, user_id=current_user.id)
     published = publish_template_to_marketplace(
         db,
         template=template,
@@ -131,6 +145,8 @@ def publish_to_marketplace(
     return MarketplaceWorkerDetailRead(
         template=detail.template,
         is_installed=detail.is_installed,
+        has_active_entitlement=detail.has_active_entitlement,
+        purchase_required=detail.purchase_required,
         subscription=detail.subscription,
         reviews=detail.reviews,
         tools=detail.tools,
@@ -152,6 +168,12 @@ def install_marketplace_template(
         workspace_id=current_user.workspace_id,
         include_public=True,
         include_global_non_public=False,
+    )
+    require_worker_install_access(db, workspace_id=current_user.workspace_id)
+    require_paid_worker_entitlement(
+        db,
+        workspace_id=current_user.workspace_id,
+        worker_template=template,
     )
     install_result, billing_result, revenue_event = install_marketplace_worker(
         db,

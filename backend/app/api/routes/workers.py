@@ -24,6 +24,16 @@ from app.schemas.api import (
     WorkerUpdate,
 )
 from app.services.audit import log_audit_event
+from app.services.billing import (
+    ensure_creator_monetization_profile,
+    require_marketplace_publish_access,
+    require_paid_worker_entitlement,
+    require_published_worker_capacity,
+    require_template_visibility_access,
+    require_worker_builder_access,
+    require_worker_install_access,
+    require_worker_run_access,
+)
 from app.services.worker_definitions import (
     build_worker_config,
     ensure_builtin_worker_templates,
@@ -44,6 +54,10 @@ from app.tasks.dispatcher import enqueue_task
 from app.tasks.jobs import execute_worker_instance_run_task, execute_worker_run_task
 
 router = APIRouter(prefix="/workers", tags=["workers"])
+
+
+def _enum_value(value: object) -> str:
+    return value.value if hasattr(value, "value") else str(value)
 
 
 def _get_workspace_instance(db: Session, *, instance_id: uuid.UUID, workspace_id: uuid.UUID) -> WorkerInstance:
@@ -129,6 +143,12 @@ def create_template(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    require_worker_builder_access(db, workspace_id=current_user.workspace_id)
+    require_template_visibility_access(
+        db,
+        workspace_id=current_user.workspace_id,
+        visibility=_enum_value(payload.visibility),
+    )
     ensure_builtin_worker_templates(db)
     template = create_worker_template(
         db,
@@ -230,6 +250,13 @@ def publish_template(
     template = db.get(WorkerTemplate, template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Worker template not found")
+    visibility_value = _enum_value(payload.visibility)
+    require_template_visibility_access(db, workspace_id=current_user.workspace_id, visibility=visibility_value)
+    if visibility_value in {"public", "marketplace"}:
+        require_published_worker_capacity(db, workspace_id=current_user.workspace_id)
+    if visibility_value == "marketplace" or payload.is_marketplace_listed:
+        require_marketplace_publish_access(db, workspace_id=current_user.workspace_id)
+        ensure_creator_monetization_profile(db, user_id=current_user.id)
     published = publish_worker_template(
         db,
         template=template,
@@ -262,6 +289,12 @@ def install_template(
         workspace_id=current_user.workspace_id,
         include_public=True,
         include_global_non_public=False,
+    )
+    require_worker_install_access(db, workspace_id=current_user.workspace_id)
+    require_paid_worker_entitlement(
+        db,
+        workspace_id=current_user.workspace_id,
+        worker_template=template,
     )
     install_result = install_worker_template(
         db,
@@ -363,6 +396,15 @@ def run_instance(
     db: Session = Depends(get_db),
 ):
     instance = _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
+    require_worker_run_access(db, workspace_id=current_user.workspace_id)
+    template = db.get(WorkerTemplate, instance.template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Worker template not found for instance")
+    require_paid_worker_entitlement(
+        db,
+        workspace_id=current_user.workspace_id,
+        worker_template=template,
+    )
     run = queue_worker_instance_run(
         db,
         instance=instance,
@@ -502,6 +544,7 @@ def execute_worker(
     worker = db.get(Worker, worker_id)
     if not worker or worker.workspace_id != current_user.workspace_id:
         raise HTTPException(status_code=404, detail="Worker not found")
+    require_worker_run_access(db, workspace_id=current_user.workspace_id)
     campaign = db.get(Campaign, campaign_id)
     if not campaign or campaign.workspace_id != current_user.workspace_id:
         raise HTTPException(status_code=404, detail="Campaign not found")

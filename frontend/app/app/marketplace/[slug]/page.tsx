@@ -7,7 +7,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { api } from "@/services/api";
-import type { MarketplaceInstallResponse, MarketplaceWorkerDetailRead } from "@/types";
+import type { BillingCheckoutSessionResponse, MarketplaceInstallResponse, MarketplaceWorkerDetailRead } from "@/types";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -21,6 +21,7 @@ export default function MarketplaceDetailPage() {
   const params = useParams<{ slug: string }>();
   const [detail, setDetail] = useState<MarketplaceWorkerDetailRead | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -56,6 +57,22 @@ export default function MarketplaceDetailPage() {
     }
   };
 
+  const checkout = async () => {
+    if (!detail) return;
+    try {
+      setCheckoutBusy(true);
+      setError("");
+      const response = await api.post<BillingCheckoutSessionResponse>(`/billing/checkout/worker/${detail.template.id}`, {});
+      if (response.checkout_url) {
+        window.location.href = response.checkout_url;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create checkout session");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  };
+
   if (error && !detail) return <ErrorState message={error} />;
   if (!detail) return <LoadingState label="Loading marketplace detail..." />;
 
@@ -85,8 +102,28 @@ export default function MarketplaceDetailPage() {
         </p>
 
         <div className="mt-4 flex gap-2">
-          <button className="btn-primary" disabled={detail.is_installed || busy} onClick={install}>
-            {detail.is_installed ? "Installed" : busy ? "Installing..." : "Install Worker"}
+          <button
+            className="btn-primary"
+            disabled={detail.is_installed || busy || checkoutBusy}
+            onClick={() => {
+              if (detail.purchase_required) {
+                checkout().catch(() => undefined);
+                return;
+              }
+              install().catch(() => undefined);
+            }}
+          >
+            {detail.is_installed
+              ? "Installed"
+              : checkoutBusy
+                ? "Redirecting..."
+                : busy
+                  ? "Installing..."
+                  : detail.purchase_required
+                    ? detail.template.pricing_type === "subscription"
+                      ? "Subscribe to Install"
+                      : "Buy to Install"
+                    : "Install Worker"}
           </button>
           <button className="btn-secondary" onClick={() => load().catch(() => undefined)}>
             Refresh

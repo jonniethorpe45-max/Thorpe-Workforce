@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import (
     analytics,
     auth,
+    billing,
     campaigns,
     leads,
     marketplace,
@@ -14,6 +15,7 @@ from app.api.routes import (
     webhooks,
     worker_chains,
     worker_builder,
+    worker_creator,
     worker_instances,
     worker_runs,
     worker_tools,
@@ -33,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(billing.router)
 app.include_router(workspace.router)
 app.include_router(workers.router)
 app.include_router(worker_instances.router)
@@ -49,6 +52,7 @@ app.include_router(meetings.router)
 app.include_router(analytics.router)
 app.include_router(webhooks.router)
 app.include_router(worker_builder.router)
+app.include_router(worker_creator.router)
 
 
 @app.get("/health")

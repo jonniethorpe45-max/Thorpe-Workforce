@@ -1,4 +1,4 @@
-def _build_template_payload(slug: str, *, pricing_type: str = "one_time", price_cents: int = 2500):
+def _build_template_payload(slug: str, *, pricing_type: str = "free", price_cents: int = 0):
     return {
         "name": f"Marketplace {slug}",
         "slug": slug,
@@ -25,7 +25,7 @@ def _build_template_payload(slug: str, *, pricing_type: str = "one_time", price_
     }
 
 
-def _build_publish_payload(name: str, slug: str, *, pricing_type: str = "one_time", price_cents: int = 2500):
+def _build_publish_payload(name: str, slug: str, *, pricing_type: str = "free", price_cents: int = 0):
     return {
         "name": name,
         "slug": slug,
@@ -44,7 +44,7 @@ def _build_publish_payload(name: str, slug: str, *, pricing_type: str = "one_tim
 def test_marketplace_publish_install_reviews_and_revenue(client, auth_headers):
     create_res = client.post(
         "/workers/templates",
-        json=_build_template_payload("marketplace-flow-template", pricing_type="one_time", price_cents=4500),
+        json=_build_template_payload("marketplace-flow-template", pricing_type="free", price_cents=0),
         headers=auth_headers,
     )
     assert create_res.status_code == 200
@@ -55,8 +55,8 @@ def test_marketplace_publish_install_reviews_and_revenue(client, auth_headers):
         json=_build_publish_payload(
             name=template["name"],
             slug=template["slug"],
-            pricing_type="one_time",
-            price_cents=4500,
+            pricing_type="free",
+            price_cents=0,
         ),
         headers=auth_headers,
     )
@@ -64,7 +64,7 @@ def test_marketplace_publish_install_reviews_and_revenue(client, auth_headers):
     assert publish_res.json()["template"]["is_marketplace_listed"] is True
 
     list_res = client.get(
-        "/marketplace/templates?category=sales&tag=automation&pricing_type=one_time&min_price_cents=1000&max_price_cents=5000",
+        "/marketplace/templates?category=sales&tag=automation&pricing_type=free&min_price_cents=0&max_price_cents=5000",
         headers=auth_headers,
     )
     assert list_res.status_code == 200
@@ -84,8 +84,7 @@ def test_marketplace_publish_install_reviews_and_revenue(client, auth_headers):
         headers=auth_headers,
     )
     assert install_res.status_code == 200
-    assert install_res.json()["subscription"]["billing_status"] == "pending_payment"
-    assert "pending" in install_res.json()["message"].lower()
+    assert install_res.json()["subscription"]["billing_status"] == "active"
 
     review_res = client.post(
         f"/marketplace/templates/{template['id']}/reviews",
@@ -118,4 +117,4 @@ def test_marketplace_publish_install_reviews_and_revenue(client, auth_headers):
     assert revenue["total_platform_fee_cents"] >= 0
     assert revenue["total_creator_payout_cents"] >= 0
     assert len(revenue["recent_events"]) >= 1
-    assert any(event["revenue_type"] == "purchase_pending" for event in revenue["recent_events"])
+    assert any(event["revenue_type"] == "free_install" for event in revenue["recent_events"])

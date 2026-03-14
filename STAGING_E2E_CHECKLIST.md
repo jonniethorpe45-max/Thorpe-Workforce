@@ -10,6 +10,8 @@ Use this checklist before promoting to production.
 - [ ] API process starts cleanly and `/health` returns `{"status":"ok"}`
 - [ ] Celery worker connected and processing tasks
 - [ ] Frontend points to staging API URL
+- [ ] `WORKER_CREATOR_ENABLED` set correctly for staged rollout plan
+- [ ] Stripe env variables configured for staging billing flow
 
 ## B. Auth & workspace boundary checks
 
@@ -28,6 +30,14 @@ Use this checklist before promoting to production.
 - [ ] Verify run summary, duration, token usage, and cost fields
 - [ ] Verify worker memory keys are written and retrievable for selected scope
 
+## C2. Worker Creator flow (feature-flagged)
+
+- [ ] `GET /workers/builder/drafts` is hidden (404) when `WORKER_CREATOR_ENABLED=false`
+- [ ] With flag enabled, authenticated user can create/update own draft
+- [ ] Draft test run (`POST /workers/builder/drafts/{id}/test`) creates a worker run safely
+- [ ] Publish + install + unpublish work for same-workspace draft owner
+- [ ] Cross-workspace access to draft IDs is denied (403/404)
+
 ## D. Chain flow
 
 - [ ] Create chain with at least 2 ordered steps
@@ -42,6 +52,8 @@ Use this checklist before promoting to production.
 - [ ] Marketplace detail by id/slug resolves correctly
 - [ ] Install marketplace worker creates/updates subscription state
 - [ ] Review create/update works and rating aggregates update
+- [ ] Paid worker install is blocked before purchase entitlement
+- [ ] Paid worker checkout creates Stripe session and install is allowed after webhook sync
 
 ## F. Public worker library checks
 
@@ -64,6 +76,7 @@ Use this checklist before promoting to production.
 - [ ] Frontend lint/build pass in staging CI
 - [ ] No migration drift after deploy (`alembic heads` matches expected head)
 - [ ] API logs show no auth leaks or unhandled exceptions in core workflows
+- [ ] Billing webhook idempotency verified (`billing_event_logs` has no duplicate `stripe_event_id`)
 
 ## I. Sign-off criteria
 

@@ -8,6 +8,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Float,
+    Numeric,
     ForeignKey,
     Index,
     Integer,
@@ -101,6 +102,55 @@ class WorkerChainTriggerType(StrEnum):
     API = "api"
 
 
+class WorkerBuilderCategory(StrEnum):
+    REAL_ESTATE = "real_estate"
+    MARKETING = "marketing"
+    FINANCE = "finance"
+    SALES = "sales"
+    ECOMMERCE = "ecommerce"
+    CONTENT = "content"
+    RESEARCH = "research"
+    AUTOMATION = "automation"
+    CUSTOM = "custom"
+
+
+class BillingInterval(StrEnum):
+    MONTHLY = "monthly"
+    ANNUAL = "annual"
+
+
+class WorkspaceSubscriptionStatus(StrEnum):
+    TRIALING = "trialing"
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    UNPAID = "unpaid"
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+
+
+class BillingEventStatus(StrEnum):
+    RECEIVED = "received"
+    PROCESSED = "processed"
+    FAILED = "failed"
+    IGNORED = "ignored"
+
+
+class WorkerAccessType(StrEnum):
+    FREE = "free"
+    SUBSCRIPTION = "subscription"
+    ONE_TIME = "one_time"
+    BUNDLED = "bundled"
+
+
+class WorkerEntitlementStatus(StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    REFUNDED = "refunded"
+    CANCELED = "canceled"
+    PENDING = "pending"
+
+
 class LeadStatus(StrEnum):
     NEW = "new"
     RESEARCHING = "researching"
@@ -158,6 +208,90 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), default="owner", nullable=False)
+
+
+class CreatorMonetizationProfile(Base, TimestampMixin):
+    __tablename__ = "creator_monetization_profiles"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_creator_monetization_profiles_user_id"),
+        Index("ix_creator_monetization_profiles_payouts_enabled", "payouts_enabled"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    stripe_account_id: Mapped[str | None] = mapped_column(String(255))
+    payouts_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    tax_profile_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    onboarding_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class SubscriptionPlan(Base, TimestampMixin):
+    __tablename__ = "subscription_plans"
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_subscription_plans_code"),
+        Index("ix_subscription_plans_code_active", "code", "is_active"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(String(50), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    monthly_price_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    annual_price_cents: Mapped[int | None] = mapped_column(Integer)
+    stripe_price_id_monthly: Mapped[str | None] = mapped_column(String(255))
+    stripe_price_id_annual: Mapped[str | None] = mapped_column(String(255))
+    max_worker_drafts: Mapped[int | None] = mapped_column(Integer)
+    max_published_workers: Mapped[int | None] = mapped_column(Integer)
+    max_worker_installs_per_workspace: Mapped[int | None] = mapped_column(Integer)
+    max_worker_runs_per_month: Mapped[int | None] = mapped_column(Integer)
+    allow_worker_builder: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    allow_marketplace_publishing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    allow_private_workers: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    allow_public_workers: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    allow_marketplace_install: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    allow_team_features: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class WorkspaceSubscription(Base, TimestampMixin):
+    __tablename__ = "workspace_subscriptions"
+    __table_args__ = (
+        Index("ix_workspace_subscriptions_workspace_status", "workspace_id", "status"),
+        Index("ix_workspace_subscriptions_customer_id", "stripe_customer_id"),
+        Index("ix_workspace_subscriptions_subscription_id", "stripe_subscription_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    plan_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("subscription_plans.id"))
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255))
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(40), default=WorkspaceSubscriptionStatus.ACTIVE.value, nullable=False)
+    billing_interval: Mapped[str] = mapped_column(String(20), default=BillingInterval.MONTHLY.value, nullable=False)
+    current_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    subscribed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BillingEventLog(Base):
+    __tablename__ = "billing_event_logs"
+    __table_args__ = (
+        UniqueConstraint("stripe_event_id", name="uq_billing_event_logs_stripe_event_id"),
+        Index("ix_billing_event_logs_event_type", "event_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    stripe_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(40), default=BillingEventStatus.RECEIVED.value, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class ConnectedAccount(Base, TimestampMixin):
@@ -355,6 +489,8 @@ class WorkerTemplate(Base, TimestampMixin):
     __tablename__ = "worker_templates"
     __table_args__ = (
         UniqueConstraint("workspace_id", "slug", name="uq_worker_templates_workspace_slug"),
+        CheckConstraint("creator_revenue_percent >= 0 AND creator_revenue_percent <= 100", name="ck_worker_templates_creator_revenue_percent"),
+        CheckConstraint("platform_revenue_percent >= 0 AND platform_revenue_percent <= 100", name="ck_worker_templates_platform_revenue_percent"),
         Index("ix_worker_templates_slug", "slug"),
         Index("ix_worker_templates_visibility_status", "visibility", "status"),
         Index("ix_worker_templates_marketplace_listed", "is_marketplace_listed"),
@@ -393,10 +529,51 @@ class WorkerTemplate(Base, TimestampMixin):
     pricing_type: Mapped[str] = mapped_column(String(30), default=WorkerPricingType.INTERNAL.value, nullable=False)
     price_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="USD", nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(255))
+    screenshots_json: Mapped[list[str] | None] = mapped_column(JSON)
+    usage_examples_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    creator_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=70.0, nullable=False)
+    platform_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=30.0, nullable=False)
     install_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     rating_avg: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tags_json: Mapped[list[str] | None] = mapped_column(JSON)
+
+
+class WorkerTemplateDraft(Base, TimestampMixin):
+    __tablename__ = "worker_template_drafts"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "slug", name="uq_worker_template_drafts_workspace_slug"),
+        CheckConstraint("creator_revenue_percent >= 0 AND creator_revenue_percent <= 100", name="ck_worker_template_drafts_creator_revenue_percent"),
+        CheckConstraint("platform_revenue_percent >= 0 AND platform_revenue_percent <= 100", name="ck_worker_template_drafts_platform_revenue_percent"),
+        Index("ix_worker_template_drafts_workspace_creator", "workspace_id", "creator_user_id"),
+        Index("ix_worker_template_drafts_category", "category"),
+        Index("ix_worker_template_drafts_published", "is_published"),
+        Index("ix_worker_template_drafts_slug", "slug"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    creator_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    published_template_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("worker_templates.id"))
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    slug: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(50), default=WorkerBuilderCategory.CUSTOM.value, nullable=False)
+    prompt_template: Mapped[str] = mapped_column(Text, nullable=False)
+    input_schema_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    output_schema_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    tools_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    visibility: Mapped[str] = mapped_column(String(30), default=WorkerTemplateVisibility.PRIVATE.value, nullable=False)
+    price_monthly: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    price_onetime: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    icon: Mapped[str | None] = mapped_column(String(255))
+    screenshots_json: Mapped[list[str] | None] = mapped_column(JSON)
+    tags_json: Mapped[list[str] | None] = mapped_column(JSON)
+    usage_examples_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    creator_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=70.0, nullable=False)
+    platform_revenue_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=30.0, nullable=False)
 
 
 class WorkerInstance(Base, TimestampMixin):
@@ -508,6 +685,9 @@ class WorkerSubscription(Base, TimestampMixin):
     __table_args__ = (
         Index("ix_worker_subscriptions_workspace_active", "workspace_id", "is_active"),
         Index("ix_worker_subscriptions_template_id", "worker_template_id"),
+        Index("ix_worker_subscriptions_status", "status"),
+        Index("ix_worker_subscriptions_checkout_session", "stripe_checkout_session_id"),
+        Index("ix_worker_subscriptions_stripe_subscription", "stripe_subscription_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -515,8 +695,15 @@ class WorkerSubscription(Base, TimestampMixin):
     worker_template_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("worker_templates.id"), nullable=False)
     purchaser_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
     billing_status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    access_type: Mapped[str] = mapped_column(String(30), default=WorkerAccessType.FREE.value, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default=WorkerEntitlementStatus.ACTIVE.value, nullable=False)
     price_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="USD", nullable=False)
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(String(255))
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(String(255))
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

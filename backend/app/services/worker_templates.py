@@ -195,6 +195,11 @@ def create_worker_template(
         pricing_type=pricing_type,
         price_cents=payload.price_cents,
         currency=payload.currency.upper(),
+        icon=payload.icon,
+        screenshots_json=list(payload.screenshots_json),
+        usage_examples_json=list(payload.usage_examples_json),
+        creator_revenue_percent=payload.creator_revenue_percent,
+        platform_revenue_percent=payload.platform_revenue_percent,
         install_count=0,
         rating_avg=0.0,
         rating_count=0,
@@ -235,6 +240,11 @@ def update_worker_template(
         "chain_enabled",
         "price_cents",
         "currency",
+        "icon",
+        "screenshots_json",
+        "usage_examples_json",
+        "creator_revenue_percent",
+        "platform_revenue_percent",
         "tags_json",
     ]:
         if field in updates:
@@ -321,6 +331,11 @@ def duplicate_worker_template(
         pricing_type=source_template.pricing_type,
         price_cents=source_template.price_cents if source_template.pricing_type != WorkerPricingType.FREE.value else 0,
         currency=(source_template.currency or "USD").upper(),
+        icon=source_template.icon,
+        screenshots_json=list(source_template.screenshots_json or []),
+        usage_examples_json=list(source_template.usage_examples_json or []),
+        creator_revenue_percent=source_template.creator_revenue_percent,
+        platform_revenue_percent=source_template.platform_revenue_percent,
         install_count=0,
         rating_avg=0.0,
         rating_count=0,
@@ -424,6 +439,9 @@ def publish_worker_template(
         template.price_cents = payload.price_cents
         template.currency = payload.currency.upper()
         template.is_marketplace_listed = bool(payload.is_marketplace_listed)
+        template.icon = payload.icon
+        template.screenshots_json = list(payload.screenshots_json)
+        template.usage_examples_json = list(payload.usage_examples_json)
         if template.pricing_type == WorkerPricingType.FREE.value:
             template.price_cents = 0
         template.is_active = True

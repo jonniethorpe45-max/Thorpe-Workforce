@@ -17,6 +17,7 @@ const navItems = [
   { href: "/app/replies", label: "Interested Replies" },
   { href: "/app/meetings", label: "Meeting Pipeline" },
   { href: "/app/integrations", label: "Integrations" },
+  { href: "/app/settings/billing", label: "Billing" },
   { href: "/app/settings", label: "Settings" }
 ];
 

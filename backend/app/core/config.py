@@ -26,8 +26,18 @@ class Settings(BaseSettings):
     marketplace_platform_fee_percent: float = 0.30
     billing_provider: str = "placeholder"
     stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id_pro_monthly: str = ""
+    stripe_price_id_pro_annual: str = ""
+    stripe_price_id_creator_monthly: str = ""
+    stripe_price_id_creator_annual: str = ""
+    stripe_price_id_enterprise_monthly: str = ""
+    app_base_url: str = "http://localhost:3000"
+    stripe_billing_portal_return_url: str = "http://localhost:3000/app/settings/billing"
     internal_worker_builder_enabled: bool = False
     internal_worker_builder_token: str = ""
+    worker_creator_enabled: bool = False
     cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
 
     @field_validator("cors_origins", mode="before")
@@ -52,6 +62,11 @@ class Settings(BaseSettings):
     @classmethod
     def validate_marketplace_fee(cls, value: float) -> float:
         return max(0.0, min(1.0, float(value)))
+
+    @field_validator("app_base_url", "stripe_billing_portal_return_url")
+    @classmethod
+    def normalize_base_urls(cls, value: str) -> str:
+        return value.strip().rstrip("/")
 
 
 @lru_cache(maxsize=1)

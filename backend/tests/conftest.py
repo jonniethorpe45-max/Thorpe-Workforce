@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 os.environ["INTERNAL_WORKER_BUILDER_ENABLED"] = "true"
+os.environ["WORKER_CREATOR_ENABLED"] = "true"
 os.environ["ENVIRONMENT"] = "test"
 
 from app.db.base import Base  # noqa: E402

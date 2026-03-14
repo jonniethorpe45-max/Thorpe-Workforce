@@ -13,6 +13,13 @@ This document summarizes production hardening status for the AI Workforce OS rel
   - Worker chains orchestration (manual run, step handoff, failure branching)
   - Marketplace services (listing/filtering/detail/install/reviews/revenue summary)
   - Public worker library endpoints
+  - Feature-flagged Worker Creator API (`/workers/builder/*`) with draft create/edit/test/publish/unpublish/install
+  - Stripe-ready monetization layer:
+    - Subscription plans and workspace subscriptions
+    - Stripe Checkout (workspace plans + paid worker checkout)
+    - Stripe Billing Portal
+    - Stripe webhook processing with idempotent event logging
+    - Centralized entitlement checks and usage-limit gates
 - Frontend screens:
   - Worker Builder
   - Worker Instances
@@ -20,6 +27,7 @@ This document summarizes production hardening status for the AI Workforce OS rel
   - Worker Chains
   - Marketplace (list + detail)
   - Public Worker Library (list + detail)
+  - Worker Creator UI (`/app/worker-builder`, alias redirect `/dashboard/worker-builder`)
 - Idempotent system seeding for templates/tools.
 
 ## Local startup steps
@@ -69,7 +77,7 @@ alembic upgrade head
 ```
 
 Notes:
-- Alembic head should resolve to `0005_workforce_os_core`.
+- Alembic head should resolve to `0007_billing_core`.
 - Revision chain has been validated (`alembic heads`, `alembic history`).
 
 ## Seed steps
@@ -107,6 +115,18 @@ Platform/feature vars:
 - `STRIPE_SECRET_KEY`
 - `INTERNAL_WORKER_BUILDER_ENABLED`
 - `INTERNAL_WORKER_BUILDER_TOKEN`
+- `WORKER_CREATOR_ENABLED`
+- `BILLING_PROVIDER` (`placeholder` or `stripe`)
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_ID_PRO_MONTHLY`
+- `STRIPE_PRICE_ID_PRO_ANNUAL`
+- `STRIPE_PRICE_ID_CREATOR_MONTHLY`
+- `STRIPE_PRICE_ID_CREATOR_ANNUAL`
+- `STRIPE_PRICE_ID_ENTERPRISE_MONTHLY`
+- `APP_BASE_URL`
+- `STRIPE_BILLING_PORTAL_RETURN_URL`
 
 ## Known limitations
 
@@ -114,6 +134,9 @@ Platform/feature vars:
 - Chain trigger types beyond manual are scaffolded but not fully event/schedule orchestrated yet.
 - Marketplace/public payloads are intentionally sanitized and do not expose internal template config internals.
 - Local Docker is required for full Postgres/Redis parity checks.
+- Worker Creator endpoints are intentionally hidden when `WORKER_CREATOR_ENABLED=false`.
+- Alembic migrations are production-targeted for PostgreSQL; SQLite local dev is supported via ORM create_all/test fixtures, not full migration replay.
+- Creator payouts are payout-ready in metadata/profile storage, but full Stripe Connect onboarding/payout automation is intentionally deferred.
 
 ## Test/verification status
 

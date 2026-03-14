@@ -6,15 +6,20 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.models import (
+    BillingInterval,
+    WorkerBuilderCategory,
     WorkerChainStatus,
     WorkerChainTriggerType,
+    WorkerEntitlementStatus,
     WorkerInstanceStatus,
     WorkerMemoryScope,
     WorkerPricingType,
     WorkerRunStatus,
     WorkerRunTriggerType,
+    WorkerAccessType,
     WorkerTemplateStatus,
     WorkerTemplateVisibility,
+    WorkspaceSubscriptionStatus,
 )
 
 
@@ -23,6 +28,7 @@ class BaseSchema(BaseModel):
 
 
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+DRAFT_TOOL_LABELS = {"web_search", "database_lookup", "file_access", "api_call"}
 
 
 def normalize_slug(value: str) -> str:
@@ -83,6 +89,85 @@ class WorkspaceUpdate(BaseSchema):
     website: str | None = None
     industry: str | None = None
     subscription_plan: str | None = None
+
+
+class BillingPlanRead(BaseSchema):
+    id: uuid.UUID
+    code: str
+    name: str
+    description: str | None = None
+    monthly_price_cents: int
+    annual_price_cents: int | None = None
+    max_worker_drafts: int | None = None
+    max_published_workers: int | None = None
+    max_worker_installs_per_workspace: int | None = None
+    max_worker_runs_per_month: int | None = None
+    allow_worker_builder: bool
+    allow_marketplace_publishing: bool
+    allow_private_workers: bool
+    allow_public_workers: bool
+    allow_marketplace_install: bool
+    allow_team_features: bool
+    is_active: bool
+
+
+class BillingSubscriptionRead(BaseSchema):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    plan_id: uuid.UUID | None = None
+    plan_code: str
+    plan_name: str
+    status: WorkspaceSubscriptionStatus
+    billing_interval: BillingInterval
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    stripe_checkout_session_id: str | None = None
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
+    cancel_at_period_end: bool = False
+    subscribed_at: datetime
+    canceled_at: datetime | None = None
+    trial_ends_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class BillingEntitlementsRead(BaseSchema):
+    plan: BillingPlanRead
+    subscription: BillingSubscriptionRead | None = None
+    features: dict[str, bool] = Field(default_factory=dict)
+    limits: dict[str, int | None] = Field(default_factory=dict)
+    usage: dict[str, int] = Field(default_factory=dict)
+
+
+class BillingCheckoutSubscriptionRequest(BaseSchema):
+    plan_code: str = Field(min_length=2, max_length=50)
+    billing_interval: BillingInterval = BillingInterval.MONTHLY
+
+    @field_validator("plan_code")
+    @classmethod
+    def normalize_plan_code(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class BillingCheckoutSessionResponse(BaseSchema):
+    session_id: str
+    checkout_url: str
+    mode: str
+
+
+class BillingPortalResponse(BaseSchema):
+    portal_url: str
+
+
+class BillingWorkerCheckoutRequest(BaseSchema):
+    purchase_type: WorkerAccessType | None = None
+
+
+class BillingWebhookResponse(BaseSchema):
+    received: bool = True
+    event_id: str
+    status: str
 
 
 class WorkerCreate(BaseSchema):
@@ -173,6 +258,11 @@ class WorkerTemplateRead(BaseSchema):
     pricing_type: WorkerPricingType = WorkerPricingType.INTERNAL
     price_cents: int = 0
     currency: str = "USD"
+    icon: str | None = None
+    screenshots_json: list[str] | None = None
+    usage_examples_json: list[dict[str, Any]] | None = None
+    creator_revenue_percent: float = 70.0
+    platform_revenue_percent: float = 30.0
     install_count: int = 0
     rating_avg: float = 0.0
     rating_count: int = 0
@@ -197,6 +287,10 @@ class WorkerTemplateCatalogRead(BaseSchema):
     pricing_type: WorkerPricingType
     price_cents: int
     currency: str
+    icon: str | None = None
+    screenshots_json: list[str] | None = None
+    usage_examples_json: list[dict[str, Any]] | None = None
+    creator_name: str | None = None
     install_count: int = 0
     rating_avg: float = 0.0
     rating_count: int = 0
@@ -225,6 +319,11 @@ class WorkerTemplateCreate(BaseSchema):
     pricing_type: WorkerPricingType = WorkerPricingType.INTERNAL
     price_cents: int = 0
     currency: str = Field(default="USD", min_length=3, max_length=10)
+    icon: str | None = Field(default=None, max_length=255)
+    screenshots_json: list[str] = Field(default_factory=list)
+    usage_examples_json: list[dict[str, Any]] = Field(default_factory=list)
+    creator_revenue_percent: float = Field(default=70.0, ge=0, le=100)
+    platform_revenue_percent: float = Field(default=30.0, ge=0, le=100)
     tags_json: list[str] = Field(default_factory=list)
 
     @field_validator("slug")
@@ -252,6 +351,8 @@ class WorkerTemplateCreate(BaseSchema):
             raise ValueError("price_cents must be > 0 for paid pricing types")
         if self.is_marketplace_listed and self.pricing_type != WorkerPricingType.FREE and self.price_cents <= 0:
             raise ValueError("Marketplace listed paid templates require valid pricing")
+        if abs((self.creator_revenue_percent + self.platform_revenue_percent) - 100.0) > 0.001:
+            raise ValueError("creator_revenue_percent and platform_revenue_percent must total 100")
         return self
 
     def assert_slug_unique(self, existing_slugs: set[str]) -> None:
@@ -279,6 +380,11 @@ class WorkerTemplateUpdate(BaseSchema):
     pricing_type: WorkerPricingType | None = None
     price_cents: int | None = None
     currency: str | None = Field(default=None, min_length=3, max_length=10)
+    icon: str | None = Field(default=None, max_length=255)
+    screenshots_json: list[str] | None = None
+    usage_examples_json: list[dict[str, Any]] | None = None
+    creator_revenue_percent: float | None = Field(default=None, ge=0, le=100)
+    platform_revenue_percent: float | None = Field(default=None, ge=0, le=100)
     tags_json: list[str] | None = None
 
     @field_validator("slug")
@@ -311,6 +417,9 @@ class WorkerTemplateUpdate(BaseSchema):
         if self.is_marketplace_listed and self.pricing_type in {WorkerPricingType.SUBSCRIPTION, WorkerPricingType.ONE_TIME}:
             if self.price_cents is None or self.price_cents <= 0:
                 raise ValueError("Marketplace listed paid templates require valid pricing")
+        if self.creator_revenue_percent is not None and self.platform_revenue_percent is not None:
+            if abs((self.creator_revenue_percent + self.platform_revenue_percent) - 100.0) > 0.001:
+                raise ValueError("creator_revenue_percent and platform_revenue_percent must total 100")
         return self
 
     def assert_slug_unique(self, existing_slugs: set[str]) -> None:
@@ -329,6 +438,9 @@ class WorkerTemplatePublishRequest(BaseSchema):
     pricing_type: WorkerPricingType = WorkerPricingType.FREE
     price_cents: int = 0
     currency: str = Field(default="USD", min_length=3, max_length=10)
+    icon: str | None = Field(default=None, max_length=255)
+    screenshots_json: list[str] = Field(default_factory=list)
+    usage_examples_json: list[dict[str, Any]] = Field(default_factory=list)
 
     @field_validator("slug")
     @classmethod
@@ -383,11 +495,164 @@ class WorkerTemplateDuplicateRequest(BaseSchema):
         return normalized
 
 
+class WorkerDraftCreate(BaseSchema):
+    name: str = Field(min_length=2, max_length=120)
+    slug: str | None = Field(default=None, min_length=2, max_length=160)
+    description: str | None = None
+    category: WorkerBuilderCategory = WorkerBuilderCategory.CUSTOM
+    prompt_template: str = Field(min_length=20, max_length=8000)
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
+    tools: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("slug")
+    @classmethod
+    def validate_slug(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = normalize_slug(value)
+        if not normalized:
+            raise ValueError("Slug must contain alphanumeric characters")
+        if not SLUG_PATTERN.match(normalized):
+            raise ValueError("Slug must be lowercase letters, numbers, and single hyphens")
+        return normalized
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        cleaned: list[dict[str, Any]] = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise ValueError("Each tool must be an object")
+            label = str(item.get("label", "")).strip()
+            if label not in DRAFT_TOOL_LABELS:
+                raise ValueError(f"Unsupported tool label: {label}")
+            cleaned.append({"label": label, "enabled": bool(item.get("enabled", True)), "config": item.get("config", {})})
+        return cleaned
+
+
+class WorkerDraftUpdate(BaseSchema):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    slug: str | None = Field(default=None, min_length=2, max_length=160)
+    description: str | None = None
+    category: WorkerBuilderCategory | None = None
+    prompt_template: str | None = Field(default=None, min_length=20, max_length=8000)
+    input_schema: dict[str, Any] | None = None
+    output_schema: dict[str, Any] | None = None
+    tools: list[dict[str, Any]] | None = None
+    visibility: WorkerTemplateVisibility | None = None
+    price_monthly: float | None = Field(default=None, ge=0)
+    price_onetime: float | None = Field(default=None, ge=0)
+    icon: str | None = Field(default=None, max_length=255)
+    screenshots: list[str] | None = None
+    tags: list[str] | None = None
+    usage_examples: list[dict[str, Any]] | None = None
+    creator_revenue_percent: float | None = Field(default=None, ge=0, le=100)
+    platform_revenue_percent: float | None = Field(default=None, ge=0, le=100)
+
+    @field_validator("slug")
+    @classmethod
+    def validate_slug(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = normalize_slug(value)
+        if not normalized:
+            raise ValueError("Slug must contain alphanumeric characters")
+        if not SLUG_PATTERN.match(normalized):
+            raise ValueError("Slug must be lowercase letters, numbers, and single hyphens")
+        return normalized
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, value: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
+        if value is None:
+            return None
+        cleaned: list[dict[str, Any]] = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise ValueError("Each tool must be an object")
+            label = str(item.get("label", "")).strip()
+            if label not in DRAFT_TOOL_LABELS:
+                raise ValueError(f"Unsupported tool label: {label}")
+            cleaned.append({"label": label, "enabled": bool(item.get("enabled", True)), "config": item.get("config", {})})
+        return cleaned
+
+    @model_validator(mode="after")
+    def validate_revenue_split(self):
+        if self.creator_revenue_percent is not None and self.platform_revenue_percent is not None:
+            if abs((self.creator_revenue_percent + self.platform_revenue_percent) - 100.0) > 0.001:
+                raise ValueError("creator_revenue_percent and platform_revenue_percent must total 100")
+        return self
+
+
+class WorkerDraftRead(BaseSchema):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    creator_user_id: uuid.UUID
+    published_template_id: uuid.UUID | None = None
+    name: str
+    slug: str
+    description: str | None = None
+    category: WorkerBuilderCategory
+    prompt_template: str
+    input_schema_json: dict[str, Any] | None = None
+    output_schema_json: dict[str, Any] | None = None
+    tools_json: list[dict[str, Any]] | None = None
+    visibility: WorkerTemplateVisibility
+    price_monthly: float | None = None
+    price_onetime: float | None = None
+    icon: str | None = None
+    screenshots_json: list[str] | None = None
+    tags_json: list[str] | None = None
+    usage_examples_json: list[dict[str, Any]] | None = None
+    is_published: bool
+    creator_revenue_percent: float = 70.0
+    platform_revenue_percent: float = 30.0
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkerDraftListResponse(BaseSchema):
+    items: list[WorkerDraftRead]
+    total: int
+
+
+class WorkerDraftCreateResponse(BaseSchema):
+    worker_draft_id: uuid.UUID
+    draft: WorkerDraftRead
+
+
+class WorkerDraftTestRequest(BaseSchema):
+    inputs: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkerDraftTestResponse(BaseSchema):
+    worker_draft_id: uuid.UUID
+    run_id: uuid.UUID
+    status: WorkerRunStatus
+    rendered_prompt: str
+    execution_result: dict[str, Any] = Field(default_factory=dict)
+    normalized_output: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkerDraftPublishResponse(BaseSchema):
+    worker_draft_id: uuid.UUID
+    published_template_id: uuid.UUID
+    is_published: bool
+    template: WorkerTemplateRead
+
+
 class WorkerBuilderActionRead(BaseSchema):
     key: str
     name: str
     description: str
     default_status: str
+
+
+class WorkerBuilderCategoryRead(BaseSchema):
+    key: WorkerBuilderCategory
+    label: str
+    description: str | None = None
 
 
 class WorkerBuilderStepInput(BaseSchema):
@@ -659,8 +924,15 @@ class WorkerSubscriptionRead(BaseSchema):
     worker_template_id: uuid.UUID
     purchaser_user_id: uuid.UUID | None = None
     billing_status: str
+    access_type: WorkerAccessType = WorkerAccessType.FREE
+    status: WorkerEntitlementStatus = WorkerEntitlementStatus.ACTIVE
     price_cents: int
     currency: str
+    stripe_checkout_session_id: str | None = None
+    stripe_payment_intent_id: str | None = None
+    stripe_subscription_id: str | None = None
+    granted_at: datetime | None = None
+    expires_at: datetime | None = None
     started_at: datetime
     ends_at: datetime | None = None
     is_active: bool
@@ -693,12 +965,16 @@ class CreatorRevenueSummaryRead(BaseSchema):
 class MarketplaceListingRead(BaseSchema):
     template: WorkerTemplateCatalogRead
     is_installed: bool = False
+    has_active_entitlement: bool = False
+    purchase_required: bool = False
     subscription: WorkerSubscriptionRead | None = None
 
 
 class MarketplaceWorkerDetailRead(BaseSchema):
     template: WorkerTemplateCatalogRead
     is_installed: bool = False
+    has_active_entitlement: bool = False
+    purchase_required: bool = False
     subscription: WorkerSubscriptionRead | None = None
     reviews: list[WorkerReviewCatalogRead] = Field(default_factory=list)
     tools: list[WorkerToolCatalogRead] = Field(default_factory=list)

@@ -8,7 +8,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { api } from "@/services/api";
-import type { MarketplaceInstallResponse, MarketplaceListingRead } from "@/types";
+import type { BillingCheckoutSessionResponse, MarketplaceInstallResponse, MarketplaceListingRead } from "@/types";
 
 function formatPricing(priceCents: number, pricingType: string, currency: string): string {
   if (pricingType === "free") return "Free";
@@ -22,6 +22,7 @@ export default function MarketplacePage() {
   const [tagFilter, setTagFilter] = useState("");
   const [pricingFilter, setPricingFilter] = useState("all");
   const [busyTemplateId, setBusyTemplateId] = useState<string | null>(null);
+  const [checkoutBusyTemplateId, setCheckoutBusyTemplateId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -55,6 +56,21 @@ export default function MarketplacePage() {
       setError(err instanceof Error ? err.message : "Failed to install marketplace template");
     } finally {
       setBusyTemplateId(null);
+    }
+  };
+
+  const checkoutTemplate = async (templateId: string) => {
+    try {
+      setCheckoutBusyTemplateId(templateId);
+      setError("");
+      const response = await api.post<BillingCheckoutSessionResponse>(`/billing/checkout/worker/${templateId}`, {});
+      if (response.checkout_url) {
+        window.location.href = response.checkout_url;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create checkout session");
+    } finally {
+      setCheckoutBusyTemplateId(null);
     }
   };
 
@@ -159,10 +175,30 @@ export default function MarketplacePage() {
                 </Link>
                 <button
                   className="btn-primary px-3 py-1 text-xs"
-                  disabled={Boolean(listing.is_installed) || busyTemplateId === listing.template.id}
-                  onClick={() => installTemplate(listing.template.id, listing.template.display_name)}
+                    disabled={
+                      Boolean(listing.is_installed) ||
+                      busyTemplateId === listing.template.id ||
+                      checkoutBusyTemplateId === listing.template.id
+                    }
+                    onClick={() => {
+                      if (listing.purchase_required) {
+                        checkoutTemplate(listing.template.id).catch(() => undefined);
+                        return;
+                      }
+                      installTemplate(listing.template.id, listing.template.display_name).catch(() => undefined);
+                    }}
                 >
-                  {listing.is_installed ? "Installed" : busyTemplateId === listing.template.id ? "Installing..." : "Install"}
+                    {listing.is_installed
+                      ? "Installed"
+                      : checkoutBusyTemplateId === listing.template.id
+                        ? "Redirecting..."
+                        : busyTemplateId === listing.template.id
+                          ? "Installing..."
+                          : listing.purchase_required
+                            ? listing.template.pricing_type === "subscription"
+                              ? "Subscribe to Install"
+                              : "Buy to Install"
+                            : "Install"}
                 </button>
               </div>
             </div>

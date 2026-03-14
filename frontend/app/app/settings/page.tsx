@@ -8,8 +8,11 @@ export default function SettingsPage() {
       <h2 className="text-2xl font-semibold">Settings</h2>
       <div className="card p-6">
         <p className="text-sm text-slate-600">
-          Workspace controls for team access, sending limits, and billing are staged here for the next release.
+          Workspace controls for team access and operational settings are managed here.
         </p>
+        <Link href="/app/settings/billing" className="mt-3 inline-block text-sm font-medium text-brand-700 hover:underline">
+          Open Billing & Plan Settings
+        </Link>
       </div>
       {INTERNAL_BUILDER_ENABLED ? (
         <div className="card border-amber-200 bg-amber-50 p-6">

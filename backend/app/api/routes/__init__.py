@@ -1,7 +1,22 @@
-from app.api.routes import analytics, auth, campaigns, leads, meetings, messages, replies, webhooks, worker_builder, workers, workspace
+from app.api.routes import (
+    analytics,
+    auth,
+    billing,
+    campaigns,
+    leads,
+    meetings,
+    messages,
+    replies,
+    webhooks,
+    worker_builder,
+    worker_creator,
+    workers,
+    workspace,
+)
 
 __all__ = [
     "auth",
+    "billing",
     "workspace",
     "workers",
     "campaigns",
@@ -12,4 +27,5 @@ __all__ = [
     "analytics",
     "webhooks",
     "worker_builder",
+    "worker_creator",
 ]
