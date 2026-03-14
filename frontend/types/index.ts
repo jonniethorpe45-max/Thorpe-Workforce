@@ -110,6 +110,28 @@ export type WorkerTemplateRead = {
   updated_at: string;
 };
 
+export type WorkerTemplateCatalogRead = {
+  id: string;
+  slug?: string | null;
+  name: string;
+  display_name: string;
+  short_description?: string | null;
+  description?: string | null;
+  category: string;
+  worker_type: string;
+  worker_category: string;
+  visibility: "private" | "workspace" | "public" | "marketplace";
+  status: "draft" | "active" | "archived";
+  is_marketplace_listed: boolean;
+  pricing_type: "free" | "subscription" | "one_time" | "internal";
+  price_cents: number;
+  currency: string;
+  install_count: number;
+  rating_avg: number;
+  rating_count: number;
+  tags_json?: string[] | null;
+};
+
 export type WorkerToolRead = {
   id: string;
   name: string;
@@ -121,6 +143,14 @@ export type WorkerToolRead = {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type WorkerToolCatalogRead = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  category: string;
 };
 
 export type WorkerToolListResponse = {
@@ -256,27 +286,23 @@ export type WorkerSubscriptionRead = {
 
 export type WorkerReviewRead = {
   id: string;
-  worker_template_id: string;
-  user_id: string;
-  workspace_id: string;
   rating: number;
   review_text?: string | null;
   created_at: string;
-  updated_at: string;
 };
 
 export type MarketplaceListingRead = {
-  template: WorkerTemplateRead;
+  template: WorkerTemplateCatalogRead;
   is_installed: boolean;
   subscription?: WorkerSubscriptionRead | null;
 };
 
 export type MarketplaceWorkerDetailRead = {
-  template: WorkerTemplateRead;
+  template: WorkerTemplateCatalogRead;
   is_installed: boolean;
   subscription?: WorkerSubscriptionRead | null;
   reviews: WorkerReviewRead[];
-  tools: WorkerToolRead[];
+  tools: WorkerToolCatalogRead[];
   average_rating: number;
   installs: number;
 };
@@ -304,9 +330,9 @@ export type PublicWorkerListItem = {
 };
 
 export type PublicWorkerDetailRead = {
-  template: WorkerTemplateRead;
+  template: WorkerTemplateCatalogRead;
   reviews: WorkerReviewRead[];
-  tools: WorkerToolRead[];
+  tools: WorkerToolCatalogRead[];
   average_rating: number;
   installs: number;
 };

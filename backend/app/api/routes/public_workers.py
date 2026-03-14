@@ -70,7 +70,14 @@ def get_public_worker(slug: str, db: Session = Depends(get_db)):
         .all()
     ]
     slugs = sorted(set(configured_tool_slugs + linked_tool_slugs))
-    tools = db.query(WorkerTool).filter(WorkerTool.slug.in_(slugs) if slugs else False).all()
+    tools = (
+        db.query(WorkerTool)
+        .filter(
+            WorkerTool.slug.in_(slugs) if slugs else False,
+            WorkerTool.is_active.is_(True),
+        )
+        .all()
+    )
     return PublicWorkerDetailRead(
         template=template,
         reviews=reviews,

@@ -111,6 +111,50 @@ def test_marketplace_and_public_visibility_rules(client, auth_headers):
     assert all(item["id"] != hidden["id"] for item in public_list.json())
 
 
+def test_publish_install_run_flow_happy_path(client, auth_headers):
+    template = _create_template(client, auth_headers, slug="hardening-publish-install-run")
+    publish_res = client.post(
+        f"/workers/templates/{template['id']}/publish",
+        json={
+            "name": template["name"],
+            "slug": template["slug"],
+            "description": "Publish-install-run happy path template with complete required fields.",
+            "instructions": "Run safely with configured tools and return structured output.",
+            "model_name": "mock-ai-v1",
+            "config_json": {"mission": "happy_path"},
+            "visibility": "public",
+            "is_marketplace_listed": False,
+            "pricing_type": "free",
+            "price_cents": 0,
+            "currency": "USD",
+        },
+        headers=auth_headers,
+    )
+    assert publish_res.status_code == 200
+    assert publish_res.json()["status"] == "active"
+
+    install_res = client.post(
+        f"/workers/templates/{template['id']}/install",
+        json={"instance_name": "Hardening Happy Instance"},
+        headers=auth_headers,
+    )
+    assert install_res.status_code == 200
+    instance_id = install_res.json()["id"]
+
+    run_res = client.post(
+        f"/workers/instances/{instance_id}/run",
+        json={"runtime_input": {"source": "publish_install_run"}},
+        headers=auth_headers,
+    )
+    assert run_res.status_code == 200
+    run_id = run_res.json()["run_id"]
+
+    run_detail = client.get(f"/worker-runs/{run_id}", headers=auth_headers)
+    assert run_detail.status_code == 200
+    assert run_detail.json()["status"] == "completed"
+    assert run_detail.json()["summary"]
+
+
 def test_review_rating_validation(client, auth_headers):
     template = _create_template(client, auth_headers, slug="hardening-review-validation")
     publish_res = client.post(
@@ -138,6 +182,57 @@ def test_review_rating_validation(client, auth_headers):
         headers=auth_headers,
     )
     assert invalid_review.status_code == 422
+
+
+def test_workspace_isolation_for_chain_access(client, auth_headers):
+    other_headers = _signup_user(client, email="other-chain@example.com", company="Other Chain Co")
+    template = _create_template(client, auth_headers, slug="hardening-chain-isolation", status="active")
+    install_res = client.post(
+        f"/workers/templates/{template['id']}/install",
+        json={"instance_name": "Isolation Chain Instance"},
+        headers=auth_headers,
+    )
+    assert install_res.status_code == 200
+    instance_id = install_res.json()["id"]
+
+    create_chain_res = client.post(
+        "/worker-chains",
+        json={
+            "name": "Isolation Chain",
+            "description": "Workspace isolation chain",
+            "status": "draft",
+            "trigger_type": "manual",
+            "trigger_config_json": {},
+            "steps": [
+                {
+                    "step_order": 1,
+                    "worker_instance_id": instance_id,
+                    "step_name": "single-step",
+                    "input_mapping_json": {},
+                }
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert create_chain_res.status_code == 200
+    chain_id = create_chain_res.json()["id"]
+
+    cross_get = client.get(f"/worker-chains/{chain_id}", headers=other_headers)
+    assert cross_get.status_code == 404
+
+    cross_patch = client.patch(
+        f"/worker-chains/{chain_id}",
+        json={"description": "unauthorized update"},
+        headers=other_headers,
+    )
+    assert cross_patch.status_code == 404
+
+    cross_run = client.post(
+        f"/worker-chains/{chain_id}/run",
+        json={"runtime_input": {"seed": "unauthorized"}},
+        headers=other_headers,
+    )
+    assert cross_run.status_code == 404
 
 
 def test_basic_chain_execution_happy_path(client, auth_headers):
@@ -197,6 +292,69 @@ def test_basic_chain_execution_happy_path(client, auth_headers):
     detail_res = client.get(f"/worker-runs/{second_run_id}", headers=auth_headers)
     assert detail_res.status_code == 200
     assert detail_res.json()["input_json"]["from_previous_seed"] == "happy"
+
+
+def test_marketplace_and_public_endpoints_do_not_expose_private_template_fields(client, auth_headers):
+    template = _create_template(client, auth_headers, slug="hardening-field-exposure")
+    publish_res = client.post(
+        f"/marketplace/templates/{template['id']}/publish",
+        json={
+            "name": template["name"],
+            "slug": template["slug"],
+            "description": "Template used to validate public and marketplace field exposure controls.",
+            "instructions": "Return structured output and keep internal template settings private.",
+            "model_name": "mock-ai-v1",
+            "config_json": {"mission": "field_exposure"},
+            "visibility": "marketplace",
+            "is_marketplace_listed": True,
+            "pricing_type": "free",
+            "price_cents": 0,
+            "currency": "USD",
+        },
+        headers=auth_headers,
+    )
+    assert publish_res.status_code == 200
+
+    forbidden_template_fields = {
+        "workspace_id",
+        "creator_user_id",
+        "default_config_json",
+        "config_json",
+        "capabilities_json",
+        "allowed_actions",
+        "actions_json",
+        "tools_json",
+        "prompt_profile",
+        "is_system_template",
+        "memory_enabled",
+        "chain_enabled",
+    }
+
+    marketplace_detail = client.get(f"/marketplace/templates/{template['id']}", headers=auth_headers)
+    assert marketplace_detail.status_code == 200
+    marketplace_template = marketplace_detail.json()["template"]
+    assert forbidden_template_fields.isdisjoint(set(marketplace_template.keys()))
+    if marketplace_detail.json()["reviews"]:
+        review = marketplace_detail.json()["reviews"][0]
+        assert "user_id" not in review
+        assert "workspace_id" not in review
+    if marketplace_detail.json()["tools"]:
+        tool = marketplace_detail.json()["tools"][0]
+        assert "config_schema_json" not in tool
+        assert "is_system" not in tool
+
+    public_detail = client.get(f"/public-workers/{template['slug']}")
+    assert public_detail.status_code == 200
+    public_template = public_detail.json()["template"]
+    assert forbidden_template_fields.isdisjoint(set(public_template.keys()))
+    if public_detail.json()["reviews"]:
+        review = public_detail.json()["reviews"][0]
+        assert "user_id" not in review
+        assert "workspace_id" not in review
+    if public_detail.json()["tools"]:
+        tool = public_detail.json()["tools"][0]
+        assert "config_schema_json" not in tool
+        assert "is_system" not in tool
 
 
 def test_startup_health_and_route_registration(client):

@@ -178,6 +178,39 @@ SYSTEM_TEMPLATE_SEEDS: list[dict[str, Any]] = [
         "tools_json": ["calendar_scheduler", "email_sender", "internal_note_writer"],
         "tags_json": ["meetings", "scheduling", "pipeline"],
     },
+    {
+        "template_key": "system-real-estate-deal-finder-worker",
+        "name": "Real Estate Deal Finder Worker",
+        "slug": "real-estate-deal-finder-worker",
+        "short_description": "Finds high-potential real estate opportunities and prepares structured deal briefs.",
+        "description": (
+            "A real estate intelligence template focused on identifying deal candidates, highlighting underwriting"
+            " signals, and preparing concise next-step recommendations for acquisition teams."
+        ),
+        "category": "real_estate",
+        "worker_type": "custom_worker",
+        "worker_category": "real_estate",
+        "plan_version": "real_estate_v1",
+        "instructions": (
+            "Act as a real estate deal sourcing analyst. Prioritize actionable opportunities, summarize risk factors,"
+            " and maintain clean structured notes for operator review."
+        ),
+        "model_name": "mock-ai-v1",
+        "config_json": {
+            "mission": "Source and summarize qualified real estate deal opportunities.",
+            "target_markets": ["Texas", "Florida", "Arizona"],
+            "asset_types": ["multifamily", "light industrial"],
+            "min_cap_rate": 0.055,
+        },
+        "capabilities_json": {
+            "deal_signal_analysis": True,
+            "market_snapshot": True,
+            "opportunity_scoring": True,
+        },
+        "actions_json": ["research_selected_leads", "record_optimization_signals"],
+        "tools_json": ["lead_recorder", "internal_note_writer"],
+        "tags_json": ["real-estate", "deals", "sourcing"],
+    },
 ]
 
 

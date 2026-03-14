@@ -181,6 +181,28 @@ class WorkerTemplateRead(BaseSchema):
     updated_at: datetime
 
 
+class WorkerTemplateCatalogRead(BaseSchema):
+    id: uuid.UUID
+    slug: str | None = None
+    name: str
+    display_name: str
+    short_description: str | None = None
+    description: str | None = None
+    category: str
+    worker_type: str
+    worker_category: str
+    visibility: WorkerTemplateVisibility
+    status: WorkerTemplateStatus
+    is_marketplace_listed: bool = False
+    pricing_type: WorkerPricingType
+    price_cents: int
+    currency: str
+    install_count: int = 0
+    rating_avg: float = 0.0
+    rating_count: int = 0
+    tags_json: list[str] | None = None
+
+
 class WorkerTemplateCreate(BaseSchema):
     name: str = Field(min_length=2, max_length=120)
     slug: str | None = Field(default=None, min_length=2, max_length=160)
@@ -598,6 +620,13 @@ class WorkerReviewRead(BaseSchema):
     updated_at: datetime
 
 
+class WorkerReviewCatalogRead(BaseSchema):
+    id: uuid.UUID
+    rating: int = Field(ge=1, le=5)
+    review_text: str | None = None
+    created_at: datetime
+
+
 class WorkerToolRead(BaseSchema):
     id: uuid.UUID
     name: str
@@ -609,6 +638,14 @@ class WorkerToolRead(BaseSchema):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class WorkerToolCatalogRead(BaseSchema):
+    id: uuid.UUID
+    name: str
+    slug: str
+    description: str | None = None
+    category: str
 
 
 class WorkerToolListResponse(BaseSchema):
@@ -654,17 +691,17 @@ class CreatorRevenueSummaryRead(BaseSchema):
 
 
 class MarketplaceListingRead(BaseSchema):
-    template: WorkerTemplateRead
+    template: WorkerTemplateCatalogRead
     is_installed: bool = False
     subscription: WorkerSubscriptionRead | None = None
 
 
 class MarketplaceWorkerDetailRead(BaseSchema):
-    template: WorkerTemplateRead
+    template: WorkerTemplateCatalogRead
     is_installed: bool = False
     subscription: WorkerSubscriptionRead | None = None
-    reviews: list[WorkerReviewRead] = Field(default_factory=list)
-    tools: list[WorkerToolRead] = Field(default_factory=list)
+    reviews: list[WorkerReviewCatalogRead] = Field(default_factory=list)
+    tools: list[WorkerToolCatalogRead] = Field(default_factory=list)
     average_rating: float = 0.0
     installs: int = 0
 
@@ -692,9 +729,9 @@ class PublicWorkerListItem(BaseSchema):
 
 
 class PublicWorkerDetailRead(BaseSchema):
-    template: WorkerTemplateRead
-    reviews: list[WorkerReviewRead] = Field(default_factory=list)
-    tools: list[WorkerToolRead] = Field(default_factory=list)
+    template: WorkerTemplateCatalogRead
+    reviews: list[WorkerReviewCatalogRead] = Field(default_factory=list)
+    tools: list[WorkerToolCatalogRead] = Field(default_factory=list)
     average_rating: float = 0.0
     installs: int = 0
 

@@ -11,8 +11,8 @@ from app.schemas.api import (
     MarketplaceInstallResponse,
     MarketplaceListingRead,
     MarketplaceWorkerDetailRead,
+    WorkerReviewCatalogRead,
     WorkerReviewCreate,
-    WorkerReviewRead,
     WorkerTemplatePublishRequest,
     WorkerTemplateInstallRequest,
 )
@@ -188,7 +188,7 @@ def install_marketplace_template(
     )
 
 
-@router.post("/templates/{template_id}/reviews", response_model=WorkerReviewRead)
+@router.post("/templates/{template_id}/reviews", response_model=WorkerReviewCatalogRead)
 def create_review(
     template_id: uuid.UUID,
     payload: WorkerReviewCreate,
@@ -212,7 +212,7 @@ def create_review(
     return review
 
 
-@router.get("/templates/{template_id}/reviews", response_model=list[WorkerReviewRead])
+@router.get("/templates/{template_id}/reviews", response_model=list[WorkerReviewCatalogRead])
 def get_reviews(
     template_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
