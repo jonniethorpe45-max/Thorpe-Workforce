@@ -337,6 +337,30 @@ class WorkerTemplatePublishRequest(BaseSchema):
         validate_slug_uniqueness(self.slug, existing_slugs)
 
 
+class WorkerTemplateInstallRequest(BaseSchema):
+    instance_name: str | None = Field(default=None, min_length=2, max_length=120)
+    runtime_config_overrides: dict[str, Any] = Field(default_factory=dict)
+    schedule_expression: str | None = Field(default=None, max_length=120)
+    memory_scope: WorkerMemoryScope = WorkerMemoryScope.INSTANCE
+
+
+class WorkerTemplateDuplicateRequest(BaseSchema):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    slug: str | None = Field(default=None, min_length=2, max_length=160)
+
+    @field_validator("slug")
+    @classmethod
+    def validate_slug(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = normalize_slug(value)
+        if not normalized:
+            raise ValueError("Slug must contain alphanumeric characters")
+        if not SLUG_PATTERN.match(normalized):
+            raise ValueError("Slug must be lowercase letters, numbers, and single hyphens")
+        return normalized
+
+
 class WorkerBuilderActionRead(BaseSchema):
     key: str
     name: str

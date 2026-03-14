@@ -1,24 +1,56 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import Campaign, User, Worker, WorkerStatus, WorkerTemplate
-from app.schemas.api import WorkerCreate, WorkerRead, WorkerRunRead, WorkerTemplateRead, WorkerUpdate
+from app.models import Campaign, User, Worker, WorkerInstance, WorkerInstanceStatus, WorkerRunStatus, WorkerStatus, WorkerTemplate
+from app.schemas.api import (
+    WorkerCreate,
+    WorkerInstanceExecuteRequest,
+    WorkerInstanceExecuteResponse,
+    WorkerInstanceRead,
+    WorkerInstanceUpdate,
+    WorkerRead,
+    WorkerRunRead,
+    WorkerTemplateCreate,
+    WorkerTemplateDuplicateRequest,
+    WorkerTemplateInstallRequest,
+    WorkerTemplatePublishRequest,
+    WorkerTemplateRead,
+    WorkerTemplateUpdate,
+    WorkerUpdate,
+)
 from app.services.audit import log_audit_event
 from app.services.worker_definitions import (
     build_worker_config,
     ensure_builtin_worker_templates,
     resolve_worker_definition,
 )
+from app.services.worker_execution import execute_worker_instance_run, queue_worker_instance_run
 from app.services.worker_service import list_worker_runs, pause_worker, queue_worker_run, resume_worker, run_worker_for_campaign
+from app.services.worker_templates import (
+    create_worker_template,
+    duplicate_worker_template,
+    get_worker_template_details,
+    install_worker_template,
+    list_worker_templates as list_worker_templates_service,
+    publish_worker_template,
+    update_worker_template,
+)
 from app.tasks.dispatcher import enqueue_task
-from app.tasks.jobs import execute_worker_run_task
+from app.tasks.jobs import execute_worker_instance_run_task, execute_worker_run_task
 
 router = APIRouter(prefix="/workers", tags=["workers"])
+
+
+def _get_workspace_instance(db: Session, *, instance_id: uuid.UUID, workspace_id: uuid.UUID) -> WorkerInstance:
+    instance = db.get(WorkerInstance, instance_id)
+    if not instance or instance.workspace_id != workspace_id:
+        raise HTTPException(status_code=404, detail="Worker instance not found")
+    return instance
 
 
 @router.post("", response_model=WorkerRead)
@@ -91,28 +123,304 @@ def list_workers(current_user: User = Depends(get_current_user), db: Session = D
     return db.query(Worker).filter(Worker.workspace_id == current_user.workspace_id).order_by(Worker.created_at.desc()).all()
 
 
+@router.post("/templates", response_model=WorkerTemplateRead)
+def create_template(
+    payload: WorkerTemplateCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_builtin_worker_templates(db)
+    template = create_worker_template(
+        db,
+        workspace_id=current_user.workspace_id,
+        creator_user_id=current_user.id,
+        payload=payload,
+    )
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="worker_template_created",
+        payload={"template_id": str(template.id), "worker_type": template.worker_type},
+    )
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.get("/templates", response_model=list[WorkerTemplateRead])
+def list_templates(
+    include_public: bool = Query(default=True),
+    worker_type: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_builtin_worker_templates(db)
+    return list_worker_templates_service(
+        db,
+        workspace_id=current_user.workspace_id,
+        include_workspace_templates=True,
+        include_public_templates=include_public,
+        include_global_non_public_templates=False,
+        worker_type=worker_type,
+    )
+
+
+@router.get("/templates/library", response_model=list[WorkerTemplateRead])
+def list_worker_templates_library(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_builtin_worker_templates(db)
+    templates = list_worker_templates_service(
+        db,
+        workspace_id=current_user.workspace_id,
+        include_workspace_templates=False,
+        include_public_templates=True,
+        include_global_non_public_templates=False,
+    )
+    db.commit()
+    return templates
+
+
+@router.get("/templates/{template_id}", response_model=WorkerTemplateRead)
+def get_template(
+    template_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_worker_template_details(
+        db,
+        template_id=template_id,
+        workspace_id=current_user.workspace_id,
+        include_public=True,
+        include_global_non_public=False,
+    )
+
+
+@router.patch("/templates/{template_id}", response_model=WorkerTemplateRead)
+def patch_template(
+    template_id: uuid.UUID,
+    payload: WorkerTemplateUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    template = db.get(WorkerTemplate, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Worker template not found")
+    updated = update_worker_template(
+        db,
+        template=template,
+        workspace_id=current_user.workspace_id,
+        payload=payload,
+    )
+    db.commit()
+    db.refresh(updated)
+    return updated
+
+
+@router.post("/templates/{template_id}/publish", response_model=WorkerTemplateRead)
+def publish_template(
+    template_id: uuid.UUID,
+    payload: WorkerTemplatePublishRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    template = db.get(WorkerTemplate, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Worker template not found")
+    published = publish_worker_template(
+        db,
+        template=template,
+        workspace_id=current_user.workspace_id,
+        payload=payload,
+    )
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="worker_template_published",
+        payload={"template_id": str(template_id), "visibility": published.visibility},
+    )
+    db.commit()
+    db.refresh(published)
+    return published
+
+
+@router.post("/templates/{template_id}/install", response_model=WorkerInstanceRead)
+def install_template(
+    template_id: uuid.UUID,
+    payload: WorkerTemplateInstallRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    template = get_worker_template_details(
+        db,
+        template_id=template_id,
+        workspace_id=current_user.workspace_id,
+        include_public=True,
+        include_global_non_public=False,
+    )
+    install_result = install_worker_template(
+        db,
+        template=template,
+        workspace_id=current_user.workspace_id,
+        installer_user_id=current_user.id,
+        instance_name=payload.instance_name,
+        runtime_config_overrides=payload.runtime_config_overrides,
+        schedule_expression=payload.schedule_expression,
+        memory_scope=payload.memory_scope,
+    )
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="worker_template_installed",
+        payload={"template_id": str(template_id), "instance_id": str(install_result.instance.id)},
+    )
+    db.commit()
+    db.refresh(install_result.instance)
+    return install_result.instance
+
+
+@router.post("/templates/{template_id}/duplicate", response_model=WorkerTemplateRead)
+def duplicate_template(
+    template_id: uuid.UUID,
+    payload: WorkerTemplateDuplicateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    source_template = get_worker_template_details(
+        db,
+        template_id=template_id,
+        workspace_id=current_user.workspace_id,
+        include_public=True,
+        include_global_non_public=False,
+    )
+    duplicated = duplicate_worker_template(
+        db,
+        source_template=source_template,
+        workspace_id=current_user.workspace_id,
+        creator_user_id=current_user.id,
+        name=payload.name,
+        slug=payload.slug,
+    )
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="worker_template_duplicated",
+        payload={"source_template_id": str(template_id), "template_id": str(duplicated.id)},
+    )
+    db.commit()
+    db.refresh(duplicated)
+    return duplicated
+
+
+@router.get("/instances", response_model=list[WorkerInstanceRead])
+def list_instances(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return (
+        db.query(WorkerInstance)
+        .filter(WorkerInstance.workspace_id == current_user.workspace_id)
+        .order_by(WorkerInstance.created_at.desc())
+        .all()
+    )
+
+
+@router.get("/instances/{instance_id}", response_model=WorkerInstanceRead)
+def get_instance(
+    instance_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
+
+
+@router.patch("/instances/{instance_id}", response_model=WorkerInstanceRead)
+def patch_instance(
+    instance_id: uuid.UUID,
+    payload: WorkerInstanceUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    instance = _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(instance, field, value)
+    db.commit()
+    db.refresh(instance)
+    return instance
+
+
+@router.post("/instances/{instance_id}/run", response_model=WorkerInstanceExecuteResponse)
+def run_instance(
+    instance_id: uuid.UUID,
+    payload: WorkerInstanceExecuteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    instance = _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
+    run = queue_worker_instance_run(
+        db,
+        instance=instance,
+        runtime_input=payload.runtime_input,
+        trigger_source=payload.trigger_source or "manual_api",
+    )
+    db.flush()
+    task_id = enqueue_task(execute_worker_instance_run_task, str(run.id))
+    queued = True
+    if not task_id:
+        queued = False
+        execute_worker_instance_run(db, run_id=run.id)
+    db.commit()
+    db.refresh(run)
+    status_value = run.status if run.status in {item.value for item in WorkerRunStatus} else WorkerRunStatus.FAILED.value
+    return WorkerInstanceExecuteResponse(
+        success=run.status != WorkerRunStatus.FAILED.value,
+        queued=queued,
+        run_id=run.id,
+        task_id=task_id,
+        status=WorkerRunStatus(status_value),
+    )
+
+
+@router.post("/instances/{instance_id}/pause", response_model=WorkerInstanceRead)
+def pause_instance(
+    instance_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    instance = _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
+    instance.status = WorkerInstanceStatus.PAUSED.value
+    instance.next_run_at = None
+    db.commit()
+    db.refresh(instance)
+    return instance
+
+
+@router.post("/instances/{instance_id}/resume", response_model=WorkerInstanceRead)
+def resume_instance(
+    instance_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    instance = _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
+    instance.status = WorkerInstanceStatus.ACTIVE.value
+    instance.next_run_at = datetime.now(UTC) + timedelta(minutes=60)
+    db.commit()
+    db.refresh(instance)
+    return instance
+
+
 @router.get("/{worker_id}", response_model=WorkerRead)
 def get_worker(worker_id: uuid.UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     worker = db.get(Worker, worker_id)
     if not worker or worker.workspace_id != current_user.workspace_id:
         raise HTTPException(status_code=404, detail="Worker not found")
     return worker
-
-
-@router.get("/templates/library", response_model=list[WorkerTemplateRead])
-def list_worker_templates(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    ensure_builtin_worker_templates(db)
-    templates = (
-        db.query(WorkerTemplate)
-        .filter(WorkerTemplate.is_active.is_(True), WorkerTemplate.is_public.is_(True), WorkerTemplate.workspace_id.is_(None))
-        .order_by(WorkerTemplate.display_name.asc())
-        .all()
-    )
-    db.commit()
-    return templates
 
 
 @router.patch("/{worker_id}", response_model=WorkerRead)

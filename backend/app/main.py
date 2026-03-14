@@ -6,12 +6,17 @@ from app.api.routes import (
     auth,
     campaigns,
     leads,
+    marketplace,
     meetings,
     messages,
+    public_workers,
     replies,
     webhooks,
+    worker_chains,
     worker_builder,
     worker_instances,
+    worker_runs,
+    worker_tools,
     workers,
     workspace,
 )
@@ -31,6 +36,11 @@ app.include_router(auth.router)
 app.include_router(workspace.router)
 app.include_router(workers.router)
 app.include_router(worker_instances.router)
+app.include_router(worker_runs.router)
+app.include_router(worker_chains.router)
+app.include_router(worker_tools.router)
+app.include_router(marketplace.router)
+app.include_router(public_workers.router)
 app.include_router(campaigns.router)
 app.include_router(leads.router)
 app.include_router(messages.router)
