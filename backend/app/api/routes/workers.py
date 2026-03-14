@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -38,8 +38,14 @@ def create_worker(payload: WorkerCreate, current_user: User = Depends(get_curren
             raise HTTPException(status_code=404, detail="Worker template not found")
         if selected_template.worker_type != definition.worker_type:
             raise HTTPException(status_code=400, detail="Template does not match worker type")
+        if selected_template.workspace_id is not None:
+            raise HTTPException(status_code=400, detail="Public worker creation only supports built-in templates")
     if not selected_template:
-        selected_template = db.query(WorkerTemplate).filter(WorkerTemplate.template_key == definition.worker_type).first()
+        selected_template = (
+            db.query(WorkerTemplate)
+            .filter(WorkerTemplate.template_key == definition.worker_type, WorkerTemplate.workspace_id.is_(None))
+            .first()
+        )
 
     worker = Worker(
         workspace_id=current_user.workspace_id,
@@ -97,13 +103,14 @@ def get_worker(worker_id: uuid.UUID, current_user: User = Depends(get_current_us
 def list_worker_templates(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    include_internal: bool = Query(default=False),
 ):
     ensure_builtin_worker_templates(db)
-    query = db.query(WorkerTemplate).filter(WorkerTemplate.is_active.is_(True))
-    if not include_internal:
-        query = query.filter(WorkerTemplate.is_public.is_(True))
-    templates = query.order_by(WorkerTemplate.display_name.asc()).all()
+    templates = (
+        db.query(WorkerTemplate)
+        .filter(WorkerTemplate.is_active.is_(True), WorkerTemplate.is_public.is_(True), WorkerTemplate.workspace_id.is_(None))
+        .order_by(WorkerTemplate.display_name.asc())
+        .all()
+    )
     db.commit()
     return templates
 

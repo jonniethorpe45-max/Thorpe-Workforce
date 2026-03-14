@@ -8,7 +8,11 @@ from app.workers.definitions import WorkerDefinition, get_worker_definition, lis
 
 def ensure_builtin_worker_templates(db: Session) -> None:
     for definition in list_worker_definitions(include_internal=True):
-        existing = db.query(WorkerTemplate).filter(WorkerTemplate.template_key == definition.worker_type).first()
+        existing = (
+            db.query(WorkerTemplate)
+            .filter(WorkerTemplate.template_key == definition.worker_type, WorkerTemplate.workspace_id.is_(None))
+            .first()
+        )
         if existing:
             existing.display_name = definition.display_name
             existing.worker_type = definition.worker_type
@@ -19,9 +23,11 @@ def ensure_builtin_worker_templates(db: Session) -> None:
             existing.prompt_profile = definition.prompt_profile
             existing.is_public = definition.public_available
             existing.is_active = True
+            existing.workspace_id = None
             continue
         db.add(
             WorkerTemplate(
+                workspace_id=None,
                 template_key=definition.worker_type,
                 display_name=definition.display_name,
                 worker_type=definition.worker_type,

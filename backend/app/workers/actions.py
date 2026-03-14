@@ -12,6 +12,39 @@ from app.workers.planner import WorkerPlanner
 
 ActionHandler = Callable[[WorkerRunContext, WorkerStep], dict[str, Any]]
 
+ACTION_CATALOG: dict[str, dict[str, str]] = {
+    "select_eligible_leads": {
+        "name": "Select eligible leads",
+        "description": "Find leads that are send-eligible for the mission.",
+        "default_status": "prospecting",
+    },
+    "research_selected_leads": {
+        "name": "Research selected leads",
+        "description": "Generate company and lead research context.",
+        "default_status": "researching",
+    },
+    "generate_messages_for_selected_leads": {
+        "name": "Generate outreach messages",
+        "description": "Draft initial and follow-up outbound messages.",
+        "default_status": "drafting",
+    },
+    "dispatch_messages": {
+        "name": "Dispatch approved messages",
+        "description": "Send approved messages or hold for manual approval.",
+        "default_status": "sending",
+    },
+    "monitor_outbound_events": {
+        "name": "Monitor outbound events",
+        "description": "Read delivery and reply event signals.",
+        "default_status": "monitoring",
+    },
+    "record_optimization_signals": {
+        "name": "Record optimization signals",
+        "description": "Persist run-level optimization signals for the worker.",
+        "default_status": "optimizing",
+    },
+}
+
 
 class WorkerActionRegistry:
     def __init__(self) -> None:
@@ -143,3 +176,10 @@ def get_default_worker_action_registry() -> WorkerActionRegistry:
     registry.register("monitor_outbound_events", _monitor_outbound_events)
     registry.register("record_optimization_signals", _record_optimization_signals)
     return registry
+
+
+def list_action_catalog() -> list[dict[str, str]]:
+    return [
+        {"key": key, "name": value["name"], "description": value["description"], "default_status": value["default_status"]}
+        for key, value in ACTION_CATALOG.items()
+    ]

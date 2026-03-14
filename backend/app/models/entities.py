@@ -267,6 +267,7 @@ class WorkerTemplate(Base, TimestampMixin):
     __tablename__ = "worker_templates"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("workspaces.id"))
     template_key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     worker_type: Mapped[str] = mapped_column(String(50), nullable=False)

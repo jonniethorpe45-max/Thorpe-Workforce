@@ -111,6 +111,7 @@ class WorkerRead(BaseSchema):
 
 class WorkerTemplateRead(BaseSchema):
     id: uuid.UUID
+    workspace_id: uuid.UUID | None = None
     template_key: str
     display_name: str
     worker_type: str
@@ -123,6 +124,44 @@ class WorkerTemplateRead(BaseSchema):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class WorkerBuilderActionRead(BaseSchema):
+    key: str
+    name: str
+    description: str
+    default_status: str
+
+
+class WorkerBuilderStepInput(BaseSchema):
+    key: str
+    action_key: str
+    name: str | None = None
+    status: str | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class InternalWorkerTemplateCreate(BaseSchema):
+    display_name: str
+    worker_type: str = "custom_worker"
+    worker_category: str = "custom"
+    plan_version: str = "v1"
+    prompt_profile: str = "sales"
+    allowed_actions: list[str]
+    steps: list[WorkerBuilderStepInput]
+    config_defaults: dict[str, Any] = Field(default_factory=dict)
+    mission_default: str | None = None
+    is_active: bool = True
+
+
+class InternalWorkerFromTemplateCreate(BaseSchema):
+    template_id: uuid.UUID
+    name: str
+    mission: str
+    tone: str = "professional"
+    daily_send_limit: int = 40
+    run_interval_minutes: int = 60
+    config_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
 class WorkerRunRead(BaseSchema):

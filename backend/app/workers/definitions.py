@@ -91,8 +91,77 @@ SALES_WORKER_DEFINITION = WorkerDefinition(
 )
 
 
+CUSTOM_WORKER_DEFINITION = WorkerDefinition(
+    worker_type="custom_worker",
+    display_name="Custom Worker",
+    worker_category="custom",
+    description="Workspace-defined AI worker assembled from configurable plan steps.",
+    plan_version="custom_v1",
+    origin_type="custom",
+    public_available=False,
+    default_name="Custom AI Worker",
+    default_config={"execution_steps": []},
+    allowed_actions=[
+        "select_eligible_leads",
+        "research_selected_leads",
+        "generate_messages_for_selected_leads",
+        "dispatch_messages",
+        "monitor_outbound_events",
+        "record_optimization_signals",
+    ],
+    prompt_profile="sales",
+    steps=[],
+)
+
+RECRUITING_WORKER_DEFINITION = WorkerDefinition(
+    worker_type="ai_recruiting_worker",
+    display_name="AI Recruiting Worker",
+    worker_category="talent",
+    description="Future built-in worker for sourcing and outreach to candidates.",
+    plan_version="recruiting_v1",
+    public_available=False,
+    default_name="AI Recruiting Worker",
+    default_config={},
+    allowed_actions=[],
+    prompt_profile="sales",
+    steps=[],
+)
+
+SUPPORT_WORKER_DEFINITION = WorkerDefinition(
+    worker_type="ai_support_worker",
+    display_name="AI Support Worker",
+    worker_category="support",
+    description="Future built-in worker for triage and support response optimization.",
+    plan_version="support_v1",
+    public_available=False,
+    default_name="AI Support Worker",
+    default_config={},
+    allowed_actions=[],
+    prompt_profile="sales",
+    steps=[],
+)
+
+RESEARCH_WORKER_DEFINITION = WorkerDefinition(
+    worker_type="ai_research_worker",
+    display_name="AI Research Worker",
+    worker_category="research",
+    description="Future built-in worker for domain and account research automation.",
+    plan_version="research_v1",
+    public_available=False,
+    default_name="AI Research Worker",
+    default_config={},
+    allowed_actions=[],
+    prompt_profile="sales",
+    steps=[],
+)
+
+
 _BUILT_IN_DEFINITIONS: dict[str, WorkerDefinition] = {
     SALES_WORKER_DEFINITION.worker_type: SALES_WORKER_DEFINITION,
+    CUSTOM_WORKER_DEFINITION.worker_type: CUSTOM_WORKER_DEFINITION,
+    RECRUITING_WORKER_DEFINITION.worker_type: RECRUITING_WORKER_DEFINITION,
+    SUPPORT_WORKER_DEFINITION.worker_type: SUPPORT_WORKER_DEFINITION,
+    RESEARCH_WORKER_DEFINITION.worker_type: RESEARCH_WORKER_DEFINITION,
 }
 
 
