@@ -1,6 +1,6 @@
 """worker platform generalization
 
-Revision ID: 0003_worker_platform_generalization
+Revision ID: 0003_worker_platform
 Revises: 0002_worker_lifecycle_and_runs
 Create Date: 2026-03-14 15:30:00.000000
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "0003_worker_platform_generalization"
+revision = "0003_worker_platform"
 down_revision = "0002_worker_lifecycle_and_runs"
 branch_labels = None
 depends_on = None

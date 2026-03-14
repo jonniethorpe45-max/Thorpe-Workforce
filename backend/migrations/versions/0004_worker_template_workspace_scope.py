@@ -1,7 +1,7 @@
 """worker template workspace scope
 
-Revision ID: 0004_worker_template_workspace_scope
-Revises: 0003_worker_platform_generalization
+Revision ID: 0004_template_workspace_scope
+Revises: 0003_worker_platform
 Create Date: 2026-03-14 16:10:00.000000
 """
 
@@ -10,8 +10,8 @@ from sqlalchemy.dialects import postgresql
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = "0004_worker_template_workspace_scope"
-down_revision = "0003_worker_platform_generalization"
+revision = "0004_template_workspace_scope"
+down_revision = "0003_worker_platform"
 branch_labels = None
 depends_on = None
 
