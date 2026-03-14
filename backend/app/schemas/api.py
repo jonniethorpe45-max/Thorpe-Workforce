@@ -295,7 +295,7 @@ class AdminWorkerListItemRead(BaseSchema):
 
 
 class AdminWorkerDetailRead(BaseSchema):
-    template: WorkerTemplateRead
+    template: "WorkerTemplateRead"
     creator: UserRead | None = None
     installs: int = 0
     runs: int = 0
