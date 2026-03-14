@@ -1,0 +1,89 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { api } from "@/services/api";
+import type { PublicWorkerListItem } from "@/types";
+
+function formatPricing(item: PublicWorkerListItem): string {
+  if (item.pricing_type === "free") return "Free";
+  if (item.pricing_type === "internal") return "Internal";
+  return `${(item.price_cents / 100).toFixed(2)} ${item.currency.toUpperCase()}`;
+}
+
+export default function PublicWorkersPage() {
+  const [workers, setWorkers] = useState<PublicWorkerListItem[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api
+      .get<PublicWorkerListItem[]>("/public-workers")
+      .then(setWorkers)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load public workers"));
+  }, []);
+
+  if (error && !workers) return <main className="mx-auto max-w-6xl px-6 py-12"><ErrorState message={error} /></main>;
+  if (!workers) return <main className="mx-auto max-w-6xl px-6 py-12"><LoadingState label="Loading public worker library..." /></main>;
+
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Thorpe Workforce</p>
+            <h1 className="text-3xl font-semibold text-slate-900">Public Worker Library</h1>
+            <p className="text-sm text-slate-600">Discover marketplace-ready worker templates and their capabilities.</p>
+          </div>
+          <div className="flex gap-2">
+            <Link className="btn-secondary" href="/">
+              Home
+            </Link>
+            <Link className="btn-primary" href="/signup">
+              Get Started
+            </Link>
+          </div>
+        </div>
+
+        {error ? <ErrorState message={error} /> : null}
+
+        {!workers.length ? (
+          <EmptyState title="No public workers yet" description="Public templates will appear here when published." />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {workers.map((worker) => (
+              <article className="card p-4" key={worker.id}>
+                <h2 className="text-lg font-semibold">{worker.name}</h2>
+                <p className="mt-1 text-xs text-slate-500">{worker.category}</p>
+                <p className="mt-2 text-sm text-slate-700">{worker.short_description || "No summary provided."}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{formatPricing(worker)}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                    ★ {worker.rating_avg.toFixed(1)} ({worker.rating_count})
+                  </span>
+                </div>
+                {worker.tags_json?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {worker.tags_json.map((tag) => (
+                      <span className="rounded-full bg-brand-50 px-2 py-1 text-xs text-brand-700" key={`${worker.id}-${tag}`}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-4">
+                  <Link className="text-sm font-medium text-brand-600 hover:underline" href={`/workers/${worker.slug}`}>
+                    View Worker Details
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}

@@ -17,6 +17,9 @@ export default function LandingPage() {
           <Link href="/pricing" className="btn-secondary border-slate-700 bg-transparent text-white hover:bg-slate-800">
             View Pricing
           </Link>
+          <Link href="/workers" className="btn-secondary border-slate-700 bg-transparent text-white hover:bg-slate-800">
+            Browse Worker Library
+          </Link>
         </div>
       </div>
     </main>
