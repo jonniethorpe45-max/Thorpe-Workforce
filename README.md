@@ -59,6 +59,21 @@ All 10 workers are real `worker_templates` seeds (not mock-only fixtures) and ca
 This powers the startup narrative:
 **“Thorpe Workforce is run by Thorpe Workforce AI workers.”**
 
+Suggested internal chain recipes (workspace-level `worker_chains`):
+
+- **Daily Founder Briefing Chain**
+  - User Feedback Intelligence Worker
+  - Marketplace Curator Worker
+  - Operations Coordinator Worker
+- **Growth Campaign Chain**
+  - Product Strategy Worker
+  - Chief Marketing Worker
+  - Community Manager Worker
+- **Investor Update Chain**
+  - Operations Coordinator Worker
+  - Product Strategy Worker
+  - Investor Update Worker
+
 ## Monorepo Structure
 
 ```text
