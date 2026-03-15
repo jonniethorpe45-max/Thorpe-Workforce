@@ -47,7 +47,10 @@ export function CampaignForm({
 
   return (
     <form className="card space-y-4 p-6" onSubmit={submit}>
-      <h2 className="text-lg font-semibold">Create Worker Mission</h2>
+      <div>
+        <h2 className="text-lg font-semibold">Create Worker Mission</h2>
+        <p className="mt-1 text-sm text-slate-600">Define targeting, messaging intent, and worker assignment for this mission.</p>
+      </div>
       <input
         className="w-full rounded-lg border border-slate-200 px-3 py-2"
         placeholder="Mission name"
@@ -67,12 +70,15 @@ export function CampaignForm({
           </option>
         ))}
       </select>
-      <textarea
-        className="w-full rounded-lg border border-slate-200 px-3 py-2"
-        placeholder="Mission brief (ideal customer profile)"
-        value={payload.ideal_customer_profile}
-        onChange={(e) => setPayload((s) => ({ ...s, ideal_customer_profile: e.target.value }))}
-      />
+      <label className="text-sm">
+        <span className="mb-1 block text-slate-600">Mission brief (ideal customer profile)</span>
+        <textarea
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+          placeholder="Describe your target customer and value proposition"
+          value={payload.ideal_customer_profile}
+          onChange={(e) => setPayload((s) => ({ ...s, ideal_customer_profile: e.target.value }))}
+        />
+      </label>
       <div className="grid gap-4 md:grid-cols-2">
         <input
           className="rounded-lg border border-slate-200 px-3 py-2"
@@ -107,12 +113,15 @@ export function CampaignForm({
           }
         />
       </div>
-      <input
-        className="w-full rounded-lg border border-slate-200 px-3 py-2"
-        placeholder="Primary CTA (e.g. Open to a 15-minute intro next week?)"
-        value={payload.cta_text}
-        onChange={(e) => setPayload((s) => ({ ...s, cta_text: e.target.value }))}
-      />
+      <label className="text-sm">
+        <span className="mb-1 block text-slate-600">Primary call-to-action</span>
+        <input
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+          placeholder="Open to a 15-minute intro next week?"
+          value={payload.cta_text}
+          onChange={(e) => setPayload((s) => ({ ...s, cta_text: e.target.value }))}
+        />
+      </label>
       <button className="btn-primary" disabled={busy}>
         {busy ? "Creating..." : "Create Mission"}
       </button>

@@ -42,7 +42,10 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
 
   return (
     <form className="card space-y-4 p-6" onSubmit={submit}>
-      <h2 className="text-lg font-semibold">Create AI Sales Worker</h2>
+      <div>
+        <h2 className="text-lg font-semibold">Create AI Sales Worker</h2>
+        <p className="mt-1 text-sm text-slate-600">Configure mission goals, targeting context, and runtime cadence.</p>
+      </div>
       <div className="rounded-lg border border-slate-200/70 bg-slate-900/35 px-3 py-2 text-sm text-slate-700">
         Template: <span className="font-medium">AI Sales Worker (Built-in)</span>
       </div>
@@ -53,13 +56,16 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
         onChange={(e) => setPayload((s) => ({ ...s, name: e.target.value }))}
         required
       />
-      <textarea
-        className="w-full rounded-lg border border-slate-200 px-3 py-2"
-        placeholder="Goal"
-        value={payload.goal}
-        onChange={(e) => setPayload((s) => ({ ...s, goal: e.target.value }))}
-        required
-      />
+      <label className="text-sm">
+        <span className="mb-1 block text-slate-600">Mission goal</span>
+        <textarea
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+          placeholder="Increase qualified meetings with ideal prospects"
+          value={payload.goal}
+          onChange={(e) => setPayload((s) => ({ ...s, goal: e.target.value }))}
+          required
+        />
+      </label>
       <div className="grid gap-4 md:grid-cols-2">
         <input
           className="rounded-lg border border-slate-200 px-3 py-2"
@@ -112,15 +118,18 @@ export function WorkerForm({ onSubmit }: { onSubmit: (payload: Payload) => Promi
           onChange={(e) => setPayload((s) => ({ ...s, daily_send_limit: Number(e.target.value) }))}
         />
       </div>
-      <input
-        type="number"
-        className="w-full rounded-lg border border-slate-200 px-3 py-2"
-        min={15}
-        max={1440}
-        value={payload.run_interval_minutes}
-        onChange={(e) => setPayload((s) => ({ ...s, run_interval_minutes: Number(e.target.value) }))}
-        placeholder="Run interval in minutes"
-      />
+      <label className="text-sm">
+        <span className="mb-1 block text-slate-600">Run interval (minutes)</span>
+        <input
+          type="number"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+          min={15}
+          max={1440}
+          value={payload.run_interval_minutes}
+          onChange={(e) => setPayload((s) => ({ ...s, run_interval_minutes: Number(e.target.value) }))}
+          placeholder="Run interval in minutes"
+        />
+      </label>
       <button className="btn-primary" disabled={busy}>
         {busy ? "Creating..." : "Create Worker"}
       </button>

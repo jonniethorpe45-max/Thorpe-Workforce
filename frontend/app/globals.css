@@ -15,6 +15,8 @@
   --accent-blue: #3b82f6;
   --accent-cyan: #22d3ee;
   --accent-indigo: #6366f1;
+  --motion-fast: 160ms;
+  --motion-medium: 220ms;
 }
 
 body {
@@ -24,6 +26,7 @@ body {
     radial-gradient(1200px 600px at 8% -20%, rgb(99 102 241 / 18%), transparent 62%),
     var(--bg-root);
   color: var(--text-primary);
+  line-height: 1.55;
   @apply antialiased;
 }
 
@@ -46,7 +49,24 @@ body {
 }
 
 a {
-  transition: color 160ms ease;
+  transition: color var(--motion-fast) ease, opacity var(--motion-fast) ease;
+}
+
+button,
+input,
+select,
+textarea {
+  transition-duration: var(--motion-fast);
+  transition-timing-function: ease;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgb(34 211 238 / 75%);
+  outline-offset: 2px;
 }
 
 input,
@@ -78,7 +98,7 @@ code,
   border: 1px solid rgb(59 130 246 / 22%);
   background: linear-gradient(160deg, rgb(17 24 39 / 94%), rgb(11 16 28 / 95%));
   box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
-  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+  transition: transform var(--motion-medium) ease, box-shadow var(--motion-medium) ease, border-color var(--motion-medium) ease;
 }
 
 .card::before {
@@ -117,6 +137,11 @@ code,
   border-color: var(--line-strong);
   background: rgb(17 24 39 / 72%);
   color: var(--text-secondary);
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  box-shadow: 0 0 0 3px rgb(34 211 238 / 30%);
 }
 
 .btn-secondary:hover {
@@ -160,6 +185,19 @@ code,
   transform: translateX(-100%);
   background: linear-gradient(100deg, transparent, rgb(148 163 184 / 20%), transparent);
   animation: shimmer 1.4s infinite;
+}
+
+table tbody tr {
+  transition: background-color var(--motion-fast) ease;
+}
+
+table tbody tr:hover {
+  background-color: rgb(30 41 59 / 30%);
+}
+
+::selection {
+  background: rgb(59 130 246 / 35%);
+  color: #f8fbff;
 }
 
 @keyframes shimmer {
@@ -215,4 +253,15 @@ code,
 
 .hover\:text-slate-900:hover {
   color: var(--text-primary) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

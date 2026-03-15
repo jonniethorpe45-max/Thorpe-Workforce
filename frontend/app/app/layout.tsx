@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <Sidebar />
       <div className="flex-1 bg-gradient-to-b from-slate-950/40 via-slate-900/30 to-slate-950/50">
         <Header />
-        <main className="p-6 lg:p-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

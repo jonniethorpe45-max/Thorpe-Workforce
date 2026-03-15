@@ -28,8 +28,8 @@ export default function SettingsPage() {
       </div>
       {INTERNAL_BUILDER_ENABLED ? (
         <div className="card border-amber-200/50 bg-amber-950/20 p-6">
-          <h3 className="text-base font-semibold text-amber-900">Internal Tools</h3>
-          <p className="mt-1 text-sm text-amber-800">
+          <h3 className="text-base font-semibold text-amber-200">Internal Tools</h3>
+          <p className="mt-1 text-sm text-amber-100/90">
             Worker Builder is intended for internal architecture testing and is hidden unless enabled via environment flag.
           </p>
           <Link href="/app/internal/worker-builder" className="mt-3 inline-block text-sm font-medium text-brand-700 hover:underline">
