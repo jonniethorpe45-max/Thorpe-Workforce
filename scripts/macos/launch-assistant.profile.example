@@ -6,7 +6,7 @@
 
 # Production domains
 export THORPE_FRONTEND_URL="https://thorpeworkforce.ai"
-export THORPE_API_URL="https://api.thorpeworkforce.ai"
+export THORPE_API_URL="https://api-thorpeworkforce.ai"
 
 # Staging domains
 export THORPE_STAGING_FRONTEND_URL="https://staging.thorpeworkforce.ai"

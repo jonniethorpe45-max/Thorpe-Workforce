@@ -183,7 +183,7 @@ Recommended production profile values:
 
 ```bash
 THORPE_FRONTEND_URL=https://thorpeworkforce.ai
-THORPE_API_URL=https://api.thorpeworkforce.ai
+THORPE_API_URL=https://api-thorpeworkforce.ai
 ```
 
 ### Manual local setup (without Docker)

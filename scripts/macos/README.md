@@ -48,7 +48,7 @@ If you are using the domains discussed in setup:
 
 ```bash
 THORPE_FRONTEND_URL=https://thorpeworkforce.ai
-THORPE_API_URL=https://api.thorpeworkforce.ai
+THORPE_API_URL=https://api-thorpeworkforce.ai
 ```
 
 You can also set staging URLs for one-click staging smoke tests.
