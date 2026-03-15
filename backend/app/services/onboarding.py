@@ -11,7 +11,7 @@ from app.services.worker_definitions import ensure_builtin_worker_templates
 ONBOARDING_DEFAULT_STEPS = ["welcome", "workspace_setup", "goal_selection", "recommendations", "first_success"]
 GOAL_CATEGORY_MAP: dict[str, set[str]] = {
     OnboardingGoal.REAL_ESTATE.value: {"real_estate"},
-    OnboardingGoal.MARKETING.value: {"marketing"},
+    OnboardingGoal.MARKETING.value: {"marketing", "content"},
     OnboardingGoal.SALES.value: {"sales", "prospecting"},
     OnboardingGoal.ECOMMERCE.value: {"ecommerce", "marketing"},
     OnboardingGoal.RESEARCH.value: {"research", "prospecting"},

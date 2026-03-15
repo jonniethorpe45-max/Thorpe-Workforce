@@ -30,6 +30,35 @@ Launch-readiness improvements now include:
 
 The current public worker remains AI Sales Worker, while the architecture supports future built-in and custom worker types.
 
+## Thorpe Workforce Internal Worker Stack
+
+Thorpe Workforce now includes a seeded **Internal Worker Stack** so the product can be operated by its own AI workers:
+
+1. Chief Marketing Worker
+2. User Feedback Intelligence Worker
+3. Marketplace Curator Worker
+4. Creator Recruitment Worker
+5. Sales Outreach Worker (internal stack variant)
+6. Product Strategy Worker
+7. Content Marketing Worker
+8. Community Manager Worker
+9. Investor Update Worker
+10. Operations Coordinator Worker
+
+All 10 workers are real `worker_templates` seeds (not mock-only fixtures) and can be:
+
+- discovered in marketplace/public worker listings
+- installed into workspaces
+- executed through the normal worker instance run path
+- filtered together via shared tags:
+  - `thorpe-workforce`
+  - `internal-stack`
+  - `founder-os`
+  - `startup-ops`
+
+This powers the startup narrative:
+**“Thorpe Workforce is run by Thorpe Workforce AI workers.”**
+
 ## Monorepo Structure
 
 ```text

@@ -67,9 +67,11 @@ export default function PublicWorkersPage() {
             <option value="">All categories</option>
             <option value="real_estate">Real Estate</option>
             <option value="marketing">Marketing</option>
+            <option value="content">Content</option>
             <option value="sales">Sales</option>
             <option value="research">Research</option>
             <option value="operations">Operations</option>
+            <option value="automation">Automation</option>
           </select>
           <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={pricingType} onChange={(e) => setPricingType(e.target.value)}>
             <option value="">All pricing</option>
