@@ -2,8 +2,25 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROFILE_FILE="${THORPE_LAUNCH_PROFILE:-$SCRIPT_DIR/launch-assistant.profile}"
+
+if [[ -f "$PROFILE_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$PROFILE_FILE"
+fi
+
 DEFAULT_REPO_PATH="$HOME/Thorpe-Workforce"
 REPO_PATH="${THORPE_REPO_PATH:-$DEFAULT_REPO_PATH}"
+
+PROD_FRONTEND_URL="${THORPE_FRONTEND_URL:-https://thorpeworkforce.ai}"
+PROD_API_URL="${THORPE_API_URL:-https://api.thorpeworkforce.ai}"
+STAGING_FRONTEND_URL="${THORPE_STAGING_FRONTEND_URL:-https://staging.thorpeworkforce.ai}"
+STAGING_API_URL="${THORPE_STAGING_API_URL:-https://staging-api.thorpeworkforce.ai}"
+
+RAILWAY_DASHBOARD_URL="${THORPE_RAILWAY_DASHBOARD_URL:-https://railway.app}"
+VERCEL_DASHBOARD_URL="${THORPE_VERCEL_DASHBOARD_URL:-https://vercel.com/dashboard}"
+STRIPE_DASHBOARD_URL="${THORPE_STRIPE_DASHBOARD_URL:-https://dashboard.stripe.com}"
+GITHUB_REPO_URL="${THORPE_GITHUB_REPO_URL:-https://github.com/jonniethorpe45-max/Thorpe-Workforce}"
 
 GREEN="\033[0;32m"
 CYAN="\033[0;36m"
@@ -31,6 +48,13 @@ err() {
   say "${RED}x${NC} $1"
 }
 
+normalize_url() {
+  local value="${1:-}"
+  value="${value%"${value##*[![:space:]]}"}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  printf "%s" "${value%/}"
+}
+
 prompt_repo_path() {
   say ""
   say "Current repo path: ${REPO_PATH}"
@@ -41,6 +65,25 @@ prompt_repo_path() {
       REPO_PATH="${new_path}"
     fi
   fi
+}
+
+configure_domain_defaults() {
+  local input=""
+  say ""
+  read -r -p "Production frontend URL [${PROD_FRONTEND_URL}]: " input
+  if [[ -n "${input}" ]]; then PROD_FRONTEND_URL="$(normalize_url "$input")"; fi
+
+  read -r -p "Production API URL [${PROD_API_URL}]: " input
+  if [[ -n "${input}" ]]; then PROD_API_URL="$(normalize_url "$input")"; fi
+
+  read -r -p "Staging frontend URL [${STAGING_FRONTEND_URL}]: " input
+  if [[ -n "${input}" ]]; then STAGING_FRONTEND_URL="$(normalize_url "$input")"; fi
+
+  read -r -p "Staging API URL [${STAGING_API_URL}]: " input
+  if [[ -n "${input}" ]]; then STAGING_API_URL="$(normalize_url "$input")"; fi
+
+  say ""
+  ok "Domain defaults updated for this session."
 }
 
 assert_repo() {
@@ -62,6 +105,17 @@ check_command() {
   else
     warn "$command_name not found"
   fi
+}
+
+check_url() {
+  local label="$1"
+  local url="$2"
+  if curl -fsS --max-time 15 "$url" >/dev/null 2>&1; then
+    ok "$label: $url"
+    return 0
+  fi
+  err "$label failed: $url"
+  return 1
 }
 
 run_preflight() {
@@ -108,8 +162,15 @@ copy_env_templates() {
     ok "frontend/.env.local already exists"
   fi
 
+  if [[ ! -f "$SCRIPT_DIR/launch-assistant.profile" && -f "$SCRIPT_DIR/launch-assistant.profile.example" ]]; then
+    cp "$SCRIPT_DIR/launch-assistant.profile.example" "$SCRIPT_DIR/launch-assistant.profile"
+    ok "Created scripts/macos/launch-assistant.profile from example"
+  else
+    ok "scripts/macos/launch-assistant.profile already exists"
+  fi
+
   say ""
-  warn "Fill real keys and domains in env files before production deployment."
+  warn "Fill real keys and domains in env/profile files before production deployment."
 }
 
 start_local_stack() {
@@ -118,44 +179,83 @@ start_local_stack() {
 }
 
 smoke_check_deployed_urls() {
-  step "Deployment smoke checks"
-  read -r -p "Frontend URL (e.g. https://thorpeworkforce.ai): " frontend_url
-  read -r -p "Backend API URL (e.g. https://api.thorpeworkforce.ai): " api_url
+  local mode="${1:-production}"
+  local frontend_url="$PROD_FRONTEND_URL"
+  local api_url="$PROD_API_URL"
+  local input=""
+
+  if [[ "$mode" == "staging" ]]; then
+    frontend_url="$STAGING_FRONTEND_URL"
+    api_url="$STAGING_API_URL"
+  fi
+
+  frontend_url="$(normalize_url "$frontend_url")"
+  api_url="$(normalize_url "$api_url")"
+
+  step "Deployment smoke checks (${mode})"
+  read -r -p "Frontend URL [${frontend_url}]: " input
+  if [[ -n "${input}" ]]; then frontend_url="$(normalize_url "$input")"; fi
+  read -r -p "API URL [${api_url}]: " input
+  if [[ -n "${input}" ]]; then api_url="$(normalize_url "$input")"; fi
 
   if [[ -z "${frontend_url}" || -z "${api_url}" ]]; then
     warn "Skipped: both frontend and api URLs are required."
     return 0
   fi
 
-  local health_url="${api_url%/}/health"
-  local live_url="${api_url%/}/health/live"
-  local ready_url="${api_url%/}/health/ready"
+  local success_count=0
+  local total_count=0
 
-  step "Checking API health endpoints"
-  curl -fsS "$health_url" >/dev/null && ok "$health_url"
-  curl -fsS "$live_url" >/dev/null && ok "$live_url"
-  curl -fsS "$ready_url" >/dev/null && ok "$ready_url"
+  run_check() {
+    local label="$1"
+    local url="$2"
+    total_count=$((total_count + 1))
+    if check_url "$label" "$url"; then
+      success_count=$((success_count + 1))
+    fi
+  }
 
-  step "Checking frontend homepage"
-  curl -fsS "${frontend_url%/}/" >/dev/null && ok "${frontend_url%/}/"
+  run_check "API health" "${api_url}/health"
+  run_check "API live" "${api_url}/health/live"
+  run_check "API ready" "${api_url}/health/ready"
+  run_check "API public workers" "${api_url}/public-workers"
+  run_check "API pricing plans" "${api_url}/billing/plans"
+
+  run_check "Frontend home" "${frontend_url}/"
+  run_check "Frontend pricing" "${frontend_url}/pricing"
+  run_check "Frontend marketplace" "${frontend_url}/marketplace"
+  run_check "Frontend login" "${frontend_url}/login"
+  run_check "Frontend signup" "${frontend_url}/signup"
 
   say ""
-  ok "Smoke checks completed."
+  if [[ "$success_count" -eq "$total_count" ]]; then
+    ok "Smoke checks passed (${success_count}/${total_count})."
+  else
+    warn "Smoke checks completed with issues (${success_count}/${total_count} passed)."
+  fi
 }
 
 open_platform_dashboards() {
   step "Opening key dashboards in browser"
-  open "https://railway.app"
-  open "https://vercel.com/dashboard"
-  open "https://dashboard.stripe.com"
-  open "https://github.com"
+  open "$RAILWAY_DASHBOARD_URL"
+  open "$VERCEL_DASHBOARD_URL"
+  open "$STRIPE_DASHBOARD_URL"
+  open "$GITHUB_REPO_URL"
   ok "Opened Railway, Vercel, Stripe, and GitHub dashboards"
 }
 
 print_manual_launch_checklist() {
-  cat <<'CHECKLIST'
+  cat <<CHECKLIST
 
 Manual launch checklist:
+
+Production URLs configured:
+- Frontend: ${PROD_FRONTEND_URL}
+- API:      ${PROD_API_URL}
+
+Staging URLs configured:
+- Frontend: ${STAGING_FRONTEND_URL}
+- API:      ${STAGING_API_URL}
 
 1) Railway
    - API service healthy at /health/ready
@@ -190,6 +290,38 @@ Manual launch checklist:
 CHECKLIST
 }
 
+show_current_config() {
+  cat <<CONFIG
+
+Current Launch Assistant config:
+- Repo path:            ${REPO_PATH}
+- Prod frontend URL:    ${PROD_FRONTEND_URL}
+- Prod API URL:         ${PROD_API_URL}
+- Staging frontend URL: ${STAGING_FRONTEND_URL}
+- Staging API URL:      ${STAGING_API_URL}
+- Profile file:         ${PROFILE_FILE}
+
+CONFIG
+}
+
+save_profile_file() {
+  cat >"$PROFILE_FILE" <<PROFILE
+# Auto-generated by ThorpeWorkforceLaunchAssistant.command
+# Update values as needed.
+
+export THORPE_REPO_PATH="$REPO_PATH"
+export THORPE_FRONTEND_URL="$PROD_FRONTEND_URL"
+export THORPE_API_URL="$PROD_API_URL"
+export THORPE_STAGING_FRONTEND_URL="$STAGING_FRONTEND_URL"
+export THORPE_STAGING_API_URL="$STAGING_API_URL"
+export THORPE_RAILWAY_DASHBOARD_URL="$RAILWAY_DASHBOARD_URL"
+export THORPE_VERCEL_DASHBOARD_URL="$VERCEL_DASHBOARD_URL"
+export THORPE_STRIPE_DASHBOARD_URL="$STRIPE_DASHBOARD_URL"
+export THORPE_GITHUB_REPO_URL="$GITHUB_REPO_URL"
+PROFILE
+  ok "Saved profile: $PROFILE_FILE"
+}
+
 menu() {
   while true; do
     cat <<'MENU'
@@ -197,31 +329,40 @@ menu() {
 Thorpe Workforce Launch Assistant
 --------------------------------
 1) Set/verify repo path
-2) Run preflight checks
-3) Create env files from templates
-4) Start local stack (docker compose)
-5) Run deployed smoke checks (URLs)
-6) Open Railway/Vercel/Stripe dashboards
-7) Print manual launch checklist
-8) Exit
+2) Show current config
+3) Configure production/staging URLs
+4) Run preflight checks
+5) Create env/profile files from templates
+6) Save current config to profile file
+7) Start local stack (docker compose)
+8) Run production smoke checks
+9) Run staging smoke checks
+10) Open Railway/Vercel/Stripe dashboards
+11) Print manual launch checklist
+12) Exit
 
 MENU
-    read -r -p "Choose an option [1-8]: " option
+    read -r -p "Choose an option [1-12]: " option
     case "$option" in
       1) prompt_repo_path; assert_repo ;;
-      2) assert_repo && run_preflight ;;
-      3) assert_repo && copy_env_templates ;;
-      4) assert_repo && start_local_stack ;;
-      5) smoke_check_deployed_urls ;;
-      6) open_platform_dashboards ;;
-      7) print_manual_launch_checklist ;;
-      8) exit 0 ;;
-      *) warn "Invalid option. Choose 1-8." ;;
+      2) show_current_config ;;
+      3) configure_domain_defaults ;;
+      4) assert_repo && run_preflight ;;
+      5) assert_repo && copy_env_templates ;;
+      6) save_profile_file ;;
+      7) assert_repo && start_local_stack ;;
+      8) smoke_check_deployed_urls "production" ;;
+      9) smoke_check_deployed_urls "staging" ;;
+      10) open_platform_dashboards ;;
+      11) print_manual_launch_checklist ;;
+      12) exit 0 ;;
+      *) warn "Invalid option. Choose 1-12." ;;
     esac
   done
 }
 
 say "${CYAN}Thorpe Workforce macOS Launch Assistant${NC}"
+show_current_config
 prompt_repo_path
 assert_repo
 menu

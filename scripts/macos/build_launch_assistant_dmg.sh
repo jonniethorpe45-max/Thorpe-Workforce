@@ -13,6 +13,7 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SOURCE_SCRIPT="$ROOT_DIR/scripts/macos/ThorpeWorkforceLaunchAssistant.command"
+PROFILE_EXAMPLE="$ROOT_DIR/scripts/macos/launch-assistant.profile.example"
 OUTPUT_DMG="$ROOT_DIR/ThorpeWorkforceLaunchAssistant.dmg"
 VOL_NAME="Thorpe Workforce Launch Assistant"
 TMP_DIR="$(mktemp -d)"
@@ -25,6 +26,7 @@ trap cleanup EXIT
 
 mkdir -p "$PAYLOAD_DIR"
 cp "$SOURCE_SCRIPT" "$PAYLOAD_DIR/ThorpeWorkforceLaunchAssistant.command"
+cp "$PROFILE_EXAMPLE" "$PAYLOAD_DIR/launch-assistant.profile.example"
 chmod +x "$PAYLOAD_DIR/ThorpeWorkforceLaunchAssistant.command"
 
 cat >"$PAYLOAD_DIR/README.txt" <<'TXT'
@@ -32,7 +34,8 @@ Thorpe Workforce Launch Assistant
 =================================
 
 1) Double-click ThorpeWorkforceLaunchAssistant.command
-2) Choose menu options to complete:
+2) (Optional) copy launch-assistant.profile.example to launch-assistant.profile and set your domains
+3) Choose menu options to complete:
    - preflight checks
    - env template creation
    - local stack startup

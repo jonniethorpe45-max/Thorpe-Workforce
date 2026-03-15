@@ -1,0 +1,19 @@
+# Copy this file to: scripts/macos/launch-assistant.profile
+# The Launch Assistant auto-loads this file when present.
+
+# Optional: local repo path on your Mac
+# export THORPE_REPO_PATH="$HOME/Thorpe-Workforce"
+
+# Production domains
+export THORPE_FRONTEND_URL="https://thorpeworkforce.ai"
+export THORPE_API_URL="https://api.thorpeworkforce.ai"
+
+# Staging domains
+export THORPE_STAGING_FRONTEND_URL="https://staging.thorpeworkforce.ai"
+export THORPE_STAGING_API_URL="https://staging-api.thorpeworkforce.ai"
+
+# Dashboard shortcuts
+export THORPE_RAILWAY_DASHBOARD_URL="https://railway.app"
+export THORPE_VERCEL_DASHBOARD_URL="https://vercel.com/dashboard"
+export THORPE_STRIPE_DASHBOARD_URL="https://dashboard.stripe.com"
+export THORPE_GITHUB_REPO_URL="https://github.com/jonniethorpe45-max/Thorpe-Workforce"

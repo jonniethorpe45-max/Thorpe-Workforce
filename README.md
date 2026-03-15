@@ -160,6 +160,8 @@ If you want a single runnable file on macOS for final setup + launch checks:
 
 ```bash
 chmod +x scripts/macos/build_launch_assistant_dmg.sh scripts/macos/ThorpeWorkforceLaunchAssistant.command
+cp scripts/macos/launch-assistant.profile.example scripts/macos/launch-assistant.profile
+# edit scripts/macos/launch-assistant.profile with your exact domains
 ./scripts/macos/build_launch_assistant_dmg.sh
 ```
 
@@ -174,8 +176,15 @@ Open the DMG and run `ThorpeWorkforceLaunchAssistant.command` to:
 - run preflight checks
 - create env files from templates
 - start local stack
-- run deployed smoke checks
+- run production + staging smoke checks
 - open Railway/Vercel/Stripe dashboards
+
+Recommended production profile values:
+
+```bash
+THORPE_FRONTEND_URL=https://thorpeworkforce.ai
+THORPE_API_URL=https://api.thorpeworkforce.ai
+```
 
 ### Manual local setup (without Docker)
 
