@@ -1,0 +1,2 @@
+web: ./scripts/start_production.sh
+worker: celery -A app.tasks.celery_app.celery_app worker -l info

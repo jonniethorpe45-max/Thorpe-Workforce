@@ -69,7 +69,10 @@ class Settings(BaseSettings):
     @field_validator("app_base_url", "stripe_billing_portal_return_url")
     @classmethod
     def normalize_base_urls(cls, value: str) -> str:
-        return value.strip().rstrip("/")
+        normalized = value.strip().rstrip("/")
+        if normalized and not (normalized.startswith("http://") or normalized.startswith("https://")):
+            raise ValueError("URL settings must start with http:// or https://")
+        return normalized
 
     @field_validator("trusted_hosts", mode="before")
     @classmethod
@@ -112,6 +115,12 @@ class Settings(BaseSettings):
         missing = [key for key, value in required.items() if not str(value or "").strip()]
         if missing:
             raise ValueError(f"Missing required settings for {self.environment}: {', '.join(missing)}")
+        if self.database_url == "postgresql+psycopg2://postgres:postgres@localhost:5432/thorpe_workforce":
+            raise ValueError("DATABASE_URL must be explicitly configured for production/staging")
+        if self.redis_url == "redis://localhost:6379/0":
+            raise ValueError("REDIS_URL must be explicitly configured for production/staging")
+        if self.app_base_url == "http://localhost:3000":
+            raise ValueError("APP_BASE_URL must be explicitly configured for production/staging")
         return self
 
 

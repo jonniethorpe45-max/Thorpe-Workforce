@@ -250,5 +250,18 @@ def test_production_settings_requires_non_default_secret():
     with pytest.raises(Exception):
         Settings(environment="production", secret_key="change-me")
 
-    cfg = Settings(environment="production", secret_key="super-secure-value")
+    with pytest.raises(Exception):
+        Settings(
+            environment="production",
+            secret_key="super-secure-value",
+        )
+
+    cfg = Settings(
+        environment="production",
+        secret_key="super-secure-value",
+        database_url="postgresql+psycopg2://user:pass@db.example.com:5432/app",
+        redis_url="redis://redis.example.com:6379/0",
+        app_base_url="https://app.example.com",
+        support_email="support@example.com",
+    )
     assert cfg.secret_key == "super-secure-value"

@@ -2,9 +2,12 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { getPublicAppUrl } from "@/lib/runtimeConfig";
+
+const appUrl = getPublicAppUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(appUrl),
   title: {
     default: "Thorpe Workforce",
     template: "%s | Thorpe Workforce"

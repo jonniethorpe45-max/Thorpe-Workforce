@@ -98,13 +98,18 @@ def _run_demo_seed() -> None:
 def bootstrap() -> None:
     _wait_for_database()
     _wait_for_redis()
-    if _env_flag("RUN_MIGRATIONS", True):
+    run_migrations_default = settings.environment in {"development", "test"}
+    seed_worker_default = settings.environment in {"development", "test"}
+    seed_demo_default = settings.environment == "development"
+    seed_founder_default = settings.environment in {"development", "test"}
+
+    if _env_flag("RUN_MIGRATIONS", run_migrations_default):
         _run_migrations()
-    if _env_flag("SEED_WORKER_SYSTEM", True):
+    if _env_flag("SEED_WORKER_SYSTEM", seed_worker_default):
         _seed_worker_system()
-    if _env_flag("SEED_DEMO_DATA", False):
+    if _env_flag("SEED_DEMO_DATA", seed_demo_default):
         _run_demo_seed()
-    if _env_flag("SEED_FOUNDER_OS_CHAINS", True):
+    if _env_flag("SEED_FOUNDER_OS_CHAINS", seed_founder_default):
         _seed_founder_os_chains_for_existing_workspaces()
 
 

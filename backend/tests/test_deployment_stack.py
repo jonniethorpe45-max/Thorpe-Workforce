@@ -32,6 +32,15 @@ def test_production_compose_and_dockerfiles_exist():
     assert (root / "scripts" / "start_local.sh").exists()
     assert (root / "scripts" / "reset_local.sh").exists()
     assert (root / "scripts" / "deploy_production.sh").exists()
+    assert (root / "backend" / "railway.json").exists()
+    assert (root / "backend" / "Procfile").exists()
+
+
+def test_backend_start_script_uses_platform_port():
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "backend" / "scripts" / "start_production.sh").read_text(encoding="utf-8")
+    assert "PORT" in script
+    assert "0.0.0.0" in script
 
 
 def test_alembic_head_revision_matches_latest_founder_os_migration():

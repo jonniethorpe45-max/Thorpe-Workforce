@@ -336,6 +336,12 @@ docker compose --env-file .env.production -f docker-compose.production.yml up -d
 
 The same compose file supports both staging and production via env values.
 
+Recommended hosted staging path:
+
+- Backend/API + Postgres + Redis on Railway
+- Frontend on Vercel
+- Set `ENVIRONMENT=staging` and use Stripe test keys
+
 ## Production deployment
 
 Production artifacts:
@@ -363,6 +369,38 @@ For managed cloud deployments (Render, Railway, Fly.io, AWS ECS, DigitalOcean):
   - `python scripts/bootstrap_runtime.py uvicorn app.main:app --host 0.0.0.0 --port 8000`
 - run worker command:
   - `python scripts/bootstrap_runtime.py celery -A app.tasks.celery_app.celery_app worker -l info`
+
+### Railway backend (recommended)
+
+Backend service (root dir: `backend`):
+
+- Install command: `pip install -r requirements.txt`
+- Start command: `./scripts/start_production.sh`
+- Health check path: `/health/ready`
+
+Worker service (root dir: `backend`):
+
+- Install command: `pip install -r requirements.txt`
+- Start command: `celery -A app.tasks.celery_app.celery_app worker -l info`
+
+Attach Railway Postgres and Redis plugins and set `DATABASE_URL`/`REDIS_URL`.
+
+### Vercel frontend (recommended)
+
+Frontend project settings:
+
+- Framework: Next.js
+- Root directory: `frontend`
+- Build command: default (`next build`)
+
+Required env vars:
+
+- `NEXT_PUBLIC_API_BASE_URL=https://api.<your-domain>`
+- `NEXT_PUBLIC_APP_URL=https://<your-frontend-domain>`
+
+For a full step-by-step Railway+Vercel guide, see:
+
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md)
 
 ## Environment variables
 
