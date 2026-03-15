@@ -74,6 +74,28 @@ Suggested internal chain recipes (workspace-level `worker_chains`):
   - Product Strategy Worker
   - Investor Update Worker
 
+## Founder OS Automation Layer
+
+Thorpe Workforce now includes a production-minded **Founder OS** layer for internal operations:
+
+- seeded Founder OS chain templates (workspace-scoped, ensured automatically):
+  - Daily Founder Briefing Chain
+  - Growth Campaign Chain
+  - Creator Recruitment Chain
+  - Investor Update Chain
+  - Weekly Content Engine Chain
+- founder report persistence (`founder_os_reports`) for historical review
+- founder automation metadata (`founder_os_automations`) for daily/weekly/monthly cadence planning
+- protected Founder OS APIs (`/founder-os/*`) for owner/admin roles
+- app UI at:
+  - `/app/founder-os`
+  - `/app/founder-os/chains`
+  - `/app/founder-os/reports`
+  - `/app/founder-os/automations`
+
+This enables the narrative:
+**“Thorpe Workforce uses its own AI workers and chains to run company workflows.”**
+
 ## Monorepo Structure
 
 ```text
@@ -154,6 +176,7 @@ Implemented endpoint groups:
 - Worker Creator drafts (`/workers/builder/*`, feature-flagged)
 - Billing (`/billing/plans`, `/billing/subscription`, `/billing/checkout/*`, `/billing/portal`, `/billing/entitlements`, `/billing/webhooks/stripe`)
 - Creator analytics (`/creator/dashboard/summary`, `/creator/workers`, `/creator/workers/{id}/analytics`, `/creator/payouts/summary`, `/creator/activity`)
+- Founder OS (`/founder-os/overview`, `/founder-os/chains*`, `/founder-os/reports*`, `/founder-os/automations*`)
 - Workspace analytics (`/analytics/workspace/summary`, `/analytics/workspace/activity`, `/analytics/workspace/usage-history`)
 - Admin analytics + moderation (`/admin/analytics/summary`, `/admin/workers*`, `/admin/creators`, `/admin/billing/summary`)
 - Worker runs (`/workers/{worker_id}/runs`, `/workers/{worker_id}/execute`)
@@ -180,6 +203,7 @@ Alembic migration file:
 - `backend/migrations/versions/0007_billing_core.py`
 - `backend/migrations/versions/0008_analytics_ops.py`
 - `backend/migrations/versions/0009_launch_readiness.py`
+- `backend/migrations/versions/0010_founder_os_layer.py`
 - `backend/migrations/versions/0008_analytics_ops.py`
 
 ## Tests
@@ -237,6 +261,11 @@ Includes baseline coverage for:
 - Revenue reporting foundation:
   - creator/admin revenue values are **estimates** based on billing and marketplace events
   - payout settlement, refunds, and tax/accounting truth are intentionally separate future flows
+- Founder OS usage flow:
+  1. Open `/app/founder-os` as owner/admin
+  2. Run a featured founder chain with prefilled context
+  3. Review output at `/app/founder-os/reports`
+  4. Configure cadence metadata at `/app/founder-os/automations`
 
 ## Stripe environment variables
 

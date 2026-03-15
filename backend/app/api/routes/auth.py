@@ -13,6 +13,7 @@ from app.models import PasswordResetToken, User, Workspace
 from app.schemas.api import LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignUpRequest, TokenResponse, UserRead
 from app.services.audit import log_audit_event
 from app.services.billing import ensure_workspace_subscription
+from app.services.founder_os import ensure_founder_os_chains
 from app.services.onboarding import get_or_create_onboarding_state
 from app.services.subscription_plans import ensure_default_subscription_plans
 from app.services.transactional_email import generate_password_reset_token, send_transactional_email
@@ -54,6 +55,11 @@ def signup(payload: SignUpRequest, db: Session = Depends(get_db)):
         payload={"email": user.email},
     )
     get_or_create_onboarding_state(db, user=user)
+    ensure_founder_os_chains(
+        db,
+        workspace_id=workspace.id,
+        actor_user_id=user.id,
+    )
     db.commit()
     try:
         send_transactional_email(

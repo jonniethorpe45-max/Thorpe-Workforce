@@ -8,6 +8,7 @@ from app.api.routes import (
     admin_analytics,
     auth,
     creator_dashboard,
+    founder_os,
     billing,
     campaigns,
     leads,
@@ -47,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(billing.router)
 app.include_router(workspace.router)
 app.include_router(creator_dashboard.router)
+app.include_router(founder_os.router)
 app.include_router(admin_analytics.router)
 app.include_router(workers.router)
 app.include_router(worker_instances.router)

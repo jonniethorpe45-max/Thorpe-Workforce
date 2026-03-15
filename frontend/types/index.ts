@@ -273,6 +273,102 @@ export type WorkerChainRunResponse = {
   final_output: Record<string, unknown>;
 };
 
+export type FounderOSChainWorkerRead = {
+  worker_template_id: string;
+  template_key: string;
+  slug?: string | null;
+  name: string;
+  category: string;
+};
+
+export type FounderOSChainRead = {
+  id: string;
+  template_key: string;
+  name: string;
+  description: string;
+  report_type:
+    | "daily_briefing"
+    | "growth_campaign"
+    | "creator_recruitment"
+    | "investor_update"
+    | "weekly_content_engine";
+  featured_rank: number;
+  workers: FounderOSChainWorkerRead[];
+  expected_outputs: string[];
+  suggested_inputs: string[];
+  last_run_at?: string | null;
+  last_report_id?: string | null;
+  last_report_created_at?: string | null;
+};
+
+export type FounderOSChainListResponse = {
+  items: FounderOSChainRead[];
+  total: number;
+};
+
+export type FounderOSChainRunResponse = {
+  success: boolean;
+  chain_id: string;
+  chain_run_id: string;
+  status: string;
+  report_id: string;
+  total_steps_executed: number;
+  executed_steps: WorkerChainStepExecutionRead[];
+};
+
+export type FounderOSReportRead = {
+  id: string;
+  workspace_id: string;
+  chain_id?: string | null;
+  report_type:
+    | "daily_briefing"
+    | "growth_campaign"
+    | "creator_recruitment"
+    | "investor_update"
+    | "weekly_content_engine";
+  title: string;
+  summary?: string | null;
+  output_json?: Record<string, unknown> | null;
+  chain_run_id?: string | null;
+  source_run_ids_json?: string[] | null;
+  created_by_user_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FounderOSReportListResponse = {
+  items: FounderOSReportRead[];
+  total: number;
+};
+
+export type FounderOSAutomationRead = {
+  id: string;
+  workspace_id: string;
+  chain_id: string;
+  chain_name: string;
+  frequency: "daily" | "weekly" | "monthly";
+  is_enabled: boolean;
+  next_run_at?: string | null;
+  last_run_at?: string | null;
+  runtime_input_json?: Record<string, unknown> | null;
+  created_by_user_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FounderOSAutomationListResponse = {
+  items: FounderOSAutomationRead[];
+  total: number;
+};
+
+export type FounderOSOverviewRead = {
+  available_chains: FounderOSChainRead[];
+  latest_reports: FounderOSReportRead[];
+  metrics_snapshot: Record<string, unknown>;
+  recommended_next_actions: string[];
+  active_automations: FounderOSAutomationRead[];
+};
+
 export type WorkerSubscriptionRead = {
   id: string;
   workspace_id: string;

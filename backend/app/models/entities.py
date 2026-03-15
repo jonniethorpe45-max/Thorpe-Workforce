@@ -183,6 +183,20 @@ class WorkerReportStatus(StrEnum):
     ACTIONED = "actioned"
 
 
+class FounderOSReportType(StrEnum):
+    DAILY_BRIEFING = "daily_briefing"
+    GROWTH_CAMPAIGN = "growth_campaign"
+    CREATOR_RECRUITMENT = "creator_recruitment"
+    INVESTOR_UPDATE = "investor_update"
+    WEEKLY_CONTENT_ENGINE = "weekly_content_engine"
+
+
+class FounderOSAutomationFrequency(StrEnum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+
+
 class LeadStatus(StrEnum):
     NEW = "new"
     RESEARCHING = "researching"
@@ -861,6 +875,45 @@ class WorkerReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+
+
+class FounderOSReport(Base, TimestampMixin):
+    __tablename__ = "founder_os_reports"
+    __table_args__ = (
+        Index("ix_founder_os_reports_workspace_type_created", "workspace_id", "report_type", "created_at"),
+        Index("ix_founder_os_reports_workspace_chain_created", "workspace_id", "chain_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    chain_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("worker_chains.id"))
+    report_type: Mapped[str] = mapped_column(String(50), nullable=False, default=FounderOSReportType.DAILY_BRIEFING.value)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    summary: Mapped[str | None] = mapped_column(Text)
+    output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    chain_run_id: Mapped[str | None] = mapped_column(String(120))
+    source_run_ids_json: Mapped[list[str] | None] = mapped_column(JSON)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+
+
+class FounderOSAutomation(Base, TimestampMixin):
+    __tablename__ = "founder_os_automations"
+    __table_args__ = (
+        Index("ix_founder_os_automations_workspace_enabled_next_run", "workspace_id", "is_enabled", "next_run_at"),
+        Index("ix_founder_os_automations_workspace_chain", "workspace_id", "chain_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    chain_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("worker_chains.id"), nullable=False)
+    frequency: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=FounderOSAutomationFrequency.WEEKLY.value
+    )
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    runtime_input_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
 
 
 class WorkerAnalyticsDaily(Base, TimestampMixin):

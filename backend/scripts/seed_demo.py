@@ -26,6 +26,7 @@ from app.models import (
     Workspace,
 )
 from app.services.system_seed import seed_system_worker_templates_and_tools
+from app.services.founder_os import ensure_founder_os_chains
 
 
 def seed() -> None:
@@ -63,6 +64,12 @@ def seed() -> None:
             role="owner",
         )
         db.add(user)
+        db.flush()
+        ensure_founder_os_chains(
+            db,
+            workspace_id=workspace.id,
+            actor_user_id=user.id,
+        )
 
         worker = Worker(
             workspace_id=workspace.id,

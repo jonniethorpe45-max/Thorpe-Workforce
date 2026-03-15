@@ -12,6 +12,8 @@ const navItems = [
   { href: "/app/worker-instances", label: "Worker Instances" },
   { href: "/app/worker-runs", label: "Worker Runs" },
   { href: "/app/worker-chains", label: "Worker Chains" },
+  { href: "/app/founder-os", label: "Founder OS" },
+  { href: "/app/founder-os/reports", label: "Founder Reports" },
   { href: "/app/analytics", label: "Workspace Analytics" },
   { href: "/app/creator", label: "Creator Dashboard" },
   { href: "/app/marketplace", label: "Marketplace" },

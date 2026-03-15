@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 from app.models import (
     BillingInterval,
+    FounderOSAutomationFrequency,
+    FounderOSReportType,
     OnboardingGoal,
     SupportRequestStatus,
     WorkerBuilderCategory,
@@ -1149,6 +1151,114 @@ class WorkerChainRunResponse(BaseSchema):
     executed_steps: list[WorkerChainStepExecutionRead] = Field(default_factory=list)
     total_steps_executed: int = 0
     final_output: dict[str, Any] = Field(default_factory=dict)
+
+
+class FounderOSChainWorkerRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    template_key: str
+    slug: str | None = None
+    name: str
+    category: str
+
+
+class FounderOSChainRead(BaseSchema):
+    id: uuid.UUID
+    template_key: str
+    name: str
+    description: str
+    report_type: FounderOSReportType
+    featured_rank: int = 0
+    workers: list[FounderOSChainWorkerRead] = Field(default_factory=list)
+    expected_outputs: list[str] = Field(default_factory=list)
+    suggested_inputs: list[str] = Field(default_factory=list)
+    last_run_at: datetime | None = None
+    last_report_id: uuid.UUID | None = None
+    last_report_created_at: datetime | None = None
+
+
+class FounderOSChainListResponse(BaseSchema):
+    items: list[FounderOSChainRead] = Field(default_factory=list)
+    total: int = 0
+
+
+class FounderOSChainRunRequest(BaseSchema):
+    runtime_input: dict[str, Any] = Field(default_factory=dict)
+    max_steps: int | None = Field(default=None, ge=1, le=500)
+    report_title: str | None = Field(default=None, min_length=3, max_length=200)
+    use_prefill_context: bool = True
+
+
+class FounderOSChainRunResponse(BaseSchema):
+    success: bool
+    chain_id: uuid.UUID
+    chain_run_id: str
+    status: str
+    report_id: uuid.UUID
+    total_steps_executed: int
+    executed_steps: list[WorkerChainStepExecutionRead] = Field(default_factory=list)
+
+
+class FounderOSReportRead(BaseSchema):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    chain_id: uuid.UUID | None = None
+    report_type: FounderOSReportType
+    title: str
+    summary: str | None = None
+    output_json: dict[str, Any] | None = None
+    chain_run_id: str | None = None
+    source_run_ids_json: list[str] | None = None
+    created_by_user_id: uuid.UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class FounderOSReportListResponse(BaseSchema):
+    items: list[FounderOSReportRead] = Field(default_factory=list)
+    total: int = 0
+
+
+class FounderOSAutomationCreate(BaseSchema):
+    chain_id: uuid.UUID
+    frequency: FounderOSAutomationFrequency = FounderOSAutomationFrequency.WEEKLY
+    is_enabled: bool = True
+    next_run_at: datetime | None = None
+    runtime_input_json: dict[str, Any] = Field(default_factory=dict)
+
+
+class FounderOSAutomationUpdate(BaseSchema):
+    frequency: FounderOSAutomationFrequency | None = None
+    is_enabled: bool | None = None
+    next_run_at: datetime | None = None
+    runtime_input_json: dict[str, Any] | None = None
+
+
+class FounderOSAutomationRead(BaseSchema):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    chain_id: uuid.UUID
+    chain_name: str
+    frequency: FounderOSAutomationFrequency
+    is_enabled: bool
+    next_run_at: datetime | None = None
+    last_run_at: datetime | None = None
+    runtime_input_json: dict[str, Any] | None = None
+    created_by_user_id: uuid.UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class FounderOSAutomationListResponse(BaseSchema):
+    items: list[FounderOSAutomationRead] = Field(default_factory=list)
+    total: int = 0
+
+
+class FounderOSOverviewRead(BaseSchema):
+    available_chains: list[FounderOSChainRead] = Field(default_factory=list)
+    latest_reports: list[FounderOSReportRead] = Field(default_factory=list)
+    metrics_snapshot: dict[str, Any] = Field(default_factory=dict)
+    recommended_next_actions: list[str] = Field(default_factory=list)
+    active_automations: list[FounderOSAutomationRead] = Field(default_factory=list)
 
 
 class WorkerReviewCreate(BaseSchema):
