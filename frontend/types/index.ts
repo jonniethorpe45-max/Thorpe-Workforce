@@ -98,6 +98,8 @@ export type WorkerTemplateRead = {
   is_system_template: boolean;
   is_public: boolean;
   is_marketplace_listed: boolean;
+  is_featured: boolean;
+  featured_rank: number;
   is_active: boolean;
   pricing_type: "free" | "subscription" | "one_time" | "internal";
   price_cents: number;
@@ -123,6 +125,8 @@ export type WorkerTemplateCatalogRead = {
   visibility: "private" | "workspace" | "public" | "marketplace";
   status: "draft" | "active" | "archived";
   is_marketplace_listed: boolean;
+  is_featured: boolean;
+  featured_rank: number;
   pricing_type: "free" | "subscription" | "one_time" | "internal";
   price_cents: number;
   currency: string;
@@ -330,7 +334,10 @@ export type PublicWorkerListItem = {
   rating_avg: number;
   rating_count: number;
   install_count: number;
+  is_featured: boolean;
+  featured_rank: number;
   tags_json?: string[] | null;
+  created_at?: string | null;
 };
 
 export type PublicWorkerDetailRead = {
@@ -570,9 +577,63 @@ export type AdminWorkerListItemRead = {
   visibility: "private" | "workspace" | "public" | "marketplace";
   moderation_status: string;
   report_count: number;
+  is_featured: boolean;
+  featured_rank: number;
   installs: number;
   runs: number;
   creator_user_id?: string | null;
+};
+
+export type OnboardingStateRead = {
+  id: string;
+  user_id: string;
+  workspace_id: string;
+  current_step: string;
+  goal_category: "real_estate" | "marketing" | "sales" | "ecommerce" | "research" | "operations" | "custom" | null;
+  selected_paths_json: string[];
+  recommended_template_slugs: string[];
+  completed_steps_json: string[];
+  is_completed: boolean;
+  is_skipped: boolean;
+  last_completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OnboardingRecommendationItem = {
+  id: string;
+  slug: string;
+  name: string;
+  short_description?: string | null;
+  category: string;
+  pricing_type: "free" | "subscription" | "one_time" | "internal";
+  price_cents: number;
+  currency: string;
+  is_featured: boolean;
+  featured_rank: number;
+  install_count: number;
+};
+
+export type OnboardingRecommendationResponse = {
+  goal_category: "real_estate" | "marketing" | "sales" | "ecommerce" | "research" | "operations" | "custom";
+  templates: OnboardingRecommendationItem[];
+};
+
+export type SupportRequestRead = {
+  id: string;
+  workspace_id?: string | null;
+  user_id?: string | null;
+  handled_by_user_id?: string | null;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: "open" | "in_progress" | "resolved" | "closed";
+  source: string;
+  resolved_at?: string | null;
+  metadata_json?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AdminWorkerDetailRead = {

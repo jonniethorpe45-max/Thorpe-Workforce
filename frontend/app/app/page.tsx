@@ -30,14 +30,23 @@ type Overview = {
   }>;
 };
 
+type OnboardingState = {
+  is_completed: boolean;
+  is_skipped: boolean;
+  current_step: string;
+};
+
 export default function AppDashboardPage() {
   const [data, setData] = useState<Overview | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api
-      .get<Overview>("/analytics/overview")
-      .then(setData)
+    Promise.all([api.get<Overview>("/analytics/overview"), api.get<OnboardingState>("/onboarding/state")])
+      .then(([overview, onboardingState]) => {
+        setData(overview);
+        setOnboarding(onboardingState);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load analytics"));
   }, []);
 
@@ -58,6 +67,16 @@ export default function AppDashboardPage() {
         <h2 className="text-2xl font-semibold">Worker Mission Control</h2>
         <p className="text-sm text-slate-600">Track AI Sales Worker activity, approval queue health, and outcomes.</p>
       </div>
+      {onboarding && !onboarding.is_completed && !onboarding.is_skipped ? (
+        <div className="card border-brand-200 bg-brand-50 p-4">
+          <p className="text-sm text-brand-900">
+            Finish onboarding to activate your first worker flow. Current step: <strong>{onboarding.current_step}</strong>
+          </p>
+          <Link href="/app/onboarding" className="mt-2 inline-block text-sm font-medium text-brand-700 hover:underline">
+            Resume onboarding →
+          </Link>
+        </div>
+      ) : null}
       <section className="grid gap-4 md:grid-cols-3">
         <StatCard label="Active Workers" value={data.active_workers} />
         <StatCard label="Missions" value={data.campaigns} />

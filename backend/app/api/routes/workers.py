@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import Campaign, User, Worker, WorkerInstance, WorkerInstanceStatus, WorkerRunStatus, WorkerStatus, WorkerTemplate
+from app.models import Campaign, User, Worker, WorkerInstance, WorkerInstanceStatus, WorkerRun, WorkerRunStatus, WorkerStatus, WorkerTemplate
 from app.schemas.api import (
     WorkerCreate,
     WorkerInstanceExecuteRequest,
@@ -53,6 +53,7 @@ from app.services.worker_templates import (
     update_worker_template,
 )
 from app.services.platform_analytics import create_worker_report
+from app.services.transactional_email import send_transactional_email
 from app.tasks.dispatcher import enqueue_task
 from app.tasks.jobs import execute_worker_instance_run_task, execute_worker_run_task
 
@@ -275,6 +276,16 @@ def publish_template(
         payload={"template_id": str(template_id), "visibility": published.visibility},
     )
     db.commit()
+    if published.visibility in {"public", "marketplace"}:
+        try:
+            send_transactional_email(
+                to_email=current_user.email,
+                template_key="worker_published",
+                recipient_name=current_user.full_name,
+                context={"worker_name": published.display_name or published.name},
+            )
+        except Exception:
+            pass
     db.refresh(published)
     return published
 
@@ -286,6 +297,9 @@ def install_template(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    has_existing_install = (
+        db.query(WorkerInstance.id).filter(WorkerInstance.workspace_id == current_user.workspace_id).first() is not None
+    )
     template = get_worker_template_details(
         db,
         template_id=template_id,
@@ -317,7 +331,26 @@ def install_template(
         event_name="worker_template_installed",
         payload={"template_id": str(template_id), "instance_id": str(install_result.instance.id)},
     )
+    if not has_existing_install:
+        log_audit_event(
+            db,
+            workspace_id=current_user.workspace_id,
+            actor_type="user",
+            actor_id=str(current_user.id),
+            event_name="first_worker_installed",
+            payload={"template_id": str(template_id), "instance_id": str(install_result.instance.id)},
+        )
     db.commit()
+    if int(template.price_cents or 0) > 0:
+        try:
+            send_transactional_email(
+                to_email=current_user.email,
+                template_key="purchase_confirmed",
+                recipient_name=current_user.full_name,
+                context={"amount_text": f"${(int(template.price_cents or 0) / 100):.2f}"},
+            )
+        except Exception:
+            pass
     db.refresh(install_result.instance)
     return install_result.instance
 
@@ -449,6 +482,7 @@ def run_instance(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    has_prior_runs = db.query(WorkerRun.id).filter(WorkerRun.workspace_id == current_user.workspace_id).first() is not None
     instance = _get_workspace_instance(db, instance_id=instance_id, workspace_id=current_user.workspace_id)
     require_worker_run_access(db, workspace_id=current_user.workspace_id)
     template = db.get(WorkerTemplate, instance.template_id)
@@ -471,6 +505,23 @@ def run_instance(
     if not task_id:
         queued = False
         execute_worker_instance_run(db, run_id=run.id)
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="worker_instance_run_started",
+        payload={"run_id": str(run.id), "instance_id": str(instance.id)},
+    )
+    if not has_prior_runs:
+        log_audit_event(
+            db,
+            workspace_id=current_user.workspace_id,
+            actor_type="user",
+            actor_id=str(current_user.id),
+            event_name="first_worker_run_started",
+            payload={"run_id": str(run.id), "instance_id": str(instance.id)},
+        )
     db.commit()
     db.refresh(run)
     status_value = run.status if run.status in {item.value for item in WorkerRunStatus} else WorkerRunStatus.FAILED.value

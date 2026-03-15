@@ -10,6 +10,7 @@ from app.schemas.api import (
     AdminAnalyticsSummaryRead,
     AdminBillingSummaryRead,
     AdminCreatorListItemRead,
+    AdminFeatureWorkerRequest,
     AdminModerationRequest,
     AdminWorkerDetailRead,
     AdminWorkerListItemRead,
@@ -22,6 +23,7 @@ from app.services.platform_analytics import (
     admin_worker_detail,
     admin_workers_list,
     moderate_worker,
+    set_worker_featured,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin_analytics"])
@@ -87,6 +89,35 @@ def admin_moderate_worker(
         actor_id=str(current_user.id),
         event_name="admin_worker_moderation_updated",
         payload={"worker_template_id": str(worker_id), "action": payload.action, "status": template.moderation_status},
+    )
+    db.commit()
+    return admin_worker_detail(db, worker_template_id=worker_id)
+
+
+@router.post("/workers/{worker_id}/feature", response_model=AdminWorkerDetailRead)
+def admin_feature_worker(
+    worker_id: uuid.UUID,
+    payload: AdminFeatureWorkerRequest,
+    current_user: User = Depends(require_platform_admin_access),
+    db: Session = Depends(get_db),
+):
+    _ = set_worker_featured(
+        db,
+        worker_template_id=worker_id,
+        is_featured=payload.is_featured,
+        featured_rank=payload.featured_rank,
+    )
+    log_audit_event(
+        db,
+        workspace_id=current_user.workspace_id,
+        actor_type="user",
+        actor_id=str(current_user.id),
+        event_name="admin_worker_featured_updated",
+        payload={
+            "worker_template_id": str(worker_id),
+            "is_featured": payload.is_featured,
+            "featured_rank": payload.featured_rank,
+        },
     )
     db.commit()
     return admin_worker_detail(db, worker_template_id=worker_id)

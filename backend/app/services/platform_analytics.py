@@ -740,6 +740,8 @@ def admin_workers_list(
             "visibility": item.visibility,
             "moderation_status": item.moderation_status,
             "report_count": int(item.report_count or 0),
+            "is_featured": bool(item.is_featured),
+            "featured_rank": int(item.featured_rank or 0),
             "installs": int(item.install_count or 0),
             "runs": run_map.get(item.id, 0),
             "creator_user_id": item.creator_user_id,
@@ -830,6 +832,22 @@ def moderate_worker(
     template.moderation_notes = moderation_notes
     template.reviewed_by_user_id = reviewer_user_id
     template.reviewed_at = datetime.now(UTC)
+    db.flush()
+    return template
+
+
+def set_worker_featured(
+    db: Session,
+    *,
+    worker_template_id: uuid.UUID,
+    is_featured: bool,
+    featured_rank: int = 0,
+) -> WorkerTemplate:
+    template = db.get(WorkerTemplate, worker_template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Worker template not found")
+    template.is_featured = bool(is_featured)
+    template.featured_rank = max(int(featured_rank or 0), 0)
     db.flush()
     return template
 

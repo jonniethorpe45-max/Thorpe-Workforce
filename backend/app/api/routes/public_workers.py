@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -10,7 +12,14 @@ router = APIRouter(prefix="/public-workers", tags=["public_workers"])
 
 
 @router.get("", response_model=list[PublicWorkerListItem])
-def list_public_workers(db: Session = Depends(get_db)):
+def list_public_workers(
+    category: str | None = Query(default=None),
+    search: str | None = Query(default=None, max_length=120),
+    pricing_type: str | None = Query(default=None),
+    featured_only: bool = Query(default=False),
+    sort_by: str | None = Query(default="featured"),
+    db: Session = Depends(get_db),
+):
     templates = list_worker_templates(
         db,
         workspace_id=None,
@@ -20,9 +29,30 @@ def list_public_workers(db: Session = Depends(get_db)):
         include_inactive=False,
     )
     items: list[PublicWorkerListItem] = []
+    normalized_category = (category or "").strip().lower()
+    normalized_search = (search or "").strip().lower()
+    normalized_pricing = (pricing_type or "").strip().lower()
     for template in templates:
         if not template.slug:
             continue
+        if normalized_category and (template.category or "").lower() != normalized_category:
+            continue
+        if normalized_pricing and (template.pricing_type or "").lower() != normalized_pricing:
+            continue
+        if featured_only and not template.is_featured:
+            continue
+        if normalized_search:
+            haystack = " ".join(
+                [
+                    template.name or "",
+                    template.display_name or "",
+                    template.short_description or "",
+                    template.description or "",
+                    " ".join(template.tags_json or []),
+                ]
+            ).lower()
+            if normalized_search not in haystack:
+                continue
         items.append(
             PublicWorkerListItem(
                 id=template.id,
@@ -36,7 +66,30 @@ def list_public_workers(db: Session = Depends(get_db)):
                 rating_avg=template.rating_avg,
                 rating_count=template.rating_count,
                 install_count=template.install_count,
+                is_featured=template.is_featured,
+                featured_rank=template.featured_rank,
                 tags_json=template.tags_json,
+                created_at=template.created_at,
+            )
+        )
+    normalized_sort = (sort_by or "featured").strip().lower()
+    if normalized_sort == "new":
+        items.sort(key=lambda item: item.created_at or datetime(1970, 1, 1, tzinfo=UTC), reverse=True)
+    elif normalized_sort == "top":
+        items.sort(key=lambda item: (item.install_count, item.rating_avg), reverse=True)
+    elif normalized_sort == "rating":
+        items.sort(key=lambda item: (item.rating_avg, item.rating_count), reverse=True)
+    elif normalized_sort == "price_low":
+        items.sort(key=lambda item: item.price_cents)
+    elif normalized_sort == "price_high":
+        items.sort(key=lambda item: item.price_cents, reverse=True)
+    else:
+        items.sort(
+            key=lambda item: (
+                0 if item.is_featured else 1,
+                item.featured_rank,
+                -item.install_count,
+                -item.rating_avg,
             )
         )
     return items

@@ -96,6 +96,9 @@ def list_marketplace_workers(
     pricing_type: str | None = None,
     min_price_cents: int | None = None,
     max_price_cents: int | None = None,
+    search: str | None = None,
+    featured_only: bool = False,
+    sort_by: str | None = None,
 ) -> list[dict[str, Any]]:
     templates = list_worker_templates(
         db,
@@ -108,21 +111,67 @@ def list_marketplace_workers(
     category_filter = (category or "").strip().lower()
     tag_filters = {(item or "").strip().lower() for item in (tags or []) if (item or "").strip()}
     pricing_filter = (pricing_type or "").strip().lower()
+    search_filter = (search or "").strip().lower()
     items: list[WorkerTemplate] = []
     for template in templates:
         if category_filter and (template.category or "").lower() != category_filter:
             continue
         if pricing_filter and (template.pricing_type or "").lower() != pricing_filter:
             continue
+        if featured_only and not template.is_featured:
+            continue
         if min_price_cents is not None and int(template.price_cents or 0) < int(min_price_cents):
             continue
         if max_price_cents is not None and int(template.price_cents or 0) > int(max_price_cents):
             continue
+        if search_filter:
+            text_tokens = [
+                (template.name or ""),
+                (template.display_name or ""),
+                (template.short_description or ""),
+                (template.description or ""),
+                " ".join(template.tags_json or []),
+            ]
+            haystack = " ".join(text_tokens).lower()
+            if search_filter not in haystack:
+                continue
         if tag_filters:
             tags = {(item or "").lower() for item in (template.tags_json or [])}
             if not (tags & tag_filters):
                 continue
         items.append(template)
+    normalized_sort = (sort_by or "featured").strip().lower()
+    if normalized_sort == "new":
+        items.sort(key=lambda item: item.created_at, reverse=True)
+    elif normalized_sort == "top":
+        items.sort(
+            key=lambda item: (int(item.install_count or 0), float(item.rating_avg or 0.0), item.created_at),
+            reverse=True,
+        )
+    elif normalized_sort == "trending":
+        items.sort(
+            key=lambda item: (
+                0 if item.is_featured else 1,
+                int(item.featured_rank or 0),
+                -int(item.install_count or 0),
+                -float(item.rating_avg or 0.0),
+            ),
+        )
+    elif normalized_sort == "price_low":
+        items.sort(key=lambda item: (int(item.price_cents or 0), item.created_at))
+    elif normalized_sort == "price_high":
+        items.sort(key=lambda item: (int(item.price_cents or 0), item.created_at), reverse=True)
+    elif normalized_sort == "rating":
+        items.sort(key=lambda item: (float(item.rating_avg or 0.0), int(item.rating_count or 0)), reverse=True)
+    else:
+        items.sort(
+            key=lambda item: (
+                0 if item.is_featured else 1,
+                int(item.featured_rank or 0),
+                -int(item.install_count or 0),
+                -float(item.rating_avg or 0.0),
+            ),
+        )
 
     template_ids = [item.id for item in items]
     installed_template_ids = {

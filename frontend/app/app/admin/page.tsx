@@ -30,6 +30,7 @@ export default function AdminDashboardPage() {
           <Link className="btn-secondary" href="/app/admin/workers">Workers</Link>
           <Link className="btn-secondary" href="/app/admin/creators">Creators</Link>
           <Link className="btn-secondary" href="/app/admin/billing">Billing</Link>
+          <Link className="btn-secondary" href="/app/admin/support">Support</Link>
         </div>
       </div>
       {error ? <ErrorState message={error} /> : null}

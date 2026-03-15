@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { PublicFooter } from "@/components/layout/PublicFooter";
+import { PublicNav } from "@/components/layout/PublicNav";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/services/api";
@@ -43,8 +45,9 @@ export default function PublicWorkerDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-4xl space-y-5 px-6 py-10">
+    <div className="min-h-screen bg-slate-50">
+      <PublicNav />
+      <main className="mx-auto max-w-4xl space-y-5 px-6 py-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link className="text-sm font-medium text-brand-600 hover:underline" href="/workers">
             ← Back to Public Worker Library
@@ -121,7 +124,8 @@ export default function PublicWorkerDetailPage() {
             </ul>
           </div>
         </section>
-      </div>
-    </main>
+      </main>
+      <PublicFooter />
+    </div>
   );
 }

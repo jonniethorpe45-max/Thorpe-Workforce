@@ -7,6 +7,7 @@ class SendEmailInput:
     to_email: str
     subject: str
     body: str
+    html_body: str | None = None
 
 
 @dataclass

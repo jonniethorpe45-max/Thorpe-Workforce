@@ -21,6 +21,9 @@ export default function MarketplacePage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [pricingFilter, setPricingFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("featured");
+  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [busyTemplateId, setBusyTemplateId] = useState<string | null>(null);
   const [checkoutBusyTemplateId, setCheckoutBusyTemplateId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -32,10 +35,13 @@ export default function MarketplacePage() {
     if (categoryFilter.trim()) query.set("category", categoryFilter.trim());
     if (tagFilter.trim()) query.set("tag", tagFilter.trim());
     if (pricingFilter !== "all") query.set("pricing_type", pricingFilter);
+    if (search.trim()) query.set("search", search.trim());
+    if (sortBy) query.set("sort_by", sortBy);
+    if (featuredOnly) query.set("featured_only", "true");
     const path = query.toString() ? `/marketplace/templates?${query.toString()}` : "/marketplace/templates";
     const data = await api.get<MarketplaceListingRead[]>(path);
     setListings(data);
-  }, [categoryFilter, pricingFilter, tagFilter]);
+  }, [categoryFilter, featuredOnly, pricingFilter, search, sortBy, tagFilter]);
 
   useEffect(() => {
     load().catch((err) => setError(err instanceof Error ? err.message : "Failed to load marketplace templates"));
@@ -84,7 +90,16 @@ export default function MarketplacePage() {
         <p className="text-sm text-slate-600">Browse public worker templates and install them into your workspace.</p>
       </div>
 
-      <div className="card grid gap-3 p-4 md:grid-cols-4">
+      <div className="card grid gap-3 p-4 md:grid-cols-6">
+        <label className="text-sm md:col-span-2">
+          <span className="mb-1 block text-slate-600">Search</span>
+          <input
+            className="w-full rounded-lg border border-slate-200 px-3 py-2"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="cold email, seo, real estate..."
+            value={search}
+          />
+        </label>
         <label className="text-sm md:col-span-1">
           <span className="mb-1 block text-slate-600">Category</span>
           <input
@@ -117,6 +132,22 @@ export default function MarketplacePage() {
             <option value="internal">internal</option>
           </select>
         </label>
+        <label className="text-sm md:col-span-1">
+          <span className="mb-1 block text-slate-600">Sort</span>
+          <select className="w-full rounded-lg border border-slate-200 px-3 py-2" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+            <option value="featured">featured</option>
+            <option value="top">top</option>
+            <option value="trending">trending</option>
+            <option value="new">new</option>
+            <option value="rating">rating</option>
+            <option value="price_low">price_low</option>
+            <option value="price_high">price_high</option>
+          </select>
+        </label>
+        <label className="inline-flex items-end gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={featuredOnly} onChange={(event) => setFeaturedOnly(event.target.checked)} />
+          Featured only
+        </label>
         <div className="flex items-end">
           <button className="btn-secondary w-full" onClick={() => load().catch(() => undefined)}>
             Apply Filters
@@ -148,6 +179,9 @@ export default function MarketplacePage() {
               </p>
 
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                {listing.template.is_featured ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">Featured</span>
+                ) : null}
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
                   {formatPricing(listing.template.price_cents, listing.template.pricing_type, listing.template.currency)}
                 </span>

@@ -32,7 +32,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
   });
   if (!res.ok) {
-    const message = await res.text();
+    const raw = await res.text();
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.detail) {
+        message = typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+      } else if (parsed?.message) {
+        message = String(parsed.message);
+      }
+    } catch {
+      // keep raw text fallback
+    }
     throw new Error(message || `Request failed (${res.status})`);
   }
   return res.json();

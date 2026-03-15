@@ -11,6 +11,9 @@ class SendGridProvider(EmailProvider):
         if not settings.sendgrid_api_key:
             # Safe fallback for local environments
             return SendEmailResult(provider_message_id=f"sendgrid-local-{uuid.uuid4()}", status="queued")
+        content = [{"type": "text/plain", "value": payload.body}]
+        if payload.html_body:
+            content.append({"type": "text/html", "value": payload.html_body})
 
         response = requests.post(
             "https://api.sendgrid.com/v3/mail/send",
@@ -22,7 +25,7 @@ class SendGridProvider(EmailProvider):
                 "personalizations": [{"to": [{"email": payload.to_email}]}],
                 "from": {"email": settings.sendgrid_from_email},
                 "subject": payload.subject,
-                "content": [{"type": "text/plain", "value": payload.body}],
+                "content": content,
             },
             timeout=10,
         )
