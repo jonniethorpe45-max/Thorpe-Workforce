@@ -124,6 +124,11 @@ def test_onboarding_state_flow_and_recommendations(client):
     assert body["goal_category"] == "sales"
     assert len(body["templates"]) > 0
 
+    # Mixed-case value should normalize and not trigger response-model 500.
+    rec_mixed_res = client.get("/onboarding/recommendations?goal_category=Sales&limit=5", headers=headers)
+    assert rec_mixed_res.status_code == 200
+    assert rec_mixed_res.json()["goal_category"] == "sales"
+
 
 def test_starter_seed_integrity_has_marketplace_depth():
     with SessionLocal() as db:

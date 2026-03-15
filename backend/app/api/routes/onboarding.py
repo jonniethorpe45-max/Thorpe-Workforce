@@ -70,14 +70,15 @@ def onboarding_recommendations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    normalized_goal = goal_category.strip().lower()
     templates = build_recommendations(
         db,
         user=current_user,
-        goal_category=goal_category,
+        goal_category=normalized_goal,
         limit=limit,
     )
     return OnboardingRecommendationResponse(
-        goal_category=goal_category,  # pydantic validates/normalizes as enum
+        goal_category=normalized_goal,
         templates=[
             OnboardingRecommendationItem(
                 id=item.id,
