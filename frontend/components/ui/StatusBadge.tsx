@@ -10,14 +10,14 @@ export function StatusBadge({ status }: Props) {
   return (
     <span
       className={clsx(
-        "inline-flex rounded-full px-2 py-1 text-xs font-medium",
+        "inline-flex rounded-full border px-2 py-1 text-xs font-medium backdrop-blur-sm",
         lowered.includes("active") || lowered.includes("interested") || lowered.includes("booked")
-          ? "bg-emerald-50 text-emerald-700"
+          ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
           : lowered.includes("paused") || lowered.includes("pending")
-            ? "bg-amber-50 text-amber-700"
+            ? "border-amber-400/40 bg-amber-500/15 text-amber-200"
             : lowered.includes("error") || lowered.includes("rejected") || lowered.includes("lost")
-              ? "bg-rose-50 text-rose-700"
-              : "bg-slate-100 text-slate-700"
+              ? "border-rose-400/40 bg-rose-500/15 text-rose-200"
+              : "border-slate-400/35 bg-slate-700/25 text-slate-200"
       )}
     >
       {pretty}

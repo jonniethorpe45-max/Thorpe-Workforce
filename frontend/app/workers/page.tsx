@@ -8,6 +8,7 @@ import { PublicNav } from "@/components/layout/PublicNav";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { WorkerTemplateCard } from "@/components/ui/WorkerTemplateCard";
 import type { PublicWorkerListItem } from "@/types";
 
 function formatPricing(item: PublicWorkerListItem): string {
@@ -113,34 +114,22 @@ export default function PublicWorkersPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {workers.map((worker) => (
-              <article className="card p-4" key={worker.id}>
-                <h2 className="text-lg font-semibold">{worker.name}</h2>
-                <p className="mt-1 text-xs text-slate-500">{worker.category}</p>
-                <p className="mt-2 text-sm text-slate-700">{worker.short_description || "No summary provided."}</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  {worker.is_featured ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">Featured</span>
-                  ) : null}
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{formatPricing(worker)}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-                    ★ {worker.rating_avg.toFixed(1)} ({worker.rating_count})
-                  </span>
-                </div>
-                {worker.tags_json?.length ? (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {worker.tags_json.map((tag) => (
-                      <span className="rounded-full bg-brand-50 px-2 py-1 text-xs text-brand-700" key={`${worker.id}-${tag}`}>
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="mt-4">
-                  <Link className="text-sm font-medium text-brand-600 hover:underline" href={`/workers/${worker.slug}`}>
+              <WorkerTemplateCard
+                key={worker.id}
+                name={worker.name}
+                category={worker.category}
+                description={worker.short_description || "No summary provided."}
+                pricingLabel={formatPricing(worker)}
+                ratingLabel={`★ ${worker.rating_avg.toFixed(1)} (${worker.rating_count})`}
+                installsLabel={`${worker.install_count} installs`}
+                tags={worker.tags_json}
+                isFeatured={worker.is_featured}
+                footer={
+                  <Link className="btn-secondary px-3 py-1 text-xs" href={`/workers/${worker.slug}`}>
                     View Worker Details
                   </Link>
-                </div>
-              </article>
+                }
+              />
             ))}
           </div>
         )}

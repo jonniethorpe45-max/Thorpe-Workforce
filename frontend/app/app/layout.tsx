@@ -18,11 +18,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-screen bg-slate-950/60 lg:flex">
       <Sidebar />
-      <div className="flex-1">
+      <div className="flex-1 bg-gradient-to-b from-slate-950/40 via-slate-900/30 to-slate-950/50">
         <Header />
-        <main className="p-6">{children}</main>
+        <main className="p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

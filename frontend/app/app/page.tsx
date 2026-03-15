@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Activity, Bot, BriefcaseBusiness, CalendarCheck2, MailCheck, Sparkles, Target, TrendingUp, UserRoundSearch } from "lucide-react";
 
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -64,12 +65,12 @@ export default function AppDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold">Worker Mission Control</h2>
-        <p className="text-sm text-slate-600">Track AI Sales Worker activity, approval queue health, and outcomes.</p>
+        <h2 className="section-title">AI Mission Command Center</h2>
+        <p className="section-subtitle">Track worker activity, run outcomes, approval queue health, and growth momentum.</p>
       </div>
       {onboarding && !onboarding.is_completed && !onboarding.is_skipped ? (
-        <div className="card border-brand-200 bg-brand-50 p-4">
-          <p className="text-sm text-brand-900">
+        <div className="card border-brand-200/50 bg-brand-50/10 p-4">
+          <p className="text-sm text-slate-700">
             Finish onboarding to activate your first worker flow. Current step: <strong>{onboarding.current_step}</strong>
           </p>
           <Link href="/app/onboarding" className="mt-2 inline-block text-sm font-medium text-brand-700 hover:underline">
@@ -77,29 +78,29 @@ export default function AppDashboardPage() {
           </Link>
         </div>
       ) : null}
-      <section className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Active Workers" value={data.active_workers} />
-        <StatCard label="Missions" value={data.campaigns} />
-        <StatCard label="Leads in Workspace" value={data.leads_found} />
-        <StatCard label="Leads Researched" value={data.leads_researched} />
-        <StatCard label="Awaiting Approval" value={data.messages_awaiting_approval} />
-        <StatCard label="Emails Sent" value={data.emails_sent} />
-        <StatCard label="Replies Received" value={data.replies} />
-        <StatCard label="Interested Replies" value={data.interested_replies} />
-        <StatCard label="Meetings Booked" value={data.meetings_booked} />
+      <section className="kpi-grid">
+        <StatCard label="Active Workers" value={data.active_workers} icon={<Bot className="h-4 w-4" />} />
+        <StatCard label="Missions" value={data.campaigns} icon={<Target className="h-4 w-4" />} />
+        <StatCard label="Leads in Workspace" value={data.leads_found} icon={<UserRoundSearch className="h-4 w-4" />} />
+        <StatCard label="Leads Researched" value={data.leads_researched} icon={<Sparkles className="h-4 w-4" />} />
+        <StatCard label="Awaiting Approval" value={data.messages_awaiting_approval} icon={<Activity className="h-4 w-4" />} />
+        <StatCard label="Emails Sent" value={data.emails_sent} icon={<MailCheck className="h-4 w-4" />} />
+        <StatCard label="Replies Received" value={data.replies} icon={<TrendingUp className="h-4 w-4" />} />
+        <StatCard label="Interested Replies" value={data.interested_replies} icon={<BriefcaseBusiness className="h-4 w-4" />} />
+        <StatCard label="Meetings Booked" value={data.meetings_booked} icon={<CalendarCheck2 className="h-4 w-4" />} />
       </section>
       <section className="card p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold">First-Run Checklist</h3>
+          <h3 className="text-base font-semibold">Launch Checklist</h3>
           <span className="text-xs text-slate-500">
             {onboardingChecklist.filter((item) => item.done).length}/{onboardingChecklist.length} completed
           </span>
         </div>
         <ul className="mt-3 space-y-2 text-sm">
-          {onboardingChecklist.map((item) => (
-            <li key={item.label} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
+          {onboardingChecklist.map((item, index) => (
+            <li key={item.label} className="flex items-center justify-between rounded-md border border-slate-200/70 bg-slate-900/40 px-3 py-2">
               <span className={item.done ? "text-emerald-700" : "text-slate-700"}>
-                {item.done ? "✓" : "○"} {item.label}
+                {item.done ? "✓" : `${index + 1}.`} {item.label}
               </span>
               <Link href={item.href} className="text-brand-600 hover:underline">
                 Open
@@ -115,25 +116,26 @@ export default function AppDashboardPage() {
             <li>No runs yet. Launch a campaign mission to start worker activity.</li>
           ) : (
             data.recent_worker_runs.map((run) => (
-              <li key={run.run_id} className="rounded-md border border-slate-200 px-3 py-2">
+              <li key={run.run_id} className="rounded-md border border-slate-200/70 bg-slate-900/45 px-3 py-2">
                 <p className="font-medium">
                   {run.worker_name} • {run.status}
                 </p>
-                <p className="text-xs text-slate-500">{new Date(run.started_at).toLocaleString()}</p>
+                <p className="mt-1 font-mono text-xs text-slate-500">{new Date(run.started_at).toLocaleString()}</p>
               </li>
             ))
           )}
         </ul>
       </section>
       <section className="card p-4">
-        <h3 className="text-base font-semibold">Recent Activity</h3>
+        <h3 className="text-base font-semibold">Recent Activity Feed</h3>
         <ul className="mt-3 space-y-2 text-sm text-slate-600">
           {data.recent_activity.length === 0 ? (
             <li>No activity yet.</li>
           ) : (
             data.recent_activity.map((item) => (
-              <li key={`${item.event_name}-${item.created_at}`}>
-                {item.event_name} • {new Date(item.created_at).toLocaleString()}
+              <li key={`${item.event_name}-${item.created_at}`} className="rounded-md border border-slate-200/60 bg-slate-900/35 px-3 py-2">
+                <span className="font-medium text-slate-700">{item.event_name}</span>
+                <span className="ml-2 text-xs text-slate-500">{new Date(item.created_at).toLocaleString()}</span>
               </li>
             ))
           )}

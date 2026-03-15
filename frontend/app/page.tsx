@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { ArrowRight, Bot, ChartSpline, Crown, Cpu, Sparkles, Store, Workflow } from "lucide-react";
 
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicNav } from "@/components/layout/PublicNav";
@@ -11,41 +12,89 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-950 text-slate-900">
       <PublicNav />
       <main>
-        <section className="bg-gradient-to-b from-slate-900 via-slate-950 to-black text-white">
-          <div className="mx-auto max-w-6xl px-6 py-20">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-500">Thorpe Workforce</p>
-            <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-tight">
-              Deploy AI workers that run missions, generate output, and deliver outcomes.
-            </h1>
-            <p className="mt-6 max-w-3xl text-lg text-slate-300">
-              Thorpe Workforce is the AI Worker Platform for teams that want execution, not chat tabs. Build workers,
-              install marketplace workers, run them on repeat, and monetize your own templates.
-            </p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link href="/signup" className="btn-primary">
-                Launch your first worker
-              </Link>
-              <Link href="/marketplace" className="btn-secondary border-slate-700 bg-transparent text-white hover:bg-slate-800">
-                Explore marketplace
-              </Link>
-              <Link href="/pricing" className="btn-secondary border-slate-700 bg-transparent text-white hover:bg-slate-800">
-                View pricing
-              </Link>
+        <section className="relative overflow-hidden border-b border-slate-200/40">
+          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 lg:grid-cols-[1.15fr_0.85fr]">
+            <div>
+              <p className="inline-flex items-center gap-1 rounded-full border border-cyan-400/35 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                AI Command Center
+              </p>
+              <h1 className="mt-5 max-w-4xl bg-gradient-to-r from-slate-100 via-cyan-100 to-indigo-300 bg-clip-text text-5xl font-semibold leading-tight text-transparent">
+                Deploy AI workers to run your business.
+              </h1>
+              <p className="mt-6 max-w-3xl text-lg text-slate-600">
+                Thorpe Workforce is an AI worker platform where digital workers automate tasks, analyze data, and accelerate
+                productivity across sales, operations, and growth.
+              </p>
+              <div className="mt-10 flex flex-wrap gap-3">
+                <Link href="/signup" className="btn-primary">
+                  Launch your first worker
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Link>
+                <Link href="/marketplace" className="btn-secondary">
+                  Explore marketplace
+                </Link>
+                <Link href="/pricing" className="btn-secondary">
+                  View pricing
+                </Link>
+              </div>
+            </div>
+            <div className="card p-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Live platform snapshot</p>
+              <div className="mt-4 space-y-3">
+                {[
+                  { label: "Active workers", value: "42", Icon: Cpu },
+                  { label: "Automations running", value: "18", Icon: Workflow },
+                  { label: "Founder reports generated", value: "129", Icon: Crown },
+                  { label: "Marketplace templates", value: "300+", Icon: Store }
+                ].map(({ label, value, Icon }) => (
+                  <div key={label} className="flex items-center justify-between rounded-xl border border-slate-200/50 bg-slate-900/60 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md border border-cyan-400/30 bg-cyan-400/10 p-1.5 text-cyan-300">
+                        <Icon className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="text-sm text-slate-600">{label}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-900">{value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-6 py-14">
-          <h2 className="text-2xl font-semibold">How it works</h2>
+          <h2 className="section-title">How it works</h2>
+          <p className="section-subtitle">From mission definition to run execution and analytics insight.</p>
           <div className="mt-5 grid gap-4 md:grid-cols-4">
             {[
-              ["Choose a goal", "Sales, marketing, research, operations, and more."],
-              ["Install or build", "Use starter workers or create custom workers in the builder."],
-              ["Run worker missions", "Execute runs manually or as recurring workflows."],
-              ["Measure and scale", "Track analytics, optimize output, and upgrade as you grow."]
+              { title: "Choose a mission", body: "Define business outcomes and deploy the right worker stack.", Icon: Bot },
+              { title: "Install or build", body: "Use marketplace templates or create custom workers in Builder.", Icon: Store },
+              { title: "Execute runs", body: "Launch workers manually or schedule repeatable chain automations.", Icon: Workflow },
+              { title: "Analyze and optimize", body: "Track performance dashboards and iterate with data.", Icon: ChartSpline }
+            ].map(({ title, body, Icon }) => (
+              <article key={title} className="card p-4">
+                <span className="mb-3 inline-flex rounded-lg border border-indigo-400/35 bg-indigo-400/10 p-2 text-indigo-300">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="mt-2 text-sm text-slate-600">{body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 pb-12">
+          <h2 className="section-title">Marketplace + creator ecosystem</h2>
+          <p className="section-subtitle">Discover, install, and monetize workers in a unified AI operating system.</p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {[
+              ["Featured workers", "Surface top performers with ratings, installs, and category fit."],
+              ["Creator analytics", "Monitor installs, usage, and revenue estimates from one dashboard."],
+              ["Founder OS chains", "Orchestrate multi-worker workflows for daily business operations."]
             ].map(([title, body]) => (
               <article key={title} className="card p-4">
                 <h3 className="font-semibold">{title}</h3>
@@ -56,7 +105,7 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-6xl px-6 pb-12">
-          <h2 className="text-2xl font-semibold">Why Thorpe Workforce</h2>
+          <h2 className="section-title">Why Thorpe Workforce</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <article className="card p-4">
               <h3 className="font-semibold">Worker-native execution</h3>
@@ -90,6 +139,7 @@ export default function LandingPage() {
             <div className="flex flex-wrap gap-2">
               <Link className="btn-primary" href="/signup">
                 Get Started
+                <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
               <Link className="btn-secondary" href="/pricing">
                 Compare Plans
