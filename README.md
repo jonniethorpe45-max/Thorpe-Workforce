@@ -154,6 +154,29 @@ On startup, backend bootstrap runs idempotent initialization:
 ./scripts/reset_local.sh
 ```
 
+### macOS one-click launch assistant (DMG)
+
+If you want a single runnable file on macOS for final setup + launch checks:
+
+```bash
+chmod +x scripts/macos/build_launch_assistant_dmg.sh scripts/macos/ThorpeWorkforceLaunchAssistant.command
+./scripts/macos/build_launch_assistant_dmg.sh
+```
+
+This generates:
+
+```text
+./ThorpeWorkforceLaunchAssistant.dmg
+```
+
+Open the DMG and run `ThorpeWorkforceLaunchAssistant.command` to:
+
+- run preflight checks
+- create env files from templates
+- start local stack
+- run deployed smoke checks
+- open Railway/Vercel/Stripe dashboards
+
 ### Manual local setup (without Docker)
 
 ```bash
