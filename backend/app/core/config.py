@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     internal_worker_builder_token: str = ""
     worker_creator_enabled: bool = False
     cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
-    trusted_hosts: Annotated[List[str], NoDecode] = ["localhost", "127.0.0.1"]
+    trusted_hosts: Annotated[List[str], NoDecode] = ["localhost", "127.0.0.1", "testserver"]
     password_reset_token_ttl_minutes: int = 60
 
     @field_validator("cors_origins", mode="before")

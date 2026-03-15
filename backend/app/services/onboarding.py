@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models import OnboardingGoal, User, UserOnboardingState, WorkerTemplate
+from app.services.worker_definitions import ensure_builtin_worker_templates
 
 ONBOARDING_DEFAULT_STEPS = ["welcome", "workspace_setup", "goal_selection", "recommendations", "first_success"]
 GOAL_CATEGORY_MAP: dict[str, set[str]] = {
@@ -55,6 +56,7 @@ def _recommended_templates_for_goal(
     workspace_id: uuid.UUID,
     limit: int = 5,
 ) -> list[WorkerTemplate]:
+    ensure_builtin_worker_templates(db)
     categories = GOAL_CATEGORY_MAP.get(goal_category, {goal_category})
     query = (
         db.query(WorkerTemplate)

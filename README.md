@@ -17,6 +17,17 @@ The platform now includes a **Stripe-ready monetization layer** with:
 - centralized feature gating and usage limits
 - paid worker entitlement checks before install/run
 
+Launch-readiness improvements now include:
+
+- guided onboarding flow with persistent state (`/onboarding/*`)
+- starter marketplace content (12+ launch-ready worker templates)
+- featured marketplace controls for admins
+- transactional email foundation (welcome, workspace ready, subscription, publish/purchase confirmation, password reset)
+- password reset API flow (`/auth/forgot-password`, `/auth/reset-password`)
+- support/contact intake (`/support/contact`) and admin support queue (`/support/requests`)
+- legal/trust public pages and polished marketing navigation/footer
+- readiness/liveness health endpoints (`/health/live`, `/health/ready`)
+
 The current public worker remains AI Sales Worker, while the architecture supports future built-in and custom worker types.
 
 ## Monorepo Structure
@@ -108,6 +119,8 @@ Implemented endpoint groups:
 - Replies (`/replies*`)
 - Meetings and calendar connect (`/meetings*`, `/calendar/connect/google`)
 - Analytics (`/analytics/*`)
+- Onboarding (`/onboarding/state`, `/onboarding/recommendations`)
+- Support (`/support/contact`, `/support/contact/authenticated`, `/support/requests*`)
 - Email webhooks (`/webhooks/email/*`, including unsubscribe/bounce/reply handlers)
 
 ## Migrations
@@ -121,6 +134,8 @@ Alembic migration file:
 - `backend/migrations/versions/0005_workforce_os_core.py`
 - `backend/migrations/versions/0006_worker_creator_drafts.py`
 - `backend/migrations/versions/0007_billing_core.py`
+- `backend/migrations/versions/0008_analytics_ops.py`
+- `backend/migrations/versions/0009_launch_readiness.py`
 - `backend/migrations/versions/0008_analytics_ops.py`
 
 ## Tests
@@ -153,6 +168,17 @@ Includes baseline coverage for:
 - Current AI/email/calendar providers include mock implementations to keep local MVP runnable without third-party keys.
 - Safe sending defaults include workspace daily cap, worker campaign cap, duplicate step prevention, and unsubscribe/bounce suppression.
 - Worker Creator is disabled by default; enable with `WORKER_CREATOR_ENABLED=true` for internal template-draft workflows.
+- Onboarding is available at `/app/onboarding` and persists per user via `user_onboarding_states`.
+- Public marketing/legal routes now include:
+  - `/`
+  - `/marketplace`
+  - `/workers/*`
+  - `/about`
+  - `/contact`
+  - `/privacy`
+  - `/terms`
+  - `/acceptable-use`
+- Starter marketplace seeds now include real-estate, marketing, sales, research, and operations workers (12+ launch templates).
 - Billing plan seeds are idempotent and include `free`, `pro`, `creator`, and `enterprise` (plus a legacy `starter` compatibility plan).
 - Server-side entitlements enforce:
   - worker builder access
@@ -183,6 +209,13 @@ Set these in `backend/.env` for Stripe-enabled billing:
 - `STRIPE_PRICE_ID_ENTERPRISE_MONTHLY` (optional if enterprise is sales-led)
 - `APP_BASE_URL`
 - `STRIPE_BILLING_PORTAL_RETURN_URL`
+- `SUPPORT_EMAIL`
+- `TRUSTED_HOSTS` (comma-separated, e.g. `localhost,127.0.0.1,app.example.com`)
+- `PASSWORD_RESET_TOKEN_TTL_MINUTES`
+
+Frontend env additions:
+
+- `NEXT_PUBLIC_APP_URL` (for sitemap/robots metadata base)
 
 ## Local Stripe webhook testing (Stripe CLI)
 
@@ -214,3 +247,14 @@ stripe trigger invoice.paid
 - `GET /billing/subscription`
 - `GET /billing/entitlements`
 - check `billing_event_logs` records
+
+## Launch smoke test flow
+
+1. Open `/` and verify hero, marketplace CTA, and footer legal links.
+2. Sign up at `/signup` and confirm redirect to `/app/onboarding`.
+3. Complete onboarding: select goal, install starter worker, run first worker.
+4. Verify dashboard shows checklist/activity and onboarding state persists.
+5. Open `/app/marketplace`, filter by featured, and install a worker.
+6. Open `/contact` and submit a support request.
+7. As admin, review `/app/admin/support` and mark request resolved.
+8. Validate `/health`, `/health/live`, and `/health/ready`.

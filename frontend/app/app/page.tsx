@@ -53,7 +53,7 @@ export default function AppDashboardPage() {
   if (error) return <ErrorState message={error} />;
   if (!data) return <LoadingState label="Loading dashboard metrics..." />;
 
-  const onboarding = [
+  const onboardingChecklist = [
     { label: "Create AI Sales Worker", done: data.active_workers > 0, href: "/app/workers/new" },
     { label: "Create Campaign Mission", done: data.campaigns > 0, href: "/app/campaigns/new" },
     { label: "Add Leads", done: data.leads_found > 0, href: "/app/leads" },
@@ -92,11 +92,11 @@ export default function AppDashboardPage() {
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold">First-Run Checklist</h3>
           <span className="text-xs text-slate-500">
-            {onboarding.filter((item) => item.done).length}/{onboarding.length} completed
+            {onboardingChecklist.filter((item) => item.done).length}/{onboardingChecklist.length} completed
           </span>
         </div>
         <ul className="mt-3 space-y-2 text-sm">
-          {onboarding.map((item) => (
+          {onboardingChecklist.map((item) => (
             <li key={item.label} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
               <span className={item.done ? "text-emerald-700" : "text-slate-700"}>
                 {item.done ? "✓" : "○"} {item.label}

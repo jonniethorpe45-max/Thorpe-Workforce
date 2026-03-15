@@ -145,7 +145,12 @@ def reset_password(payload: PasswordResetConfirm, db: Session = Depends(get_db))
         )
         .first()
     )
-    if not token or token.expires_at < datetime.now(UTC):
+    if not token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    expires_at = token.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if expires_at < datetime.now(UTC):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
     user = db.get(User, token.user_id)
     if not user:
