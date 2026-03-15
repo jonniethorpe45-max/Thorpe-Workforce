@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 import { fetchServerApi } from "@/lib/serverApi";
 
-export async function GET(_: Request, context: { params: { slug: string } }) {
-  const slug = (context.params.slug || "").trim();
+export async function GET(_: Request, context: { params: Promise<{ slug: string }> }) {
+  const params = await context.params;
+  const slug = (params.slug || "").trim();
   if (!slug) {
     return NextResponse.json({ detail: "Worker slug is required." }, { status: 400 });
   }
