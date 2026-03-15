@@ -181,6 +181,7 @@ def list_templates(
     db: Session = Depends(get_db),
 ):
     ensure_builtin_worker_templates(db)
+    db.commit()
     return list_worker_templates_service(
         db,
         workspace_id=current_user.workspace_id,
