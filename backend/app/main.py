@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy import text
@@ -80,6 +80,9 @@ def liveness():
 
 @app.get("/health/ready")
 def readiness():
-    with engine.connect() as connection:
-        connection.execute(text("SELECT 1"))
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database not ready") from exc
     return {"status": "ok", "service": "thorpe-workforce-api", "check": "ready", "database": "ok"}
