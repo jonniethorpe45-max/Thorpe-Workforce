@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { ArrowRight } from "lucide-react";
 
-import { PublicFooter } from "@/components/layout/PublicFooter";
-import { PublicNav } from "@/components/layout/PublicNav";
+import { AuthShell } from "@/components/layout/AuthShell";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { login } from "@/services/auth";
 
 export default function LoginPage() {
@@ -30,47 +31,44 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <PublicNav />
-      <main className="mx-auto flex min-h-[calc(100vh-180px)] max-w-md items-center px-6">
-        <form className="card w-full space-y-4 p-6" onSubmit={submit}>
-          <h1 className="text-2xl font-semibold">Log in to Thorpe Workforce</h1>
-          <p className="text-sm text-slate-600">Access your AI employees, missions, and approval queue.</p>
-          <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-          <button className="btn-primary w-full" disabled={busy}>
-            {busy ? "Logging in..." : "Log in"}
-          </button>
-          <p className="text-sm text-slate-600">
+    <AuthShell title="Log in to Thorpe Workforce" subtitle="Access your AI workers, missions, and automation control center.">
+      <form className="space-y-4" onSubmit={submit}>
+        <input
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          className="w-full rounded-lg border border-slate-200 px-3 py-2"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        {error ? <ErrorState message={error} /> : null}
+        <button className="btn-primary w-full" disabled={busy}>
+          {busy ? "Logging in..." : "Log in"}
+          {!busy ? <ArrowRight className="ml-1.5 h-4 w-4" /> : null}
+        </button>
+        <div className="space-y-2 text-sm text-slate-600">
+          <p>
             Need an account?{" "}
             <Link href="/signup" className="text-brand-600 hover:underline">
               Sign up
             </Link>
           </p>
-          <p className="text-sm text-slate-600">
+          <p>
             Forgot password?{" "}
             <Link href="/forgot-password" className="text-brand-600 hover:underline">
               Reset it
             </Link>
           </p>
-        </form>
-      </main>
-      <PublicFooter />
-    </div>
+        </div>
+      </form>
+    </AuthShell>
   );
 }

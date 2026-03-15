@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { Rocket } from "lucide-react";
 
-import { PublicFooter } from "@/components/layout/PublicFooter";
-import { PublicNav } from "@/components/layout/PublicNav";
+import { AuthShell } from "@/components/layout/AuthShell";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { signup } from "@/services/auth";
 
 export default function SignupPage() {
@@ -36,12 +37,13 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <PublicNav />
-      <main className="mx-auto flex min-h-[calc(100vh-180px)] max-w-lg items-center px-6">
-        <form className="card w-full space-y-4 p-6" onSubmit={submit}>
-          <h1 className="text-2xl font-semibold">Create your Thorpe Workforce workspace</h1>
-          <p className="text-sm text-slate-600">Deploy your first AI Sales Worker in under 5 minutes.</p>
+    <AuthShell
+      title="Create your Thorpe Workforce workspace"
+      subtitle="Deploy your first AI worker in minutes and activate mission-driven automations."
+      maxWidthClassName="max-w-4xl"
+    >
+      <form className="space-y-4" onSubmit={submit}>
+        <div className="grid gap-3 md:grid-cols-2">
           <input
             className="w-full rounded-lg border border-slate-200 px-3 py-2"
             placeholder="Full name"
@@ -84,19 +86,19 @@ export default function SignupPage() {
             value={form.industry}
             onChange={(e) => setForm((s) => ({ ...s, industry: e.target.value }))}
           />
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-          <button className="btn-primary w-full" disabled={busy}>
-            {busy ? "Creating..." : "Launch Your First AI Worker"}
-          </button>
-          <p className="text-sm text-slate-600">
-            Already have an account?{" "}
-            <Link href="/login" className="text-brand-600 hover:underline">
-              Log in
-            </Link>
-          </p>
-        </form>
-      </main>
-      <PublicFooter />
-    </div>
+        </div>
+        {error ? <ErrorState message={error} /> : null}
+        <button className="btn-primary w-full" disabled={busy}>
+          {busy ? "Creating..." : "Launch Your First AI Worker"}
+          {!busy ? <Rocket className="ml-1.5 h-4 w-4" /> : null}
+        </button>
+        <p className="text-sm text-slate-600">
+          Already have an account?{" "}
+          <Link href="/login" className="text-brand-600 hover:underline">
+            Log in
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { Mail, SendHorizonal } from "lucide-react";
 
-import { PublicFooter } from "@/components/layout/PublicFooter";
-import { PublicNav } from "@/components/layout/PublicNav";
+import { AuthShell } from "@/components/layout/AuthShell";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { api } from "@/services/api";
 
 export default function ForgotPasswordPage() {
@@ -29,34 +30,32 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <PublicNav />
-      <main className="mx-auto flex min-h-[calc(100vh-180px)] max-w-md items-center px-6">
-        <form className="card w-full space-y-4 p-6" onSubmit={submit}>
-          <h1 className="text-2xl font-semibold">Forgot Password</h1>
-          <p className="text-sm text-slate-600">Enter your email and we’ll send a password reset link.</p>
+    <AuthShell title="Forgot password" subtitle="Enter your email and we’ll send a secure reset link immediately.">
+      <form className="space-y-4" onSubmit={submit}>
+        <div className="relative">
+          <Mail className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
           <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2"
+            className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3"
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-          {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
-          <button className="btn-primary w-full" disabled={busy}>
-            {busy ? "Submitting..." : "Send Reset Link"}
-          </button>
-          <p className="text-sm text-slate-600">
-            Back to{" "}
-            <Link href="/login" className="text-brand-600 hover:underline">
-              Login
-            </Link>
-          </p>
-        </form>
-      </main>
-      <PublicFooter />
-    </div>
+        </div>
+        {error ? <ErrorState message={error} /> : null}
+        {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
+        <button className="btn-primary w-full" disabled={busy}>
+          {busy ? "Submitting..." : "Send Reset Link"}
+          {!busy ? <SendHorizonal className="ml-1.5 h-4 w-4" /> : null}
+        </button>
+        <p className="text-sm text-slate-600">
+          Back to{" "}
+          <Link href="/login" className="text-brand-600 hover:underline">
+            Login
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }
