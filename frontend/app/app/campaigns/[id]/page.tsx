@@ -50,13 +50,13 @@ export default function CampaignDetailPage() {
     <div className="space-y-4">
       <div className="card p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">{campaign.name}</h2>
+          <h2 className="section-title">{campaign.name}</h2>
           <StatusBadge status={campaign.status} />
         </div>
         <p className="mt-2 text-sm text-slate-600">Mission focus: {campaign.target_industry || "Any industry"}</p>
         <p className="mt-1 text-sm text-slate-500">Approval queue: {pending} pending • {approved} approved</p>
         {actionMessage ? (
-          <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{actionMessage}</p>
+          <p className="mt-3 rounded-md border border-emerald-300/40 bg-emerald-950/20 px-3 py-2 text-sm text-emerald-200">{actionMessage}</p>
         ) : null}
         <div className="mt-4 flex gap-3">
           <button
@@ -110,7 +110,7 @@ export default function CampaignDetailPage() {
             <p className="text-sm text-slate-600">No messages generated yet. Start the mission to draft outreach.</p>
           ) : (
             messages.map((message) => (
-              <div key={message.id} className="rounded-lg border border-slate-200 p-3">
+              <div key={message.id} className="rounded-lg border border-slate-200/70 bg-slate-900/35 p-3">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">{message.subject_line}</p>
                   <StatusBadge status={message.approval_status} />

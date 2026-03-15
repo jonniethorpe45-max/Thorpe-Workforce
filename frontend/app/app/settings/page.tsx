@@ -5,7 +5,7 @@ const INTERNAL_BUILDER_ENABLED = process.env.NEXT_PUBLIC_INTERNAL_WORKER_BUILDER
 export default function SettingsPage() {
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Settings</h2>
+      <h2 className="section-title">Settings</h2>
       <div className="card p-6">
         <p className="text-sm text-slate-600">
           Workspace controls for team access and operational settings are managed here.
@@ -27,7 +27,7 @@ export default function SettingsPage() {
         </div>
       </div>
       {INTERNAL_BUILDER_ENABLED ? (
-        <div className="card border-amber-200 bg-amber-50 p-6">
+        <div className="card border-amber-200/50 bg-amber-950/20 p-6">
           <h3 className="text-base font-semibold text-amber-900">Internal Tools</h3>
           <p className="mt-1 text-sm text-amber-800">
             Worker Builder is intended for internal architecture testing and is hidden unless enabled via environment flag.

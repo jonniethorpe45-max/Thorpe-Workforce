@@ -103,22 +103,22 @@ export default function OnboardingPage() {
       <div className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-2xl font-semibold">Launch Onboarding</h2>
+            <h2 className="section-title">Launch Onboarding</h2>
             <p className="text-sm text-slate-600">Complete your first worker setup in a few guided steps.</p>
           </div>
-          <div className="text-sm text-slate-600">Step {progress}</div>
+          <div className="chip">Step {progress}</div>
         </div>
       </div>
 
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
 
       {currentStep === "welcome" ? (
         <div className="card space-y-3 p-5">
           <h3 className="text-xl font-semibold">Welcome — what do you want to do first?</h3>
           <div className="grid gap-2 md:grid-cols-2">
             {["Explore marketplace", "Build a worker", "Install starter workers", "Set up workspace"].map((path) => (
-              <label key={path} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <label key={path} className="inline-flex items-center gap-2 rounded-lg border border-slate-200/70 bg-slate-900/35 px-3 py-2 text-sm">
                 <input
                   type="checkbox"
                   checked={(state.selected_paths_json || []).includes(path.toLowerCase().replace(/\s+/g, "_"))}
@@ -159,7 +159,11 @@ export default function OnboardingPage() {
             {["real_estate", "marketing", "sales", "ecommerce", "research", "operations", "custom"].map((goal) => (
               <button
                 key={goal}
-                className={`rounded-lg border px-3 py-2 text-sm ${selectedGoal === goal ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-700"}`}
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  selectedGoal === goal
+                    ? "border-brand-500 bg-brand-50/20 text-brand-700"
+                    : "border-slate-200/70 bg-slate-900/35 text-slate-700"
+                }`}
                 onClick={() => setSelectedGoal(goal as OnboardingStateRead["goal_category"])}
               >
                 {goal.replace("_", " ")}
@@ -183,7 +187,7 @@ export default function OnboardingPage() {
           ) : (
             <div className="space-y-2">
               {recommendations.templates.map((item) => (
-                <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-900/35 px-3 py-2">
                   <div>
                     <p className="font-medium">{item.name}</p>
                     <p className="text-xs text-slate-500">{item.category} · {item.short_description || "Starter worker"}</p>

@@ -47,11 +47,11 @@ export default function FounderOSChainsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-semibold">Founder OS Chains</h2>
+        <h2 className="section-title">Founder OS Chains</h2>
         <p className="text-sm text-slate-600">Run repeatable founder workflows powered by the internal worker stack.</p>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
 
       {!chains.length ? (
         <EmptyState title="No founder chains available" description="Founder chain templates will appear once seeding is complete." />
@@ -88,7 +88,7 @@ export default function FounderOSChainsPage() {
                   </ul>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-slate-500">
+              <p className="mt-3 font-mono text-xs text-slate-500">
                 Last report: {chain.last_report_created_at ? new Date(chain.last_report_created_at).toLocaleString() : "none"}
               </p>
             </div>

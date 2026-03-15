@@ -28,7 +28,7 @@ export default function LeadDetailPage() {
     <div className="space-y-4">
       <div className="card p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">{lead.full_name || lead.email}</h2>
+          <h2 className="section-title">{lead.full_name || lead.email}</h2>
           <StatusBadge status={lead.lead_status} />
         </div>
         <p className="mt-2 text-slate-600">{lead.title || "No title available"}</p>

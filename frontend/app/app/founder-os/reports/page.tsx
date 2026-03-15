@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { TableShell } from "@/components/tables/TableShell";
 import { api } from "@/services/api";
 import type { FounderOSReportListResponse, FounderOSReportRead } from "@/types";
 
@@ -44,7 +45,7 @@ export default function FounderOSReportsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-semibold">Founder OS Reports</h2>
+          <h2 className="section-title">Founder OS Reports</h2>
           <p className="text-sm text-slate-600">Browse saved outputs from Founder OS chains.</p>
         </div>
         <label className="text-sm">
@@ -68,9 +69,10 @@ export default function FounderOSReportsPage() {
       {!reports.length ? (
         <EmptyState title="No reports yet" description="Run a Founder OS chain to generate report history." />
       ) : (
-        <div className="card p-0">
+        <TableShell>
+          <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">Report timeline</div>
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-100 text-left text-slate-600">
+            <thead className="text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Type</th>
@@ -96,7 +98,7 @@ export default function FounderOSReportsPage() {
             </tbody>
           </table>
           <div className="border-t border-slate-200 px-4 py-2 text-xs text-slate-500">Showing {reports.length} of {total} reports</div>
-        </div>
+        </TableShell>
       )}
     </div>
   );

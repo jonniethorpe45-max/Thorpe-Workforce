@@ -41,7 +41,7 @@ export default function WorkerDetailPage() {
     <div className="space-y-4">
       <div className="card p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">{worker.name}</h2>
+          <h2 className="section-title">{worker.name}</h2>
           <StatusBadge status={worker.status} />
         </div>
         <p className="mt-2 text-slate-600">Mission: {worker.mission || worker.goal}</p>
@@ -54,7 +54,7 @@ export default function WorkerDetailPage() {
           Current task window: {worker.next_run_at ? new Date(worker.next_run_at).toLocaleString() : "Not scheduled"}
         </p>
         {worker.last_error_text ? (
-          <p className="mt-2 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{worker.last_error_text}</p>
+          <p className="mt-2 rounded-md border border-rose-300/40 bg-rose-950/20 px-3 py-2 text-sm text-rose-200">{worker.last_error_text}</p>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -117,9 +117,9 @@ export default function WorkerDetailPage() {
                   <p className="font-medium">{run.run_type}</p>
                   <StatusBadge status={run.status} />
                 </div>
-                <p className="text-xs text-slate-500">Started {new Date(run.started_at).toLocaleString()}</p>
+                <p className="font-mono text-xs text-slate-500">Started {new Date(run.started_at).toLocaleString()}</p>
                 {run.finished_at ? (
-                  <p className="text-xs text-slate-500">Finished {new Date(run.finished_at).toLocaleString()}</p>
+                  <p className="font-mono text-xs text-slate-500">Finished {new Date(run.finished_at).toLocaleString()}</p>
                 ) : null}
               </div>
             ))

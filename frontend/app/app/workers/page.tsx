@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TableShell } from "@/components/tables/TableShell";
 import { api } from "@/services/api";
 import type { Worker } from "@/types";
 
@@ -41,14 +42,17 @@ export default function WorkersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">AI Sales Workers</h2>
+        <h2 className="section-title">AI Sales Workers</h2>
         <Link href="/app/workers/new" className="btn-primary">
           Create Worker
         </Link>
       </div>
-      <div className="card overflow-hidden">
+      <TableShell>
+        <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">
+          Worker registry · {workers.length} active definitions
+        </div>
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-left text-slate-600">
+          <thead className="text-left text-slate-600">
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Goal</th>
@@ -79,7 +83,7 @@ export default function WorkersPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableShell>
     </div>
   );
 }

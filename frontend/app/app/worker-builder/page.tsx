@@ -277,7 +277,7 @@ export default function WorkerBuilderPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-semibold">Worker Creator</h2>
+          <h2 className="section-title">Worker Creator</h2>
           <p className="text-sm text-slate-600">Create, test, publish, and install custom AI workers.</p>
         </div>
         <div className="flex gap-2">
@@ -287,7 +287,7 @@ export default function WorkerBuilderPage() {
       </div>
 
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_1.9fr]">
         <div className="card overflow-hidden">
@@ -301,7 +301,7 @@ export default function WorkerBuilderPage() {
           ) : (
             <div className="max-h-[640px] overflow-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-slate-100 text-left text-slate-600">
+                <thead className="text-left text-slate-600">
                   <tr>
                     <th className="px-4 py-2">Name</th>
                     <th className="px-4 py-2">Category</th>
@@ -365,7 +365,7 @@ export default function WorkerBuilderPage() {
             <button className="btn-secondary" disabled={busy || !selectedDraft?.is_published} onClick={unpublishDraft}>Unpublish</button>
           </div>
 
-          <div className="mt-4 rounded-lg border border-slate-200 p-3">
+          <div className="mt-4 rounded-lg border border-slate-200/70 bg-slate-900/35 p-3">
             <p className="mb-2 text-sm font-medium text-slate-800">Test Inputs (JSON)</p>
             <textarea className="h-24 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs" value={testInput} onChange={(e) => setTestInput(e.target.value)} />
             {testResult ? (

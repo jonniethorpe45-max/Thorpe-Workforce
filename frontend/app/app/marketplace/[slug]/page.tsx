@@ -81,7 +81,7 @@ export default function MarketplaceDetailPage() {
       <div className="card p-5">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-2xl font-semibold">{detail.template.display_name}</h2>
+            <h2 className="section-title">{detail.template.display_name}</h2>
             <p className="text-sm text-slate-600">
               {detail.template.worker_type} • {detail.template.category}
             </p>
@@ -129,7 +129,7 @@ export default function MarketplaceDetailPage() {
             Refresh
           </button>
         </div>
-        {message ? <p className="mt-2 text-sm text-emerald-700">{message}</p> : null}
+        {message ? <p className="mt-2 rounded-md border border-emerald-300/40 bg-emerald-950/20 px-3 py-2 text-sm text-emerald-200">{message}</p> : null}
       </div>
 
       {error ? <ErrorState message={error} /> : null}
@@ -142,7 +142,7 @@ export default function MarketplaceDetailPage() {
               <li>No tools configured.</li>
             ) : (
               detail.tools.map((tool) => (
-                <li key={tool.id} className="rounded border border-slate-200 px-3 py-2">
+                <li key={tool.id} className="rounded border border-slate-200/70 bg-slate-900/35 px-3 py-2">
                   <p className="font-medium">{tool.name}</p>
                   <p className="text-xs text-slate-500">{tool.slug}</p>
                 </li>
@@ -157,7 +157,7 @@ export default function MarketplaceDetailPage() {
               <li>No reviews yet.</li>
             ) : (
               detail.reviews.map((review) => (
-                <li key={review.id} className="rounded border border-slate-200 px-3 py-2">
+                <li key={review.id} className="rounded border border-slate-200/70 bg-slate-900/35 px-3 py-2">
                   <p className="font-medium">Rating: {review.rating}/5</p>
                   <p>{review.review_text || "No review text"}</p>
                 </li>

@@ -28,13 +28,13 @@ export default function RepliesPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Interested Replies Inbox</h2>
+      <h2 className="section-title">Interested Replies Inbox</h2>
       <div className="space-y-3">
         {replies.map((reply) => (
           <div className="card p-4" key={reply.id}>
             <div className="flex items-center justify-between">
               <StatusBadge status={reply.intent_classification} />
-              <span className="text-xs text-slate-500">{new Date(reply.created_at).toLocaleString()}</span>
+              <span className="font-mono text-xs text-slate-500">{new Date(reply.created_at).toLocaleString()}</span>
             </div>
             <p className="mt-2 text-sm text-slate-700">{reply.reply_text}</p>
           </div>

@@ -27,7 +27,9 @@ export default function NewCampaignPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Create Worker Mission</h2>
+      <h2 className="section-title">Create Worker Mission</h2>
+      <p className="section-subtitle">Configure ICP targeting and mission objectives for your worker execution loop.</p>
+      {error ? <ErrorState message={error} /> : null}
       <CampaignForm
         workerOptions={workers}
         onSubmit={async (payload) => {

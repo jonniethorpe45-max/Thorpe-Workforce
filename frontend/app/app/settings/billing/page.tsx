@@ -87,7 +87,7 @@ export default function BillingSettingsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-semibold">Billing & Plan</h2>
+        <h2 className="section-title">Billing & Plan</h2>
         <p className="text-sm text-slate-600">Manage your subscription, limits, and billing portal access.</p>
       </div>
 
@@ -131,7 +131,7 @@ export default function BillingSettingsPage() {
             const priceCents = interval === "annual" ? plan.annual_price_cents ?? plan.monthly_price_cents * 12 : plan.monthly_price_cents;
             const isCurrent = plan.code === currentPlanCode;
             return (
-              <article className="rounded-xl border border-slate-200 p-4" key={plan.id}>
+              <article className="rounded-xl border border-slate-200/70 bg-slate-900/35 p-4" key={plan.id}>
                 <h4 className="text-base font-semibold">{plan.name}</h4>
                 <p className="mt-1 text-sm text-slate-600">{plan.description}</p>
                 <p className="mt-3 text-xl font-bold">{formatPrice(priceCents, interval)}</p>
@@ -159,10 +159,10 @@ export default function BillingSettingsPage() {
       <section className="card p-5">
         <h3 className="text-lg font-semibold">Entitlements</h3>
         <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
-          <p>Worker Builder: {entitlements.features.allow_worker_builder ? "Enabled" : "Disabled"}</p>
-          <p>Marketplace Publishing: {entitlements.features.allow_marketplace_publishing ? "Enabled" : "Disabled"}</p>
-          <p>Public Workers: {entitlements.features.allow_public_workers ? "Enabled" : "Disabled"}</p>
-          <p>Marketplace Install: {entitlements.features.allow_marketplace_install ? "Enabled" : "Disabled"}</p>
+          <p>Worker Builder: <span className="chip">{entitlements.features.allow_worker_builder ? "Enabled" : "Disabled"}</span></p>
+          <p>Marketplace Publishing: <span className="chip">{entitlements.features.allow_marketplace_publishing ? "Enabled" : "Disabled"}</span></p>
+          <p>Public Workers: <span className="chip">{entitlements.features.allow_public_workers ? "Enabled" : "Disabled"}</span></p>
+          <p>Marketplace Install: <span className="chip">{entitlements.features.allow_marketplace_install ? "Enabled" : "Disabled"}</span></p>
           <p>
             Worker Drafts: {entitlements.usage.worker_drafts} / {entitlements.limits.max_worker_drafts ?? "∞"}
           </p>

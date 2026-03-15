@@ -246,7 +246,7 @@ export default function WorkerChainsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-semibold">Worker Chains</h2>
+          <h2 className="section-title">Worker Chains</h2>
           <p className="text-sm text-slate-600">Compose multi-step worker flows and run them manually.</p>
         </div>
         <div className="flex gap-2">
@@ -259,7 +259,7 @@ export default function WorkerChainsPage() {
         </div>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_1.9fr]">
         <div className="card p-4">
@@ -270,7 +270,7 @@ export default function WorkerChainsPage() {
             ) : (
               chains.map((chain) => (
                 <button
-                  className="w-full rounded-lg border border-slate-200 p-3 text-left hover:bg-slate-50"
+                  className="w-full rounded-lg border border-slate-200/70 bg-slate-900/40 p-3 text-left hover:bg-slate-900/75"
                   key={chain.id}
                   onClick={() => selectChain(chain)}
                   type="button"
@@ -363,7 +363,7 @@ export default function WorkerChainsPage() {
               </button>
             </div>
             {form.steps.map((step, index) => (
-              <div className="rounded-lg border border-slate-200 p-3" key={`${step.step_order}-${index}`}>
+              <div className="rounded-lg border border-slate-200/70 bg-slate-900/35 p-3" key={`${step.step_order}-${index}`}>
                 <div className="grid gap-2 md:grid-cols-3">
                   <label className="text-xs">
                     <span className="mb-1 block text-slate-600">Step Order</span>
@@ -490,7 +490,7 @@ export default function WorkerChainsPage() {
           </div>
 
           {latestRun ? (
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mt-4 rounded-lg border border-slate-200/70 bg-slate-900/35 p-3">
               <div className="flex items-center justify-between">
                 <p className="font-medium">Latest Chain Run</p>
                 <StatusBadge status={latestRun.status} />

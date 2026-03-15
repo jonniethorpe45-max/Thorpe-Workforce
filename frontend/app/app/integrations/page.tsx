@@ -11,9 +11,9 @@ export default function IntegrationsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Integrations</h2>
+      <h2 className="section-title">Integrations</h2>
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-4 text-sm text-emerald-200">{message}</div> : null}
       <div className="card p-6">
         <h3 className="text-lg font-semibold">Google Calendar</h3>
         <p className="mt-1 text-sm text-slate-600">

@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TableShell } from "@/components/tables/TableShell";
 import { api } from "@/services/api";
 import type { Campaign, Lead } from "@/types";
 
@@ -99,7 +100,7 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Leads</h2>
+      <h2 className="section-title">Leads</h2>
       <form className="card grid gap-3 p-4 md:grid-cols-6" onSubmit={submit}>
         <input
           className="rounded-lg border border-slate-200 px-3 py-2"
@@ -144,9 +145,10 @@ export default function LeadsPage() {
           {busy ? "Adding..." : "Add Lead"}
         </button>
       </form>
-      <div className="card overflow-hidden">
+      <TableShell>
+        <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">Lead pipeline</div>
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-left text-slate-600">
+          <thead className="text-left text-slate-600">
             <tr>
               <th className="px-4 py-3">Lead</th>
               <th className="px-4 py-3">Company</th>
@@ -171,7 +173,7 @@ export default function LeadsPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableShell>
     </div>
   );
 }

@@ -79,11 +79,11 @@ export default function WorkerInstancesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-semibold">Worker Instances</h2>
+        <h2 className="section-title">Worker Instances</h2>
         <p className="text-sm text-slate-600">Manage installed workers, run on demand, and monitor run cadence.</p>
       </div>
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
 
       {!instances.length ? (
         <EmptyState
@@ -92,8 +92,9 @@ export default function WorkerInstancesPage() {
         />
       ) : (
         <TableShell>
+          <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">Installed instances</div>
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-100 text-left text-slate-600">
+            <thead className="text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3">Instance</th>
                 <th className="px-4 py-3">Template</th>

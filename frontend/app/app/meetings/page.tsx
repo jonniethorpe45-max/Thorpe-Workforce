@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TableShell } from "@/components/tables/TableShell";
 import { api } from "@/services/api";
 import type { Meeting } from "@/types";
 
@@ -28,10 +29,11 @@ export default function MeetingsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Meeting Pipeline</h2>
-      <div className="card overflow-hidden">
+      <h2 className="section-title">Meeting Pipeline</h2>
+      <TableShell>
+        <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">Upcoming and completed meetings</div>
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-left text-slate-600">
+          <thead className="text-left text-slate-600">
             <tr>
               <th className="px-4 py-3">Provider</th>
               <th className="px-4 py-3">Start</th>
@@ -52,7 +54,7 @@ export default function MeetingsPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableShell>
     </div>
   );
 }

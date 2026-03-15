@@ -52,7 +52,7 @@ export default function FounderOSReportDetailPage() {
           <button className="text-sm text-brand-600 hover:underline" onClick={() => router.push("/app/founder-os/reports")}>
             ← Back to reports
           </button>
-          <h2 className="text-2xl font-semibold">{report.title}</h2>
+          <h2 className="section-title">{report.title}</h2>
           <p className="text-sm text-slate-600">
             {report.report_type} • {new Date(report.created_at).toLocaleString()}
           </p>
@@ -68,7 +68,7 @@ export default function FounderOSReportDetailPage() {
       </div>
 
       {error ? <ErrorState message={error} /> : null}
-      {copyState ? <div className="card border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700">{copyState}</div> : null}
+      {copyState ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-2 text-sm text-emerald-200">{copyState}</div> : null}
 
       <div className="card p-4">
         <h3 className="text-base font-semibold">Summary</h3>
@@ -83,7 +83,7 @@ export default function FounderOSReportDetailPage() {
           ) : (
             <div className="mt-3 space-y-3">
               {sections.map((section) => (
-                <div key={section.key} className="rounded-lg border border-slate-200 p-3">
+                <div key={section.key} className="rounded-lg border border-slate-200/70 bg-slate-900/35 p-3">
                   <p className="text-sm font-medium text-slate-800">{section.key}</p>
                   <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-700">{JSON.stringify(section.value, null, 2)}</pre>
                 </div>

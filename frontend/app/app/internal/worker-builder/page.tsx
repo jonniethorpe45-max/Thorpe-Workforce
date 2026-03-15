@@ -52,8 +52,8 @@ export default function InternalWorkerBuilderPage() {
   if (!INTERNAL_BUILDER_ENABLED) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Internal Worker Builder</h2>
-        <div className="card border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <h2 className="section-title">Internal Worker Builder</h2>
+        <div className="card border-amber-200/50 bg-amber-950/20 p-4 text-sm text-amber-200">
           Internal Worker Builder is disabled. Set <code>NEXT_PUBLIC_INTERNAL_WORKER_BUILDER_ENABLED=true</code> to
           access this route.
         </div>
@@ -161,16 +161,16 @@ export default function InternalWorkerBuilderPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Internal Worker Builder</h2>
+        <h2 className="section-title">Internal Worker Builder</h2>
         <Link className="text-sm text-brand-600 hover:underline" href="/app/settings">
           Back to Settings
         </Link>
       </div>
-      <div className="card border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <div className="card border-amber-200/50 bg-amber-950/20 p-4 text-sm text-amber-200">
         Internal-only tooling. Do not share this route externally.
       </div>
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-4 text-sm text-emerald-200">{message}</div> : null}
 
       <div className="card space-y-3 p-4">
         <h3 className="text-base font-semibold">Internal Access</h3>

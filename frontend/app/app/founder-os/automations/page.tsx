@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { TableShell } from "@/components/tables/TableShell";
 import { api } from "@/services/api";
 import type {
   FounderOSAutomationListResponse,
@@ -100,12 +101,12 @@ export default function FounderOSAutomationsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-semibold">Founder OS Automations</h2>
+        <h2 className="section-title">Founder OS Automations</h2>
         <p className="text-sm text-slate-600">Set recurring metadata for founder chains (daily/weekly/monthly).</p>
       </div>
 
       {error ? <ErrorState message={error} /> : null}
-      {message ? <div className="card border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div> : null}
+      {message ? <div className="card border-emerald-200/50 bg-emerald-950/20 p-3 text-sm text-emerald-200">{message}</div> : null}
 
       <div className="card p-4">
         <h3 className="text-base font-semibold">Create Automation</h3>
@@ -161,9 +162,10 @@ export default function FounderOSAutomationsPage() {
       {!automations.length ? (
         <EmptyState title="No automations configured" description="Create your first recurring Founder OS automation above." />
       ) : (
-        <div className="card p-0">
+        <TableShell>
+          <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">Automation schedule</div>
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-100 text-left text-slate-600">
+            <thead className="text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3">Chain</th>
                 <th className="px-4 py-3">Frequency</th>
@@ -190,7 +192,7 @@ export default function FounderOSAutomationsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableShell>
       )}
     </div>
   );

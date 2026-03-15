@@ -13,7 +13,7 @@ export default function NewWorkerPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-semibold">Create AI Sales Worker</h2>
+      <h2 className="section-title">Create AI Sales Worker</h2>
       {error ? <ErrorState message={error} /> : null}
       <WorkerForm
         onSubmit={async (payload) => {

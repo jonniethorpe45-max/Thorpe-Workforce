@@ -46,7 +46,7 @@ export default function WorkerRunsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-semibold">Worker Runs</h2>
+          <h2 className="section-title">Worker Runs</h2>
           <p className="text-sm text-slate-600">Review execution history, summaries, and failures across worker instances.</p>
         </div>
         <label className="text-sm">
@@ -69,8 +69,11 @@ export default function WorkerRunsPage() {
         <EmptyState title="No worker runs yet" description="Trigger a worker instance run to populate execution history." />
       ) : (
         <TableShell>
+          <div className="border-b border-slate-200/60 px-4 py-3 text-sm text-slate-500">
+            Execution timeline · {runs.length} visible run(s)
+          </div>
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-100 text-left text-slate-600">
+            <thead className="text-left text-slate-600">
               <tr>
                 <th className="px-4 py-3">Started</th>
                 <th className="px-4 py-3">Status</th>
