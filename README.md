@@ -117,13 +117,44 @@ docker-compose.yml
 
 ## Local Development
 
-### 1) Start infrastructure
+### One-command local startup (recommended)
 
 ```bash
-docker compose up -d
+docker compose up
 ```
 
-### 2) Backend setup
+This starts:
+
+- `postgres` (persistent volume)
+- `redis`
+- `backend` (FastAPI on `http://localhost:8000`)
+- `worker-runner` (Celery worker)
+- `frontend` (Next.js on `http://localhost:3000`)
+
+Open:
+
+- UI: `http://localhost:3000`
+- API: `http://localhost:8000`
+
+On startup, backend bootstrap runs idempotent initialization:
+
+1. Alembic migrations
+2. Worker system seed
+3. Demo seed data
+4. Internal worker stack seed
+5. Founder OS chain ensure
+
+### Local helper scripts
+
+```bash
+# start full local stack
+./scripts/start_local.sh
+
+# stop and reset local containers + volumes
+./scripts/reset_local.sh
+```
+
+### Manual local setup (without Docker)
 
 ```bash
 cd backend
@@ -131,13 +162,11 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-alembic upgrade head
+python -m alembic upgrade head
 python scripts/seed_worker_system.py
 python scripts/seed_demo.py
 uvicorn app.main:app --reload --port 8000
 ```
-
-### 3) Run Celery worker
 
 In another terminal:
 
@@ -147,7 +176,7 @@ source .venv/bin/activate
 celery -A app.tasks.celery_app.celery_app worker -l info
 ```
 
-### 4) Frontend setup
+Frontend:
 
 ```bash
 cd frontend
@@ -155,8 +184,6 @@ npm install
 cp .env.example .env.local
 npm run dev
 ```
-
-Frontend runs at `http://localhost:3000`, backend at `http://localhost:8000`.
 
 ## Demo Credentials
 
@@ -289,6 +316,76 @@ Set these in `backend/.env` for Stripe-enabled billing:
 Frontend env additions:
 
 - `NEXT_PUBLIC_APP_URL` (for sitemap/robots metadata base)
+
+## Staging deployment
+
+Use Docker + staging env values (`ENVIRONMENT=staging`) and test Stripe keys.
+
+1. Copy staging env template:
+
+```bash
+cp .env.staging.example .env.production
+```
+
+2. Update values for your staging infra (DB, Redis, hosts, Stripe test keys).
+3. Deploy using production compose with staging env:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yml up -d --build
+```
+
+The same compose file supports both staging and production via env values.
+
+## Production deployment
+
+Production artifacts:
+
+- `Dockerfile.backend`
+- `Dockerfile.frontend`
+- `docker-compose.production.yml`
+
+Quick deploy flow:
+
+```bash
+cp .env.production.example .env.production
+# edit .env.production with real values
+./scripts/deploy_production.sh
+```
+
+This builds and launches backend, frontend, worker-runner, postgres, and redis.
+
+For managed cloud deployments (Render, Railway, Fly.io, AWS ECS, DigitalOcean):
+
+- build containers from `Dockerfile.backend` and `Dockerfile.frontend`
+- set required env vars from the list below
+- provide managed Postgres/Redis URLs in `DATABASE_URL` and `REDIS_URL`
+- run backend command with bootstrap:
+  - `python scripts/bootstrap_runtime.py uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- run worker command:
+  - `python scripts/bootstrap_runtime.py celery -A app.tasks.celery_app.celery_app worker -l info`
+
+## Environment variables
+
+### Backend required (staging/production)
+
+- `SECRET_KEY`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `APP_BASE_URL`
+- `SUPPORT_EMAIL`
+
+### Backend optional
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `SENDGRID_API_KEY`
+- `TRUSTED_HOSTS`
+
+### Frontend required
+
+- `NEXT_PUBLIC_API_BASE_URL`
+- `NEXT_PUBLIC_APP_URL`
 
 ## Local Stripe webhook testing (Stripe CLI)
 

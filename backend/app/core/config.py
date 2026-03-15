@@ -2,7 +2,7 @@ import json
 from functools import lru_cache
 from typing import Annotated, List
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -84,7 +84,11 @@ class Settings(BaseSettings):
     @field_validator("environment")
     @classmethod
     def normalize_environment(cls, value: str) -> str:
-        return value.strip().lower()
+        normalized = value.strip().lower()
+        allowed = {"development", "staging", "production", "test"}
+        if normalized not in allowed:
+            raise ValueError(f"ENVIRONMENT must be one of: {', '.join(sorted(allowed))}")
+        return normalized
 
     @field_validator("secret_key")
     @classmethod
@@ -93,6 +97,22 @@ class Settings(BaseSettings):
         if environment in {"production", "staging"} and value.strip() in {"", "change-me"}:
             raise ValueError("SECRET_KEY must be set to a secure value in production/staging")
         return value
+
+    @model_validator(mode="after")
+    def validate_required_prod_values(self):
+        if self.environment not in {"production", "staging"}:
+            return self
+        required = {
+            "DATABASE_URL": self.database_url,
+            "REDIS_URL": self.redis_url,
+            "APP_BASE_URL": self.app_base_url,
+            "SUPPORT_EMAIL": self.support_email,
+            "SECRET_KEY": self.secret_key,
+        }
+        missing = [key for key, value in required.items() if not str(value or "").strip()]
+        if missing:
+            raise ValueError(f"Missing required settings for {self.environment}: {', '.join(missing)}")
+        return self
 
 
 @lru_cache(maxsize=1)

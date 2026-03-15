@@ -3,7 +3,6 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
-    container_name: thorpe-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -13,15 +12,120 @@ services:
       - "5432:5432"
     volumes:
       - thorpe_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thorpe_workforce"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   redis:
     image: redis:7
-    container_name: thorpe-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - thorpe_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+      SECRET_KEY: change-me-local
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/thorpe_workforce
+      REDIS_URL: redis://redis:6379/0
+      APP_BASE_URL: http://localhost:3000
+      SUPPORT_EMAIL: support@thorpeworkforce.com
+      CORS_ORIGINS: http://localhost:3000
+      TRUSTED_HOSTS: localhost,127.0.0.1
+      BILLING_PROVIDER: placeholder
+      EMAIL_PROVIDER: mock
+      AI_PROVIDER: mock
+      RUN_MIGRATIONS: "true"
+      SEED_WORKER_SYSTEM: "true"
+      SEED_DEMO_DATA: "true"
+      SEED_FOUNDER_OS_CHAINS: "true"
+    command:
+      [
+        "python",
+        "scripts/bootstrap_runtime.py",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+      SECRET_KEY: change-me-local
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/thorpe_workforce
+      REDIS_URL: redis://redis:6379/0
+      APP_BASE_URL: http://localhost:3000
+      SUPPORT_EMAIL: support@thorpeworkforce.com
+      RUN_MIGRATIONS: "false"
+      SEED_WORKER_SYSTEM: "false"
+      SEED_DEMO_DATA: "false"
+      SEED_FOUNDER_OS_CHAINS: "false"
+    command:
+      [
+        "python",
+        "scripts/bootstrap_runtime.py",
+        "celery",
+        "-A",
+        "app.tasks.celery_app.celery_app",
+        "worker",
+        "-l",
+        "info"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: dev
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_INTERNAL_WORKER_BUILDER_ENABLED: "true"
+      NEXT_PUBLIC_WORKER_CREATOR_ENABLED: "true"
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "3000:3000"
 
 volumes:
   thorpe_pg_data:

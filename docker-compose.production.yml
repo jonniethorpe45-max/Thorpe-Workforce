@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-thorpe_workforce}
+    volumes:
+      - thorpe_prod_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-thorpe_workforce}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - thorpe_prod_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@postgres:5432/thorpe_workforce}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      APP_BASE_URL: ${APP_BASE_URL}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://app.example.com}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-app.example.com}
+      BILLING_PROVIDER: ${BILLING_PROVIDER:-placeholder}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      RUN_MIGRATIONS: "true"
+      SEED_WORKER_SYSTEM: ${SEED_WORKER_SYSTEM:-true}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      SEED_FOUNDER_OS_CHAINS: ${SEED_FOUNDER_OS_CHAINS:-true}
+    command:
+      [
+        "python",
+        "scripts/bootstrap_runtime.py",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  worker-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@postgres:5432/thorpe_workforce}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      APP_BASE_URL: ${APP_BASE_URL}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL}
+      RUN_MIGRATIONS: "false"
+      SEED_WORKER_SYSTEM: "false"
+      SEED_DEMO_DATA: "false"
+      SEED_FOUNDER_OS_CHAINS: "false"
+    command:
+      [
+        "python",
+        "scripts/bootstrap_runtime.py",
+        "celery",
+        "-A",
+        "app.tasks.celery_app.celery_app",
+        "worker",
+        "-l",
+        "info"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: runner
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+volumes:
+  thorpe_prod_pg_data:
+  thorpe_prod_redis_data:

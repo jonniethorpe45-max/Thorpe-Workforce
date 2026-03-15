@@ -1,0 +1,13 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.next
+**/node_modules
+**/.venv
+**/test.db
+**/.DS_Store
+agent-transcripts
+terminals

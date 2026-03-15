@@ -1,6 +1,11 @@
+from pathlib import Path
+
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+import redis
 from sqlalchemy import text
 
 from app.api.routes import (
@@ -82,9 +87,39 @@ def liveness():
 
 @app.get("/health/ready")
 def readiness():
+    checks = {"database": "unknown", "redis": "unknown", "migrations": "unknown"}
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
+        checks["database"] = "ok"
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Database not ready") from exc
-    return {"status": "ok", "service": "thorpe-workforce-api", "check": "ready", "database": "ok"}
+
+    if settings.environment != "test":
+        try:
+            redis.Redis.from_url(settings.redis_url).ping()
+            checks["redis"] = "ok"
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Redis not ready") from exc
+
+        try:
+            alembic_ini = Path(__file__).resolve().parents[1] / "alembic.ini"
+            if not alembic_ini.exists():
+                alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
+            alembic_cfg = Config(str(alembic_ini))
+            alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+            head_revision = ScriptDirectory.from_config(alembic_cfg).get_current_head()
+            with engine.connect() as connection:
+                current_revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            if not current_revision or current_revision != head_revision:
+                raise HTTPException(status_code=503, detail="Database migrations are not at head")
+            checks["migrations"] = "ok"
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Migration state not ready") from exc
+    else:
+        checks["redis"] = "skipped_test_env"
+        checks["migrations"] = "skipped_test_env"
+
+    return {"status": "ok", "service": "thorpe-workforce-api", "check": "ready", **checks}

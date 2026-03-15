@@ -1,4 +1,11 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function resolveApiBaseUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXT_PUBLIC_API_BASE_URL is required in production mode");
+  }
+  return "http://localhost:8000";
+}
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -22,6 +29,7 @@ type RequestOptions = {
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const API_BASE_URL = resolveApiBaseUrl();
   const token = getAuthToken();
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
