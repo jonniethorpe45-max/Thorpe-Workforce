@@ -8,7 +8,7 @@ type WorkerTemplateCardProps = {
   pricingLabel: string;
   ratingLabel?: string;
   installsLabel?: string;
-  tags?: string[];
+  tags?: string[] | null;
   isFeatured?: boolean;
   status?: ReactNode;
   footer: ReactNode;
