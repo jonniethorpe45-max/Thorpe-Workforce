@@ -11,6 +11,7 @@ from app.models import (
     WorkerInstance,
     WorkerInstanceStatus,
     WorkerMemoryScope,
+    WorkerModerationStatus,
     WorkerPricingType,
     WorkerSubscription,
     WorkerTemplate,
@@ -61,6 +62,11 @@ def _is_publicly_visible(template: WorkerTemplate) -> bool:
     if not template.is_active:
         return False
     if template.status != WorkerTemplateStatus.ACTIVE.value:
+        return False
+    if template.moderation_status in {
+        WorkerModerationStatus.REJECTED.value,
+        WorkerModerationStatus.HIDDEN.value,
+    }:
         return False
     return template.visibility in PUBLIC_VISIBILITY_VALUES or bool(template.is_public)
 
@@ -541,6 +547,12 @@ def list_worker_templates(
                 WorkerTemplate.is_public.is_(True),  # compatibility for older records
             ),
             WorkerTemplate.status == WorkerTemplateStatus.ACTIVE.value,
+            WorkerTemplate.moderation_status.notin_(
+                (
+                    WorkerModerationStatus.REJECTED.value,
+                    WorkerModerationStatus.HIDDEN.value,
+                )
+            ),
         )
         audience_filters.append(public_filter)
 

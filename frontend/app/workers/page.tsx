@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { PublicFooter } from "@/components/layout/PublicFooter";
+import { PublicNav } from "@/components/layout/PublicNav";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -18,37 +20,78 @@ function formatPricing(item: PublicWorkerListItem): string {
 export default function PublicWorkersPage() {
   const [workers, setWorkers] = useState<PublicWorkerListItem[] | null>(null);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [pricingType, setPricingType] = useState("");
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("featured");
 
   useEffect(() => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("search", search.trim());
+    if (category) params.set("category", category);
+    if (pricingType) params.set("pricing_type", pricingType);
+    if (featuredOnly) params.set("featured_only", "true");
+    if (sortBy) params.set("sort_by", sortBy);
     api
-      .get<PublicWorkerListItem[]>("/public-workers")
+      .get<PublicWorkerListItem[]>(`/public-workers${params.toString() ? `?${params.toString()}` : ""}`)
       .then(setWorkers)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load public workers"));
-  }, []);
+  }, [category, featuredOnly, pricingType, search, sortBy]);
 
   if (error && !workers) return <main className="mx-auto max-w-6xl px-6 py-12"><ErrorState message={error} /></main>;
   if (!workers) return <main className="mx-auto max-w-6xl px-6 py-12"><LoadingState label="Loading public worker library..." /></main>;
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+    <div className="min-h-screen bg-slate-50">
+      <PublicNav />
+      <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Thorpe Workforce</p>
             <h1 className="text-3xl font-semibold text-slate-900">Public Worker Library</h1>
             <p className="text-sm text-slate-600">Discover marketplace-ready worker templates and their capabilities.</p>
           </div>
-          <div className="flex gap-2">
-            <Link className="btn-secondary" href="/">
-              Home
-            </Link>
-            <Link className="btn-primary" href="/signup">
-              Get Started
-            </Link>
-          </div>
         </div>
 
         {error ? <ErrorState message={error} /> : null}
+
+        <div className="card grid gap-3 p-4 md:grid-cols-5">
+          <input
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Search workers"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">All categories</option>
+            <option value="real_estate">Real Estate</option>
+            <option value="marketing">Marketing</option>
+            <option value="content">Content</option>
+            <option value="sales">Sales</option>
+            <option value="research">Research</option>
+            <option value="operations">Operations</option>
+            <option value="automation">Automation</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={pricingType} onChange={(e) => setPricingType(e.target.value)}>
+            <option value="">All pricing</option>
+            <option value="free">Free</option>
+            <option value="one_time">One-time</option>
+            <option value="subscription">Subscription</option>
+          </select>
+          <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="featured">Featured</option>
+            <option value="top">Top</option>
+            <option value="new">New</option>
+            <option value="rating">Rating</option>
+            <option value="price_low">Price: Low</option>
+            <option value="price_high">Price: High</option>
+          </select>
+          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={featuredOnly} onChange={(e) => setFeaturedOnly(e.target.checked)} />
+            Featured only
+          </label>
+        </div>
 
         {!workers.length ? (
           <EmptyState title="No public workers yet" description="Public templates will appear here when published." />
@@ -60,6 +103,9 @@ export default function PublicWorkersPage() {
                 <p className="mt-1 text-xs text-slate-500">{worker.category}</p>
                 <p className="mt-2 text-sm text-slate-700">{worker.short_description || "No summary provided."}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  {worker.is_featured ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">Featured</span>
+                  ) : null}
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{formatPricing(worker)}</span>
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
                     ★ {worker.rating_avg.toFixed(1)} ({worker.rating_count})
@@ -83,7 +129,8 @@ export default function PublicWorkersPage() {
             ))}
           </div>
         )}
-      </div>
-    </main>
+      </main>
+      <PublicFooter />
+    </div>
   );
 }

@@ -114,6 +114,23 @@ class WorkerBuilderCategory(StrEnum):
     CUSTOM = "custom"
 
 
+class OnboardingGoal(StrEnum):
+    REAL_ESTATE = "real_estate"
+    MARKETING = "marketing"
+    SALES = "sales"
+    ECOMMERCE = "ecommerce"
+    RESEARCH = "research"
+    OPERATIONS = "operations"
+    CUSTOM = "custom"
+
+
+class SupportRequestStatus(StrEnum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+
+
 class BillingInterval(StrEnum):
     MONTHLY = "monthly"
     ANNUAL = "annual"
@@ -149,6 +166,21 @@ class WorkerEntitlementStatus(StrEnum):
     REFUNDED = "refunded"
     CANCELED = "canceled"
     PENDING = "pending"
+
+
+class WorkerModerationStatus(StrEnum):
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    HIDDEN = "hidden"
+
+
+class WorkerReportStatus(StrEnum):
+    OPEN = "open"
+    REVIEWED = "reviewed"
+    DISMISSED = "dismissed"
+    ACTIONED = "actioned"
 
 
 class LeadStatus(StrEnum):
@@ -208,6 +240,64 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), default="owner", nullable=False)
+
+
+class UserOnboardingState(Base, TimestampMixin):
+    __tablename__ = "user_onboarding_states"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="uq_user_onboarding_states_user_id"),
+        Index("ix_user_onboarding_states_workspace", "workspace_id"),
+        Index("ix_user_onboarding_states_status", "is_completed", "is_skipped"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    current_step: Mapped[str] = mapped_column(String(80), default="welcome", nullable=False)
+    goal_category: Mapped[str | None] = mapped_column(String(40))
+    selected_paths_json: Mapped[list[str] | None] = mapped_column(JSON)
+    recommended_template_slugs: Mapped[list[str] | None] = mapped_column(JSON)
+    completed_steps_json: Mapped[list[str] | None] = mapped_column(JSON)
+    is_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_skipped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_password_reset_tokens_token_hash"),
+        Index("ix_password_reset_tokens_user_id", "user_id"),
+        Index("ix_password_reset_tokens_expires_at", "expires_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SupportRequest(Base, TimestampMixin):
+    __tablename__ = "support_requests"
+    __table_args__ = (
+        Index("ix_support_requests_status_created", "status", "created_at"),
+        Index("ix_support_requests_email", "email"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("workspaces.id"))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    handled_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default=SupportRequestStatus.OPEN.value, nullable=False)
+    source: Mapped[str] = mapped_column(String(80), default="contact_form", nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
 class CreatorMonetizationProfile(Base, TimestampMixin):
@@ -494,6 +584,7 @@ class WorkerTemplate(Base, TimestampMixin):
         Index("ix_worker_templates_slug", "slug"),
         Index("ix_worker_templates_visibility_status", "visibility", "status"),
         Index("ix_worker_templates_marketplace_listed", "is_marketplace_listed"),
+        Index("ix_worker_templates_featured_rank", "is_featured", "featured_rank"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -525,6 +616,8 @@ class WorkerTemplate(Base, TimestampMixin):
     is_system_template: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_marketplace_listed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    featured_rank: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     pricing_type: Mapped[str] = mapped_column(String(30), default=WorkerPricingType.INTERNAL.value, nullable=False)
     price_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -538,6 +631,11 @@ class WorkerTemplate(Base, TimestampMixin):
     rating_avg: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tags_json: Mapped[list[str] | None] = mapped_column(JSON)
+    moderation_status: Mapped[str] = mapped_column(String(30), default=WorkerModerationStatus.APPROVED.value, nullable=False)
+    moderation_notes: Mapped[str | None] = mapped_column(Text)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    report_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class WorkerTemplateDraft(Base, TimestampMixin):
@@ -744,6 +842,71 @@ class WorkerReview(Base, TimestampMixin):
     workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
     review_text: Mapped[str | None] = mapped_column(Text)
+
+
+class WorkerReport(Base):
+    __tablename__ = "worker_reports"
+    __table_args__ = (
+        Index("ix_worker_reports_template_status", "worker_template_id", "status"),
+        Index("ix_worker_reports_created_at", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    worker_template_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("worker_templates.id"), nullable=False)
+    reporter_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"), nullable=False)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("workspaces.id"))
+    reason: Mapped[str] = mapped_column(String(120), nullable=False)
+    details: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default=WorkerReportStatus.OPEN.value, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"))
+
+
+class WorkerAnalyticsDaily(Base, TimestampMixin):
+    __tablename__ = "worker_analytics_daily"
+    __table_args__ = (
+        UniqueConstraint("worker_template_id", "workspace_id", "date", name="uq_worker_analytics_daily_scope_date"),
+        Index("ix_worker_analytics_daily_date", "date"),
+        Index("ix_worker_analytics_daily_worker_date", "worker_template_id", "date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    worker_template_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("worker_templates.id"), nullable=False)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("workspaces.id"))
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    install_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    uninstall_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    run_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unique_running_workspaces: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unique_running_users: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    test_run_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    publish_views: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installs_from_marketplace: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installs_from_public_page: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    paid_purchase_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_gross_revenue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_platform_revenue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    estimated_creator_revenue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class WorkspaceUsageDaily(Base, TimestampMixin):
+    __tablename__ = "workspace_usage_daily"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "date", name="uq_workspace_usage_daily_workspace_date"),
+        Index("ix_workspace_usage_daily_workspace_date", "workspace_id", "date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("workspaces.id"), nullable=False)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    worker_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    chain_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installed_workers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    published_workers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    successful_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failed_runs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    active_users_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class AuditLog(Base):

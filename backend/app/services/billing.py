@@ -21,11 +21,13 @@ from app.models import (
     WorkerSubscription,
     WorkerTemplate,
     WorkerTemplateDraft,
+    User,
     Workspace,
     WorkspaceSubscription,
     WorkspaceSubscriptionStatus,
 )
 from app.services.subscription_plans import ensure_default_subscription_plans, get_plan_by_code
+from app.services.transactional_email import send_transactional_email
 
 try:  # pragma: no cover - optional dependency guard
     import stripe
@@ -815,6 +817,22 @@ def _sync_invoice_state(db: Session, *, invoice: dict[str, Any], paid: bool) -> 
         )
     for record in workspace_records.all():
         record.status = WorkspaceSubscriptionStatus.ACTIVE.value if paid else WorkspaceSubscriptionStatus.PAST_DUE.value
+        if paid:
+            owner = (
+                db.query(User)
+                .filter(User.workspace_id == record.workspace_id, User.role.in_(("owner", "admin")))
+                .order_by(User.created_at.asc())
+                .first()
+            )
+            if owner:
+                try:
+                    send_transactional_email(
+                        to_email=owner.email,
+                        template_key="subscription_active",
+                        recipient_name=owner.full_name,
+                    )
+                except Exception:
+                    pass
     worker_records_query = db.query(WorkerSubscription)
     if subscription_id:
         worker_records_query = worker_records_query.filter(WorkerSubscription.stripe_subscription_id == subscription_id)

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import User, WorkerTemplate
+from app.models import User, WorkerInstance, WorkerTemplate
 from app.schemas.api import (
     CreatorRevenueSummaryRead,
     MarketplaceInstallResponse,
@@ -34,6 +34,7 @@ from app.services.marketplace import (
     publish_template_to_marketplace,
 )
 from app.services.worker_templates import get_worker_template_details
+from app.services.transactional_email import send_transactional_email
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
@@ -46,6 +47,9 @@ def list_marketplace_templates(
     pricing_type: str | None = Query(default=None),
     min_price_cents: int | None = Query(default=None, ge=0),
     max_price_cents: int | None = Query(default=None, ge=0),
+    search: str | None = Query(default=None, max_length=120),
+    featured_only: bool = Query(default=False),
+    sort_by: str | None = Query(default="featured"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -57,6 +61,9 @@ def list_marketplace_templates(
         pricing_type=pricing_type,
         min_price_cents=min_price_cents,
         max_price_cents=max_price_cents,
+        search=search,
+        featured_only=featured_only,
+        sort_by=sort_by,
     )
     return [MarketplaceListingRead(**item) for item in listings]
 
@@ -137,6 +144,15 @@ def publish_to_marketplace(
         payload={"template_id": str(template_id)},
     )
     db.commit()
+    try:
+        send_transactional_email(
+            to_email=current_user.email,
+            template_key="worker_published",
+            recipient_name=current_user.full_name,
+            context={"worker_name": published.display_name or published.name},
+        )
+    except Exception:
+        pass
     detail = get_marketplace_worker_detail(
         db,
         workspace_id=current_user.workspace_id,
@@ -162,6 +178,9 @@ def install_marketplace_template(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    has_existing_install = (
+        db.query(WorkerInstance.id).filter(WorkerInstance.workspace_id == current_user.workspace_id).first() is not None
+    )
     template = get_worker_template_details(
         db,
         template_id=template_id,
@@ -200,7 +219,26 @@ def install_marketplace_template(
             "revenue_event_id": str(revenue_event.id),
         },
     )
+    if not has_existing_install:
+        log_audit_event(
+            db,
+            workspace_id=current_user.workspace_id,
+            actor_type="user",
+            actor_id=str(current_user.id),
+            event_name="first_worker_installed",
+            payload={"template_id": str(template.id), "instance_id": str(install_result.instance.id)},
+        )
     db.commit()
+    if int(template.price_cents or 0) > 0:
+        try:
+            send_transactional_email(
+                to_email=current_user.email,
+                template_key="purchase_confirmed",
+                recipient_name=current_user.full_name,
+                context={"amount_text": f"${(int(template.price_cents or 0) / 100):.2f}"},
+            )
+        except Exception:
+            pass
     db.refresh(install_result.subscription)
     return MarketplaceInstallResponse(
         success=True,

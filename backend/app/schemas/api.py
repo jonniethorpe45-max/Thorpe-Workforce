@@ -7,13 +7,17 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 from app.models import (
     BillingInterval,
+    OnboardingGoal,
+    SupportRequestStatus,
     WorkerBuilderCategory,
     WorkerChainStatus,
     WorkerChainTriggerType,
     WorkerEntitlementStatus,
     WorkerInstanceStatus,
+    WorkerModerationStatus,
     WorkerMemoryScope,
     WorkerPricingType,
+    WorkerReportStatus,
     WorkerRunStatus,
     WorkerRunTriggerType,
     WorkerAccessType,
@@ -170,6 +174,275 @@ class BillingWebhookResponse(BaseSchema):
     status: str
 
 
+class AnalyticsPointRead(BaseSchema):
+    date: str
+    value: int | float
+
+
+class CreatorActivityItemRead(BaseSchema):
+    event_name: str
+    created_at: datetime
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreatorDashboardSummaryRead(BaseSchema):
+    published_workers_count: int = 0
+    total_installs: int = 0
+    total_runs: int = 0
+    active_workers_count: int = 0
+    paid_workers_count: int = 0
+    free_workers_count: int = 0
+    estimated_total_revenue: int = 0
+    estimated_platform_share: int = 0
+    estimated_creator_share: int = 0
+    recent_install_trend: list[AnalyticsPointRead] = Field(default_factory=list)
+    recent_run_trend: list[AnalyticsPointRead] = Field(default_factory=list)
+
+
+class CreatorWorkerSummaryRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    name: str
+    slug: str | None = None
+    category: str
+    pricing_type: WorkerPricingType
+    installs: int = 0
+    runs: int = 0
+    active_workspaces: int = 0
+    purchase_count: int = 0
+    estimated_revenue: int = 0
+    moderation_status: WorkerModerationStatus = WorkerModerationStatus.APPROVED
+    created_at: datetime
+    published_at: datetime | None = None
+
+
+class CreatorWorkerAnalyticsRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    installs_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    runs_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    active_workspaces_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    purchases_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    revenue_over_time: list[AnalyticsPointRead] = Field(default_factory=list)
+    recent_failures: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class CreatorPayoutsSummaryRead(BaseSchema):
+    estimated_gross_revenue: int = 0
+    estimated_creator_share: int = 0
+    estimated_platform_share: int = 0
+    pending_payout_estimate: int = 0
+    paid_out_estimate: int = 0
+    refund_estimate: int = 0
+    disclaimer: str
+
+
+class WorkspaceAnalyticsSummaryRead(BaseSchema):
+    installed_workers_count: int = 0
+    published_workers_count: int = 0
+    total_runs: int = 0
+    runs_this_period: int = 0
+    chain_runs_this_period: int = 0
+    success_rate: float = 0.0
+    failed_runs: int = 0
+    top_used_workers: list[dict[str, Any]] = Field(default_factory=list)
+    plan: BillingPlanRead
+    limits: dict[str, int | None] = Field(default_factory=dict)
+    usage: dict[str, int] = Field(default_factory=dict)
+    percent_of_limit_used: dict[str, float] = Field(default_factory=dict)
+
+
+class WorkspaceActivityRead(BaseSchema):
+    event_name: str
+    created_at: datetime
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkspaceUsageHistoryPointRead(BaseSchema):
+    date: str
+    worker_runs: int = 0
+    chain_runs: int = 0
+    installs: int = 0
+    successful_runs: int = 0
+    failed_runs: int = 0
+
+
+class AdminAnalyticsSummaryRead(BaseSchema):
+    total_users: int = 0
+    total_workspaces: int = 0
+    total_subscriptions_active: int = 0
+    subscriptions_by_plan: dict[str, int] = Field(default_factory=dict)
+    total_published_workers: int = 0
+    total_marketplace_workers: int = 0
+    total_public_workers: int = 0
+    total_installs: int = 0
+    total_runs: int = 0
+    total_paid_purchases: int = 0
+    estimated_mrr: int = 0
+    estimated_arr_run_rate: int = 0
+    top_workers: list[dict[str, Any]] = Field(default_factory=list)
+    top_creators: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AdminWorkerListItemRead(BaseSchema):
+    worker_template_id: uuid.UUID
+    name: str
+    slug: str | None = None
+    category: str
+    pricing_type: WorkerPricingType
+    visibility: WorkerTemplateVisibility
+    moderation_status: WorkerModerationStatus
+    report_count: int = 0
+    is_featured: bool = False
+    featured_rank: int = 0
+    installs: int = 0
+    runs: int = 0
+    creator_user_id: uuid.UUID | None = None
+
+
+class AdminWorkerDetailRead(BaseSchema):
+    template: "WorkerTemplateRead"
+    creator: UserRead | None = None
+    installs: int = 0
+    runs: int = 0
+    estimated_revenue: int = 0
+    moderation_status: WorkerModerationStatus
+    report_count: int = 0
+    recent_reports: list[dict[str, Any]] = Field(default_factory=list)
+    recent_activity: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AdminModerationRequest(BaseSchema):
+    action: str = Field(min_length=2, max_length=40)
+    moderation_notes: str | None = Field(default=None, max_length=2000)
+
+
+class AdminFeatureWorkerRequest(BaseSchema):
+    is_featured: bool = False
+    featured_rank: int = Field(default=0, ge=0, le=10000)
+
+
+class AdminCreatorListItemRead(BaseSchema):
+    creator_user_id: uuid.UUID
+    email: str
+    full_name: str
+    published_workers: int = 0
+    installs: int = 0
+    runs: int = 0
+    estimated_revenue: int = 0
+    moderation_issues_count: int = 0
+    payouts_enabled: bool = False
+    onboarding_complete: bool = False
+
+
+class AdminBillingSummaryRead(BaseSchema):
+    active_subscriptions_by_plan: dict[str, int] = Field(default_factory=dict)
+    churned_subscriptions_count: int = 0
+    failed_payments_count: int = 0
+    estimated_platform_revenue: int = 0
+    top_grossing_workers: list[dict[str, Any]] = Field(default_factory=list)
+    top_grossing_creators: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkerReportCreate(BaseSchema):
+    reason: str = Field(min_length=2, max_length=120)
+    details: str | None = Field(default=None, max_length=2000)
+
+
+class WorkerReportRead(BaseSchema):
+    id: uuid.UUID
+    worker_template_id: uuid.UUID
+    reporter_user_id: uuid.UUID
+    workspace_id: uuid.UUID | None = None
+    reason: str
+    details: str | None = None
+    status: WorkerReportStatus
+    created_at: datetime
+    reviewed_at: datetime | None = None
+    reviewed_by_user_id: uuid.UUID | None = None
+
+
+class OnboardingStateRead(BaseSchema):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    workspace_id: uuid.UUID
+    current_step: str
+    goal_category: OnboardingGoal | None = None
+    selected_paths_json: list[str] = Field(default_factory=list)
+    recommended_template_slugs: list[str] = Field(default_factory=list)
+    completed_steps_json: list[str] = Field(default_factory=list)
+    is_completed: bool = False
+    is_skipped: bool = False
+    last_completed_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class OnboardingStateUpdate(BaseSchema):
+    current_step: str | None = Field(default=None, min_length=2, max_length=80)
+    goal_category: OnboardingGoal | None = None
+    selected_paths_json: list[str] | None = None
+    complete_step: str | None = Field(default=None, min_length=2, max_length=80)
+    is_completed: bool | None = None
+    is_skipped: bool | None = None
+
+
+class OnboardingRecommendationItem(BaseSchema):
+    id: uuid.UUID
+    slug: str
+    name: str
+    short_description: str | None = None
+    category: str
+    pricing_type: WorkerPricingType
+    price_cents: int
+    currency: str
+    is_featured: bool = False
+    featured_rank: int = 0
+    install_count: int = 0
+
+
+class OnboardingRecommendationResponse(BaseSchema):
+    goal_category: OnboardingGoal
+    templates: list[OnboardingRecommendationItem] = Field(default_factory=list)
+
+
+class PasswordResetRequest(BaseSchema):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseSchema):
+    token: str = Field(min_length=20, max_length=512)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class SupportRequestCreate(BaseSchema):
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    subject: str = Field(min_length=4, max_length=200)
+    message: str = Field(min_length=10, max_length=5000)
+    source: str = Field(default="contact_form", min_length=2, max_length=80)
+
+
+class SupportRequestRead(BaseSchema):
+    id: uuid.UUID
+    workspace_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
+    handled_by_user_id: uuid.UUID | None = None
+    name: str
+    email: EmailStr
+    subject: str
+    message: str
+    status: SupportRequestStatus
+    source: str
+    resolved_at: datetime | None = None
+    metadata_json: dict[str, Any] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SupportRequestUpdate(BaseSchema):
+    status: SupportRequestStatus
+    resolution_note: str | None = Field(default=None, max_length=2000)
+
+
 class WorkerCreate(BaseSchema):
     name: str
     goal: str
@@ -254,6 +527,8 @@ class WorkerTemplateRead(BaseSchema):
     is_system_template: bool = False
     is_public: bool
     is_marketplace_listed: bool = False
+    is_featured: bool = False
+    featured_rank: int = 0
     is_active: bool
     pricing_type: WorkerPricingType = WorkerPricingType.INTERNAL
     price_cents: int = 0
@@ -267,6 +542,11 @@ class WorkerTemplateRead(BaseSchema):
     rating_avg: float = 0.0
     rating_count: int = 0
     tags_json: list[str] | None = None
+    moderation_status: WorkerModerationStatus = WorkerModerationStatus.APPROVED
+    moderation_notes: str | None = None
+    reviewed_by_user_id: uuid.UUID | None = None
+    reviewed_at: datetime | None = None
+    report_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -284,6 +564,8 @@ class WorkerTemplateCatalogRead(BaseSchema):
     visibility: WorkerTemplateVisibility
     status: WorkerTemplateStatus
     is_marketplace_listed: bool = False
+    is_featured: bool = False
+    featured_rank: int = 0
     pricing_type: WorkerPricingType
     price_cents: int
     currency: str
@@ -1001,7 +1283,10 @@ class PublicWorkerListItem(BaseSchema):
     rating_avg: float = 0.0
     rating_count: int = 0
     install_count: int = 0
+    is_featured: bool = False
+    featured_rank: int = 0
     tags_json: list[str] | None = None
+    created_at: datetime | None = None
 
 
 class PublicWorkerDetailRead(BaseSchema):

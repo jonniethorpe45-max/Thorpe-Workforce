@@ -13,6 +13,18 @@ export default function SettingsPage() {
         <Link href="/app/settings/billing" className="mt-3 inline-block text-sm font-medium text-brand-700 hover:underline">
           Open Billing & Plan Settings
         </Link>
+        <div className="mt-3 space-y-1 text-sm">
+          <p>
+            <Link href="/app/onboarding" className="font-medium text-brand-700 hover:underline">
+              Resume onboarding
+            </Link>
+          </p>
+          <p>
+            <Link href="/contact" className="font-medium text-brand-700 hover:underline">
+              Contact support
+            </Link>
+          </p>
+        </div>
       </div>
       {INTERNAL_BUILDER_ENABLED ? (
         <div className="card border-amber-200 bg-amber-50 p-6">

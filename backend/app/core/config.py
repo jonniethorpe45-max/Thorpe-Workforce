@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     calendar_provider: str = "google"
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "sales@thorpeworkforce.com"
+    support_email: str = "support@thorpeworkforce.com"
     google_client_id: str = ""
     google_client_secret: str = ""
     workspace_daily_send_cap: int = 250
@@ -39,6 +40,8 @@ class Settings(BaseSettings):
     internal_worker_builder_token: str = ""
     worker_creator_enabled: bool = False
     cors_origins: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
+    trusted_hosts: Annotated[List[str], NoDecode] = ["localhost", "127.0.0.1", "testserver"]
+    password_reset_token_ttl_minutes: int = 60
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -67,6 +70,29 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_base_urls(cls, value: str) -> str:
         return value.strip().rstrip("/")
+
+    @field_validator("trusted_hosts", mode="before")
+    @classmethod
+    def split_hosts(cls, value: str | list[str]) -> list[str]:
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            return [part.strip() for part in raw.split(",") if part.strip()]
+        return [part.strip() for part in value if part.strip()]
+
+    @field_validator("environment")
+    @classmethod
+    def normalize_environment(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, value: str, info):
+        environment = str((info.data or {}).get("environment", "development")).lower()
+        if environment in {"production", "staging"} and value.strip() in {"", "change-me"}:
+            raise ValueError("SECRET_KEY must be set to a secure value in production/staging")
+        return value
 
 
 @lru_cache(maxsize=1)

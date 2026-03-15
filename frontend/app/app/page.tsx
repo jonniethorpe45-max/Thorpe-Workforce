@@ -30,21 +30,30 @@ type Overview = {
   }>;
 };
 
+type OnboardingState = {
+  is_completed: boolean;
+  is_skipped: boolean;
+  current_step: string;
+};
+
 export default function AppDashboardPage() {
   const [data, setData] = useState<Overview | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api
-      .get<Overview>("/analytics/overview")
-      .then(setData)
+    Promise.all([api.get<Overview>("/analytics/overview"), api.get<OnboardingState>("/onboarding/state")])
+      .then(([overview, onboardingState]) => {
+        setData(overview);
+        setOnboarding(onboardingState);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load analytics"));
   }, []);
 
   if (error) return <ErrorState message={error} />;
   if (!data) return <LoadingState label="Loading dashboard metrics..." />;
 
-  const onboarding = [
+  const onboardingChecklist = [
     { label: "Create AI Sales Worker", done: data.active_workers > 0, href: "/app/workers/new" },
     { label: "Create Campaign Mission", done: data.campaigns > 0, href: "/app/campaigns/new" },
     { label: "Add Leads", done: data.leads_found > 0, href: "/app/leads" },
@@ -58,6 +67,16 @@ export default function AppDashboardPage() {
         <h2 className="text-2xl font-semibold">Worker Mission Control</h2>
         <p className="text-sm text-slate-600">Track AI Sales Worker activity, approval queue health, and outcomes.</p>
       </div>
+      {onboarding && !onboarding.is_completed && !onboarding.is_skipped ? (
+        <div className="card border-brand-200 bg-brand-50 p-4">
+          <p className="text-sm text-brand-900">
+            Finish onboarding to activate your first worker flow. Current step: <strong>{onboarding.current_step}</strong>
+          </p>
+          <Link href="/app/onboarding" className="mt-2 inline-block text-sm font-medium text-brand-700 hover:underline">
+            Resume onboarding →
+          </Link>
+        </div>
+      ) : null}
       <section className="grid gap-4 md:grid-cols-3">
         <StatCard label="Active Workers" value={data.active_workers} />
         <StatCard label="Missions" value={data.campaigns} />
@@ -73,11 +92,11 @@ export default function AppDashboardPage() {
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold">First-Run Checklist</h3>
           <span className="text-xs text-slate-500">
-            {onboarding.filter((item) => item.done).length}/{onboarding.length} completed
+            {onboardingChecklist.filter((item) => item.done).length}/{onboardingChecklist.length} completed
           </span>
         </div>
         <ul className="mt-3 space-y-2 text-sm">
-          {onboarding.map((item) => (
+          {onboardingChecklist.map((item) => (
             <li key={item.label} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2">
               <span className={item.done ? "text-emerald-700" : "text-slate-700"}>
                 {item.done ? "✓" : "○"} {item.label}
