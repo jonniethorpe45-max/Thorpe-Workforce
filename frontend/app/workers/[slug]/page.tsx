@@ -8,7 +8,6 @@ import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicNav } from "@/components/layout/PublicNav";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { api } from "@/services/api";
 import type { PublicWorkerDetailRead } from "@/types";
 
 function formatPricing(pricingType: string, priceCents: number, currency: string): string {
@@ -23,24 +22,45 @@ export default function PublicWorkerDetailPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api
-      .get<PublicWorkerDetailRead>(`/public-workers/${params.slug}`)
-      .then(setDetail)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load public worker"));
+    const loadDetail = async () => {
+      setError("");
+      const response = await fetch(`/api/public/workers/${params.slug}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = (payload as { detail?: string } | null)?.detail;
+        throw new Error(detail || "Failed to load public worker");
+      }
+      setDetail(payload as PublicWorkerDetailRead);
+    };
+    loadDetail().catch((err) => setError(err instanceof Error ? err.message : "Failed to load public worker"));
   }, [params.slug]);
 
   if (error && !detail) {
     return (
-      <main className="mx-auto max-w-4xl px-6 py-12">
-        <ErrorState message={error} />
-      </main>
+      <div className="min-h-screen bg-slate-50">
+        <PublicNav />
+        <main className="mx-auto max-w-4xl space-y-4 px-6 py-12">
+          <Link href="/" className="text-sm font-medium text-brand-600 hover:underline">
+            ← Back to Home
+          </Link>
+          <ErrorState message={error} />
+        </main>
+        <PublicFooter />
+      </div>
     );
   }
   if (!detail) {
     return (
-      <main className="mx-auto max-w-4xl px-6 py-12">
-        <LoadingState label="Loading worker details..." />
-      </main>
+      <div className="min-h-screen bg-slate-50">
+        <PublicNav />
+        <main className="mx-auto max-w-4xl space-y-4 px-6 py-12">
+          <Link href="/" className="text-sm font-medium text-brand-600 hover:underline">
+            ← Back to Home
+          </Link>
+          <LoadingState label="Loading worker details..." />
+        </main>
+        <PublicFooter />
+      </div>
     );
   }
 

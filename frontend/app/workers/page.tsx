@@ -8,7 +8,6 @@ import { PublicNav } from "@/components/layout/PublicNav";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { api } from "@/services/api";
 import type { PublicWorkerListItem } from "@/types";
 
 function formatPricing(item: PublicWorkerListItem): string {
@@ -33,19 +32,33 @@ export default function PublicWorkersPage() {
     if (pricingType) params.set("pricing_type", pricingType);
     if (featuredOnly) params.set("featured_only", "true");
     if (sortBy) params.set("sort_by", sortBy);
-    api
-      .get<PublicWorkerListItem[]>(`/public-workers${params.toString() ? `?${params.toString()}` : ""}`)
-      .then(setWorkers)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load public workers"));
+    const loadWorkers = async () => {
+      setError("");
+      const response = await fetch(`/api/public/workers${params.toString() ? `?${params.toString()}` : ""}`, {
+        cache: "no-store"
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = (payload as { detail?: string } | null)?.detail;
+        throw new Error(detail || "Failed to load public workers");
+      }
+      setWorkers(Array.isArray(payload) ? (payload as PublicWorkerListItem[]) : []);
+    };
+    loadWorkers().catch((err) => {
+      setError(err instanceof Error ? err.message : "Failed to load public workers");
+      setWorkers([]);
+    });
   }, [category, featuredOnly, pricingType, search, sortBy]);
-
-  if (error && !workers) return <main className="mx-auto max-w-6xl px-6 py-12"><ErrorState message={error} /></main>;
-  if (!workers) return <main className="mx-auto max-w-6xl px-6 py-12"><LoadingState label="Loading public worker library..." /></main>;
 
   return (
     <div className="min-h-screen bg-slate-50">
       <PublicNav />
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+        <div>
+          <Link href="/" className="text-sm font-medium text-brand-600 hover:underline">
+            ← Back to Home
+          </Link>
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Thorpe Workforce</p>
@@ -93,7 +106,9 @@ export default function PublicWorkersPage() {
           </label>
         </div>
 
-        {!workers.length ? (
+        {!workers ? (
+          <LoadingState label="Loading public worker library..." />
+        ) : !workers.length ? (
           <EmptyState title="No public workers yet" description="Public templates will appear here when published." />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

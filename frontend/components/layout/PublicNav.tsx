@@ -8,6 +8,9 @@ export function PublicNav() {
           Thorpe Workforce
         </Link>
         <nav className="hidden items-center gap-5 text-sm text-slate-700 md:flex">
+          <Link className="hover:text-slate-900" href="/">
+            Home
+          </Link>
           <Link className="hover:text-slate-900" href="/marketplace">
             Marketplace
           </Link>
@@ -27,6 +30,19 @@ export function PublicNav() {
           </Link>
           <Link className="btn-primary px-3 py-2 text-sm" href="/signup">
             Get started
+          </Link>
+        </div>
+      </div>
+      <div className="border-t border-slate-100 px-6 py-2 text-sm md:hidden">
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-4 text-slate-700">
+          <Link className="hover:text-slate-900" href="/">
+            Home
+          </Link>
+          <Link className="hover:text-slate-900" href="/marketplace">
+            Marketplace
+          </Link>
+          <Link className="hover:text-slate-900" href="/pricing">
+            Pricing
           </Link>
         </div>
       </div>
