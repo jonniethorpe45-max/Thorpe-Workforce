@@ -175,6 +175,8 @@ Open the DMG and run `ThorpeWorkforceLaunchAssistant.command` to:
 
 - run preflight checks
 - create env files from templates
+- generate Railway/Vercel env var blocks
+- save env files to `.launch-assistant-output/*.env`
 - start local stack
 - run production + staging smoke checks
 - open Railway/Vercel/Stripe dashboards

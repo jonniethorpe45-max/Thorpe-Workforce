@@ -38,6 +38,7 @@ Thorpe Workforce Launch Assistant
 3) Choose menu options to complete:
    - preflight checks
    - env template creation
+   - deployment env var generation
    - local stack startup
    - deployed smoke checks
    - opening deployment dashboards

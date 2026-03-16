@@ -8,6 +8,8 @@ This folder provides a one-click macOS helper for final Thorpe Workforce setup a
   - Interactive menu-driven assistant
   - Preflight checks
   - Env template generation
+  - Deployment env var block generation (Railway API/Worker + Vercel)
+  - Save env blocks to `.launch-assistant-output/*.env`
   - Local startup trigger
   - Deployed smoke checks
   - Opens Railway/Vercel/Stripe dashboards
@@ -47,6 +49,8 @@ Output:
 If you are using the domains discussed in setup:
 
 ```bash
+THORPE_ENVIRONMENT=production
+THORPE_SUPPORT_EMAIL=support@thorpeworkforce.ai
 THORPE_FRONTEND_URL=https://thorpeworkforce.ai
 THORPE_API_URL=https://api-thorpeworkforce.ai
 ```

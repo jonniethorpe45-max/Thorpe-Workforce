@@ -4,6 +4,10 @@
 # Optional: local repo path on your Mac
 # export THORPE_REPO_PATH="$HOME/Thorpe-Workforce"
 
+# Environment + support
+export THORPE_ENVIRONMENT="production"
+export THORPE_SUPPORT_EMAIL="support@thorpeworkforce.ai"
+
 # Production domains
 export THORPE_FRONTEND_URL="https://thorpeworkforce.ai"
 export THORPE_API_URL="https://api-thorpeworkforce.ai"

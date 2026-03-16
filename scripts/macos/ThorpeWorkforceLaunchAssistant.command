@@ -16,6 +16,8 @@ PROD_FRONTEND_URL="${THORPE_FRONTEND_URL:-https://thorpeworkforce.ai}"
 PROD_API_URL="${THORPE_API_URL:-https://api-thorpeworkforce.ai}"
 STAGING_FRONTEND_URL="${THORPE_STAGING_FRONTEND_URL:-https://staging.thorpeworkforce.ai}"
 STAGING_API_URL="${THORPE_STAGING_API_URL:-https://staging-api.thorpeworkforce.ai}"
+SUPPORT_EMAIL="${THORPE_SUPPORT_EMAIL:-support@thorpeworkforce.ai}"
+DEFAULT_ENVIRONMENT="${THORPE_ENVIRONMENT:-production}"
 
 RAILWAY_DASHBOARD_URL="${THORPE_RAILWAY_DASHBOARD_URL:-https://railway.app}"
 VERCEL_DASHBOARD_URL="${THORPE_VERCEL_DASHBOARD_URL:-https://vercel.com/dashboard}"
@@ -55,6 +57,14 @@ normalize_url() {
   printf "%s" "${value%/}"
 }
 
+host_from_url() {
+  local value
+  value="$(normalize_url "${1:-}")"
+  value="${value#*://}"
+  value="${value%%/*}"
+  printf "%s" "$value"
+}
+
 prompt_repo_path() {
   say ""
   say "Current repo path: ${REPO_PATH}"
@@ -70,6 +80,12 @@ prompt_repo_path() {
 configure_domain_defaults() {
   local input=""
   say ""
+  read -r -p "Environment mode [${DEFAULT_ENVIRONMENT}] (production/staging): " input
+  if [[ -n "${input}" ]]; then DEFAULT_ENVIRONMENT="${input}"; fi
+
+  read -r -p "Support email [${SUPPORT_EMAIL}]: " input
+  if [[ -n "${input}" ]]; then SUPPORT_EMAIL="${input}"; fi
+
   read -r -p "Production frontend URL [${PROD_FRONTEND_URL}]: " input
   if [[ -n "${input}" ]]; then PROD_FRONTEND_URL="$(normalize_url "$input")"; fi
 
@@ -295,6 +311,8 @@ show_current_config() {
 
 Current Launch Assistant config:
 - Repo path:            ${REPO_PATH}
+- Environment mode:     ${DEFAULT_ENVIRONMENT}
+- Support email:        ${SUPPORT_EMAIL}
 - Prod frontend URL:    ${PROD_FRONTEND_URL}
 - Prod API URL:         ${PROD_API_URL}
 - Staging frontend URL: ${STAGING_FRONTEND_URL}
@@ -310,6 +328,8 @@ save_profile_file() {
 # Update values as needed.
 
 export THORPE_REPO_PATH="$REPO_PATH"
+export THORPE_ENVIRONMENT="$DEFAULT_ENVIRONMENT"
+export THORPE_SUPPORT_EMAIL="$SUPPORT_EMAIL"
 export THORPE_FRONTEND_URL="$PROD_FRONTEND_URL"
 export THORPE_API_URL="$PROD_API_URL"
 export THORPE_STAGING_FRONTEND_URL="$STAGING_FRONTEND_URL"
@@ -320,6 +340,90 @@ export THORPE_STRIPE_DASHBOARD_URL="$STRIPE_DASHBOARD_URL"
 export THORPE_GITHUB_REPO_URL="$GITHUB_REPO_URL"
 PROFILE
   ok "Saved profile: $PROFILE_FILE"
+}
+
+build_env_block_railway_api() {
+  local frontend_url api_url api_host
+  frontend_url="$(normalize_url "$PROD_FRONTEND_URL")"
+  api_url="$(normalize_url "$PROD_API_URL")"
+  api_host="$(host_from_url "$api_url")"
+  cat <<EOF
+ENVIRONMENT=${DEFAULT_ENVIRONMENT}
+SECRET_KEY=REPLACE_WITH_LONG_RANDOM_SECRET
+DATABASE_URL=REPLACE_WITH_RAILWAY_POSTGRES_URL
+REDIS_URL=REPLACE_WITH_RAILWAY_REDIS_URL
+APP_BASE_URL=${frontend_url}
+SUPPORT_EMAIL=${SUPPORT_EMAIL}
+CORS_ORIGINS=${frontend_url}
+TRUSTED_HOSTS=${api_host},*.up.railway.app
+BILLING_PROVIDER=placeholder
+EMAIL_PROVIDER=mock
+AI_PROVIDER=mock
+RUN_MIGRATIONS_ON_BOOT=false
+PASSWORD_RESET_TOKEN_TTL_MINUTES=30
+EOF
+}
+
+build_env_block_railway_worker() {
+  local frontend_url
+  frontend_url="$(normalize_url "$PROD_FRONTEND_URL")"
+  cat <<EOF
+ENVIRONMENT=${DEFAULT_ENVIRONMENT}
+SECRET_KEY=REPLACE_WITH_LONG_RANDOM_SECRET
+DATABASE_URL=REPLACE_WITH_RAILWAY_POSTGRES_URL
+REDIS_URL=REPLACE_WITH_RAILWAY_REDIS_URL
+APP_BASE_URL=${frontend_url}
+SUPPORT_EMAIL=${SUPPORT_EMAIL}
+BILLING_PROVIDER=placeholder
+EMAIL_PROVIDER=mock
+AI_PROVIDER=mock
+RUN_MIGRATIONS=false
+SEED_WORKER_SYSTEM=false
+SEED_DEMO_DATA=false
+SEED_FOUNDER_OS_CHAINS=false
+EOF
+}
+
+build_env_block_vercel() {
+  local frontend_url api_url
+  frontend_url="$(normalize_url "$PROD_FRONTEND_URL")"
+  api_url="$(normalize_url "$PROD_API_URL")"
+  cat <<EOF
+NEXT_PUBLIC_API_BASE_URL=${api_url}
+NEXT_PUBLIC_APP_URL=${frontend_url}
+NEXT_PUBLIC_INTERNAL_WORKER_BUILDER_ENABLED=true
+NEXT_PUBLIC_WORKER_CREATOR_ENABLED=true
+EOF
+}
+
+print_deployment_env_blocks() {
+  say ""
+  say "Railway API service env vars:"
+  say "-----------------------------"
+  build_env_block_railway_api
+  say ""
+  say "Railway Worker service env vars:"
+  say "--------------------------------"
+  build_env_block_railway_worker
+  say ""
+  say "Vercel frontend env vars:"
+  say "-------------------------"
+  build_env_block_vercel
+  say ""
+  warn "Optional Stripe/SendGrid blocks are in README/DEPLOYMENT docs."
+}
+
+save_deployment_env_files() {
+  assert_repo
+  local output_dir="$REPO_PATH/.launch-assistant-output"
+  mkdir -p "$output_dir"
+  build_env_block_railway_api >"$output_dir/railway-api.env"
+  build_env_block_railway_worker >"$output_dir/railway-worker.env"
+  build_env_block_vercel >"$output_dir/vercel.env"
+  ok "Saved:"
+  ok "  $output_dir/railway-api.env"
+  ok "  $output_dir/railway-worker.env"
+  ok "  $output_dir/vercel.env"
 }
 
 menu() {
@@ -334,15 +438,17 @@ Thorpe Workforce Launch Assistant
 4) Run preflight checks
 5) Create env/profile files from templates
 6) Save current config to profile file
-7) Start local stack (docker compose)
-8) Run production smoke checks
-9) Run staging smoke checks
-10) Open Railway/Vercel/Stripe dashboards
-11) Print manual launch checklist
-12) Exit
+7) Print deployment env var blocks
+8) Save deployment env var files
+9) Start local stack (docker compose)
+10) Run production smoke checks
+11) Run staging smoke checks
+12) Open Railway/Vercel/Stripe dashboards
+13) Print manual launch checklist
+14) Exit
 
 MENU
-    read -r -p "Choose an option [1-12]: " option
+    read -r -p "Choose an option [1-14]: " option
     case "$option" in
       1) prompt_repo_path; assert_repo ;;
       2) show_current_config ;;
@@ -350,13 +456,15 @@ MENU
       4) assert_repo && run_preflight ;;
       5) assert_repo && copy_env_templates ;;
       6) save_profile_file ;;
-      7) assert_repo && start_local_stack ;;
-      8) smoke_check_deployed_urls "production" ;;
-      9) smoke_check_deployed_urls "staging" ;;
-      10) open_platform_dashboards ;;
-      11) print_manual_launch_checklist ;;
-      12) exit 0 ;;
-      *) warn "Invalid option. Choose 1-12." ;;
+      7) print_deployment_env_blocks ;;
+      8) save_deployment_env_files ;;
+      9) assert_repo && start_local_stack ;;
+      10) smoke_check_deployed_urls "production" ;;
+      11) smoke_check_deployed_urls "staging" ;;
+      12) open_platform_dashboards ;;
+      13) print_manual_launch_checklist ;;
+      14) exit 0 ;;
+      *) warn "Invalid option. Choose 1-14." ;;
     esac
   done
 }
