@@ -13,7 +13,7 @@ DEFAULT_REPO_PATH="$HOME/Thorpe-Workforce"
 REPO_PATH="${THORPE_REPO_PATH:-$DEFAULT_REPO_PATH}"
 
 PROD_FRONTEND_URL="${THORPE_FRONTEND_URL:-https://thorpeworkforce.ai}"
-PROD_API_URL="${THORPE_API_URL:-https://api-thorpeworkforce.ai}"
+PROD_API_URL="${THORPE_API_URL:-https://api-thorpeworkforce.com}"
 STAGING_FRONTEND_URL="${THORPE_STAGING_FRONTEND_URL:-https://staging.thorpeworkforce.ai}"
 STAGING_API_URL="${THORPE_STAGING_API_URL:-https://staging-api.thorpeworkforce.ai}"
 SUPPORT_EMAIL="${THORPE_SUPPORT_EMAIL:-support@thorpeworkforce.ai}"

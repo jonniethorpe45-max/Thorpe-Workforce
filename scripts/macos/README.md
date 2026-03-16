@@ -55,7 +55,7 @@ If you are using the domains discussed in setup:
 THORPE_ENVIRONMENT=production
 THORPE_SUPPORT_EMAIL=support@thorpeworkforce.ai
 THORPE_FRONTEND_URL=https://thorpeworkforce.ai
-THORPE_API_URL=https://api-thorpeworkforce.ai
+THORPE_API_URL=https://api-thorpeworkforce.com
 THORPE_IONOS_ZONE_DOMAIN=thorpeworkforce.ai
 THORPE_RAILWAY_API_CNAME_TARGET=<your-railway-prod-domain>.up.railway.app
 ```
