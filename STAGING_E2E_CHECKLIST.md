@@ -9,7 +9,7 @@ Use this checklist before promoting to production.
 - [ ] Alembic migrations applied successfully (`alembic upgrade head`)
 - [ ] API process starts cleanly and `/health` returns `{"status":"ok"}`
 - [ ] Celery worker connected and processing tasks
-- [ ] Frontend points to staging API URL
+- [ ] Frontend points to staging API URL (`NEXT_PUBLIC_API_BASE_URL`, e.g. `https://api.thorpeworkforce.ai`)
 - [ ] `WORKER_CREATOR_ENABLED` set correctly for staged rollout plan
 - [ ] Stripe env variables configured for staging billing flow
 

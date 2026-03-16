@@ -127,6 +127,8 @@ Platform/feature vars:
 - `STRIPE_PRICE_ID_ENTERPRISE_MONTHLY`
 - `APP_BASE_URL`
 - `STRIPE_BILLING_PORTAL_RETURN_URL`
+- `TRUSTED_HOSTS` (include API host, e.g. `api.thorpeworkforce.ai`)
+- `NEXT_PUBLIC_API_BASE_URL` (frontend API origin, e.g. `https://api.thorpeworkforce.ai`)
 
 ## Known limitations
 

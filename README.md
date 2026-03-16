@@ -136,6 +136,25 @@ npm run dev
 
 Frontend runs at `http://localhost:3000`, backend at `http://localhost:8000`.
 
+## Production domain setup
+
+Yes, the backend can run on a dedicated API subdomain.
+
+For Thorpe Workforce production:
+
+- Frontend site URL: `https://thorpeworkforce.ai`
+- Backend API URL: `https://api.thorpeworkforce.ai`
+
+Recommended environment values:
+
+- `frontend/.env.local` (or frontend host env):
+  - `NEXT_PUBLIC_API_BASE_URL=https://api.thorpeworkforce.ai`
+  - `NEXT_PUBLIC_APP_URL=https://thorpeworkforce.ai`
+- `backend/.env`:
+  - `APP_BASE_URL=https://thorpeworkforce.ai`
+  - `CORS_ORIGINS=["https://thorpeworkforce.ai","https://www.thorpeworkforce.ai"]`
+  - `TRUSTED_HOSTS=api.thorpeworkforce.ai`
+
 ## Demo Credentials
 
 After running seed:
@@ -259,6 +278,7 @@ Set these in `backend/.env` for Stripe-enabled billing:
 
 Frontend env additions:
 
+- `NEXT_PUBLIC_API_BASE_URL` (public API origin, e.g. `https://api.thorpeworkforce.ai`)
 - `NEXT_PUBLIC_APP_URL` (for sitemap/robots metadata base)
 
 ## Local Stripe webhook testing (Stripe CLI)

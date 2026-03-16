@@ -8,8 +8,9 @@ Use this checklist before go-live.
 - [ ] `DATABASE_URL` points to production Postgres
 - [ ] `REDIS_URL` points to production Redis
 - [ ] `APP_BASE_URL` is set to production frontend URL
-- [ ] `TRUSTED_HOSTS` includes production domain(s)
-- [ ] `CORS_ORIGINS` is restricted to approved origins
+- [ ] `NEXT_PUBLIC_API_BASE_URL` points to production API URL (e.g. `https://api.thorpeworkforce.ai`)
+- [ ] `TRUSTED_HOSTS` includes the backend API host (e.g. `api.thorpeworkforce.ai`)
+- [ ] `CORS_ORIGINS` is restricted to approved frontend origins (e.g. `https://thorpeworkforce.ai`)
 - [ ] `SUPPORT_EMAIL` is configured
 - [ ] `EMAIL_PROVIDER` + provider credentials configured (`SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`)
 - [ ] `PASSWORD_RESET_TOKEN_TTL_MINUTES` reviewed
