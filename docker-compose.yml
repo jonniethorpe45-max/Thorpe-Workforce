@@ -42,7 +42,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/thorpe_workforce
       REDIS_URL: redis://redis:6379/0
       APP_BASE_URL: http://localhost:3000
-      SUPPORT_EMAIL: support@thorpeworkforce.com
+      SUPPORT_EMAIL: support@thorpeworkforce.ai
       CORS_ORIGINS: http://localhost:3000
       TRUSTED_HOSTS: localhost,127.0.0.1
       BILLING_PROVIDER: placeholder
@@ -88,7 +88,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/thorpe_workforce
       REDIS_URL: redis://redis:6379/0
       APP_BASE_URL: http://localhost:3000
-      SUPPORT_EMAIL: support@thorpeworkforce.com
+      SUPPORT_EMAIL: support@thorpeworkforce.ai
       RUN_MIGRATIONS: "false"
       SEED_WORKER_SYSTEM: "false"
       SEED_DEMO_DATA: "false"

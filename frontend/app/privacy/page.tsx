@@ -30,7 +30,7 @@ export default function PrivacyPage() {
             Published workers and related metadata may be reviewed for trust and safety. We reserve the right to remove or hide content.
           </p>
           <h2 className="mt-4 text-lg font-semibold">Contact</h2>
-          <p className="mt-2">For privacy requests, contact support@thorpeworkforce.com.</p>
+          <p className="mt-2">For privacy requests, contact support@thorpeworkforce.ai.</p>
         </section>
       </main>
       <PublicFooter />

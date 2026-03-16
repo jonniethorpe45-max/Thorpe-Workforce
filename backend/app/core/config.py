@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     calendar_provider: str = "google"
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "sales@thorpeworkforce.com"
-    support_email: str = "support@thorpeworkforce.com"
+    support_email: str = "support@thorpeworkforce.ai"
     google_client_id: str = ""
     google_client_secret: str = ""
     workspace_daily_send_cap: int = 250
