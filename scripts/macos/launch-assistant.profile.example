@@ -21,3 +21,11 @@ export THORPE_RAILWAY_DASHBOARD_URL="https://railway.app"
 export THORPE_VERCEL_DASHBOARD_URL="https://vercel.com/dashboard"
 export THORPE_STRIPE_DASHBOARD_URL="https://dashboard.stripe.com"
 export THORPE_GITHUB_REPO_URL="https://github.com/jonniethorpe45-max/Thorpe-Workforce"
+
+# IONOS DNS helper defaults (used by Launch Assistant menu options 13-15)
+export THORPE_IONOS_ZONE_DOMAIN="thorpeworkforce.ai"
+export THORPE_RAILWAY_API_CNAME_TARGET="REPLACE_WITH_PROD_RAILWAY_DOMAIN.up.railway.app"
+export THORPE_RAILWAY_STAGING_API_CNAME_TARGET="REPLACE_WITH_STAGING_RAILWAY_DOMAIN.up.railway.app"
+export THORPE_VERCEL_CNAME_TARGET="cname.vercel-dns.com"
+export THORPE_VERCEL_APEX_A_TARGET="76.76.21.21"
+export THORPE_DNS_DEFAULT_TTL="3600"

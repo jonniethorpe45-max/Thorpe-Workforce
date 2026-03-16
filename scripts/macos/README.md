@@ -9,6 +9,9 @@ This folder provides a one-click macOS helper for final Thorpe Workforce setup a
   - Preflight checks
   - Env template generation
   - Deployment env var block generation (Railway API/Worker + Vercel)
+  - IONOS DNS record plan generator for frontend/API domains
+  - Save DNS plan to `.launch-assistant-output/ionos-dns-records.txt`
+  - DNS quick-check helper
   - Save env blocks to `.launch-assistant-output/*.env`
   - Local startup trigger
   - Deployed smoke checks
@@ -53,6 +56,8 @@ THORPE_ENVIRONMENT=production
 THORPE_SUPPORT_EMAIL=support@thorpeworkforce.ai
 THORPE_FRONTEND_URL=https://thorpeworkforce.ai
 THORPE_API_URL=https://api-thorpeworkforce.ai
+THORPE_IONOS_ZONE_DOMAIN=thorpeworkforce.ai
+THORPE_RAILWAY_API_CNAME_TARGET=<your-railway-prod-domain>.up.railway.app
 ```
 
 You can also set staging URLs for one-click staging smoke tests.

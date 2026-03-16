@@ -23,6 +23,12 @@ RAILWAY_DASHBOARD_URL="${THORPE_RAILWAY_DASHBOARD_URL:-https://railway.app}"
 VERCEL_DASHBOARD_URL="${THORPE_VERCEL_DASHBOARD_URL:-https://vercel.com/dashboard}"
 STRIPE_DASHBOARD_URL="${THORPE_STRIPE_DASHBOARD_URL:-https://dashboard.stripe.com}"
 GITHUB_REPO_URL="${THORPE_GITHUB_REPO_URL:-https://github.com/jonniethorpe45-max/Thorpe-Workforce}"
+IONOS_ZONE_DOMAIN="${THORPE_IONOS_ZONE_DOMAIN:-}"
+RAILWAY_API_CNAME_TARGET="${THORPE_RAILWAY_API_CNAME_TARGET:-REPLACE_WITH_PROD_RAILWAY_DOMAIN.up.railway.app}"
+RAILWAY_STAGING_API_CNAME_TARGET="${THORPE_RAILWAY_STAGING_API_CNAME_TARGET:-REPLACE_WITH_STAGING_RAILWAY_DOMAIN.up.railway.app}"
+VERCEL_CNAME_TARGET="${THORPE_VERCEL_CNAME_TARGET:-cname.vercel-dns.com}"
+VERCEL_APEX_A_TARGET="${THORPE_VERCEL_APEX_A_TARGET:-76.76.21.21}"
+DNS_DEFAULT_TTL="${THORPE_DNS_DEFAULT_TTL:-3600}"
 
 GREEN="\033[0;32m"
 CYAN="\033[0;36m"
@@ -65,6 +71,24 @@ host_from_url() {
   printf "%s" "$value"
 }
 
+dns_label_for_host() {
+  local host="$1"
+  local zone="$2"
+  if [[ -z "$host" || -z "$zone" ]]; then
+    printf "%s" "$host"
+    return 0
+  fi
+  if [[ "$host" == "$zone" ]]; then
+    printf "@"
+    return 0
+  fi
+  if [[ "$host" == *".${zone}" ]]; then
+    printf "%s" "${host%.${zone}}"
+    return 0
+  fi
+  printf "%s" "$host"
+}
+
 prompt_repo_path() {
   say ""
   say "Current repo path: ${REPO_PATH}"
@@ -97,6 +121,18 @@ configure_domain_defaults() {
 
   read -r -p "Staging API URL [${STAGING_API_URL}]: " input
   if [[ -n "${input}" ]]; then STAGING_API_URL="$(normalize_url "$input")"; fi
+
+  if [[ -z "$IONOS_ZONE_DOMAIN" ]]; then
+    IONOS_ZONE_DOMAIN="$(host_from_url "$PROD_FRONTEND_URL")"
+  fi
+  read -r -p "IONOS DNS zone domain [${IONOS_ZONE_DOMAIN}]: " input
+  if [[ -n "${input}" ]]; then IONOS_ZONE_DOMAIN="${input}"; fi
+
+  read -r -p "Railway production API CNAME target [${RAILWAY_API_CNAME_TARGET}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_API_CNAME_TARGET="${input}"; fi
+
+  read -r -p "Railway staging API CNAME target [${RAILWAY_STAGING_API_CNAME_TARGET}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_STAGING_API_CNAME_TARGET="${input}"; fi
 
   say ""
   ok "Domain defaults updated for this session."
@@ -287,6 +323,7 @@ Staging URLs configured:
 3) DNS
    - frontend domain points to Vercel
    - api subdomain points to Railway
+   - use menu option 13 to print IONOS DNS record plan
 
 4) Stripe (if enabled)
    - Correct test/live keys configured per environment
@@ -307,6 +344,10 @@ CHECKLIST
 }
 
 show_current_config() {
+  local zone_display="$IONOS_ZONE_DOMAIN"
+  if [[ -z "$zone_display" ]]; then
+    zone_display="$(host_from_url "$PROD_FRONTEND_URL")"
+  fi
   cat <<CONFIG
 
 Current Launch Assistant config:
@@ -317,6 +358,9 @@ Current Launch Assistant config:
 - Prod API URL:         ${PROD_API_URL}
 - Staging frontend URL: ${STAGING_FRONTEND_URL}
 - Staging API URL:      ${STAGING_API_URL}
+- IONOS zone domain:    ${zone_display}
+- Railway API target:   ${RAILWAY_API_CNAME_TARGET}
+- Railway stg API tgt:  ${RAILWAY_STAGING_API_CNAME_TARGET}
 - Profile file:         ${PROFILE_FILE}
 
 CONFIG
@@ -338,8 +382,122 @@ export THORPE_RAILWAY_DASHBOARD_URL="$RAILWAY_DASHBOARD_URL"
 export THORPE_VERCEL_DASHBOARD_URL="$VERCEL_DASHBOARD_URL"
 export THORPE_STRIPE_DASHBOARD_URL="$STRIPE_DASHBOARD_URL"
 export THORPE_GITHUB_REPO_URL="$GITHUB_REPO_URL"
+export THORPE_IONOS_ZONE_DOMAIN="$IONOS_ZONE_DOMAIN"
+export THORPE_RAILWAY_API_CNAME_TARGET="$RAILWAY_API_CNAME_TARGET"
+export THORPE_RAILWAY_STAGING_API_CNAME_TARGET="$RAILWAY_STAGING_API_CNAME_TARGET"
+export THORPE_VERCEL_CNAME_TARGET="$VERCEL_CNAME_TARGET"
+export THORPE_VERCEL_APEX_A_TARGET="$VERCEL_APEX_A_TARGET"
+export THORPE_DNS_DEFAULT_TTL="$DNS_DEFAULT_TTL"
 PROFILE
   ok "Saved profile: $PROFILE_FILE"
+}
+
+build_ionos_dns_records() {
+  local mode="${1:-production}"
+  local frontend_url="$PROD_FRONTEND_URL"
+  local api_url="$PROD_API_URL"
+  local api_target="$RAILWAY_API_CNAME_TARGET"
+  local zone="$IONOS_ZONE_DOMAIN"
+  local frontend_host api_host frontend_label api_label
+
+  if [[ "$mode" == "staging" ]]; then
+    frontend_url="$STAGING_FRONTEND_URL"
+    api_url="$STAGING_API_URL"
+    api_target="$RAILWAY_STAGING_API_CNAME_TARGET"
+  fi
+
+  frontend_host="$(host_from_url "$frontend_url")"
+  api_host="$(host_from_url "$api_url")"
+  if [[ -z "$zone" ]]; then
+    zone="$frontend_host"
+  fi
+  frontend_label="$(dns_label_for_host "$frontend_host" "$zone")"
+  api_label="$(dns_label_for_host "$api_host" "$zone")"
+
+  if [[ "$frontend_label" == "@" ]]; then
+    printf "%s|%s|%s|%s|%s\n" "@" "A" "$VERCEL_APEX_A_TARGET" "$DNS_DEFAULT_TTL" "${mode} frontend apex -> Vercel"
+    printf "%s|%s|%s|%s|%s\n" "www" "CNAME" "$VERCEL_CNAME_TARGET" "$DNS_DEFAULT_TTL" "${mode} frontend www alias -> Vercel"
+  else
+    printf "%s|%s|%s|%s|%s\n" "$frontend_label" "CNAME" "$VERCEL_CNAME_TARGET" "$DNS_DEFAULT_TTL" "${mode} frontend host -> Vercel"
+  fi
+
+  printf "%s|%s|%s|%s|%s\n" "$api_label" "CNAME" "$api_target" "$DNS_DEFAULT_TTL" "${mode} api host -> Railway"
+}
+
+print_ionos_dns_record_table() {
+  local mode="$1"
+  local zone="$IONOS_ZONE_DOMAIN"
+  if [[ -z "$zone" ]]; then
+    zone="$(host_from_url "$PROD_FRONTEND_URL")"
+  fi
+  say ""
+  say "${mode^} DNS records (IONOS zone: ${zone})"
+  say "---------------------------------------------"
+  printf "%-16s %-8s %-58s %-6s %s\n" "Name" "Type" "Value" "TTL" "Purpose"
+  while IFS='|' read -r name type value ttl note; do
+    printf "%-16s %-8s %-58s %-6s %s\n" "$name" "$type" "$value" "$ttl" "$note"
+  done < <(build_ionos_dns_records "$mode")
+}
+
+print_ionos_dns_setup_plan() {
+  step "IONOS DNS setup plan"
+  say "1) Open IONOS: Domains & SSL -> your domain -> DNS"
+  say "2) Add/update the records below (replace Railway targets if still placeholders)."
+  say "3) Remove conflicting records for same host/type where needed."
+  say "4) Save changes, then run menu option 15 to check DNS propagation."
+  print_ionos_dns_record_table "production"
+  print_ionos_dns_record_table "staging"
+  say ""
+  warn "For custom Vercel DNS, adjust VERCEL_CNAME_TARGET / VERCEL_APEX_A_TARGET in profile if needed."
+}
+
+save_ionos_dns_plan_file() {
+  assert_repo
+  local output_dir="$REPO_PATH/.launch-assistant-output"
+  local output_file="$output_dir/ionos-dns-records.txt"
+  mkdir -p "$output_dir"
+  {
+    echo "Thorpe Workforce IONOS DNS plan"
+    echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    echo
+    echo "Production records"
+    echo "Name|Type|Value|TTL|Purpose"
+    build_ionos_dns_records "production"
+    echo
+    echo "Staging records"
+    echo "Name|Type|Value|TTL|Purpose"
+    build_ionos_dns_records "staging"
+  } >"$output_file"
+  ok "Saved DNS plan: $output_file"
+}
+
+check_dns_resolution() {
+  local host="$1"
+  local result=""
+  if [[ -z "$host" ]]; then
+    return 0
+  fi
+  if command -v dig >/dev/null 2>&1; then
+    result="$(dig +short "$host" | tr '\n' ' ' | sed 's/[[:space:]]\+$//')"
+  elif command -v nslookup >/dev/null 2>&1; then
+    result="$(nslookup "$host" 2>/dev/null | awk '/^Address: / {print $2}' | tr '\n' ' ' | sed 's/[[:space:]]\+$//')"
+  fi
+
+  if [[ -n "$result" ]]; then
+    ok "DNS ${host} -> ${result}"
+  else
+    warn "DNS unresolved or no local resolver output for: ${host}"
+  fi
+}
+
+run_dns_quick_checks() {
+  step "DNS quick checks"
+  check_dns_resolution "$(host_from_url "$PROD_FRONTEND_URL")"
+  check_dns_resolution "$(host_from_url "$PROD_API_URL")"
+  check_dns_resolution "$(host_from_url "$STAGING_FRONTEND_URL")"
+  check_dns_resolution "$(host_from_url "$STAGING_API_URL")"
+  say ""
+  warn "If DNS was updated recently, propagation can take several minutes."
 }
 
 build_env_block_railway_api() {
@@ -444,11 +602,14 @@ Thorpe Workforce Launch Assistant
 10) Run production smoke checks
 11) Run staging smoke checks
 12) Open Railway/Vercel/Stripe dashboards
-13) Print manual launch checklist
-14) Exit
+13) Print IONOS DNS setup plan
+14) Save IONOS DNS plan to file
+15) Run DNS quick checks
+16) Print manual launch checklist
+17) Exit
 
 MENU
-    read -r -p "Choose an option [1-14]: " option
+    read -r -p "Choose an option [1-17]: " option
     case "$option" in
       1) prompt_repo_path; assert_repo ;;
       2) show_current_config ;;
@@ -462,9 +623,12 @@ MENU
       10) smoke_check_deployed_urls "production" ;;
       11) smoke_check_deployed_urls "staging" ;;
       12) open_platform_dashboards ;;
-      13) print_manual_launch_checklist ;;
-      14) exit 0 ;;
-      *) warn "Invalid option. Choose 1-14." ;;
+      13) print_ionos_dns_setup_plan ;;
+      14) save_ionos_dns_plan_file ;;
+      15) run_dns_quick_checks ;;
+      16) print_manual_launch_checklist ;;
+      17) exit 0 ;;
+      *) warn "Invalid option. Choose 1-17." ;;
     esac
   done
 }

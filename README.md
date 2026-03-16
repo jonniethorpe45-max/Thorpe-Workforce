@@ -177,6 +177,8 @@ Open the DMG and run `ThorpeWorkforceLaunchAssistant.command` to:
 - create env files from templates
 - generate Railway/Vercel env var blocks
 - save env files to `.launch-assistant-output/*.env`
+- generate an IONOS DNS record plan for your frontend/API domains
+- save DNS plan to `.launch-assistant-output/ionos-dns-records.txt`
 - start local stack
 - run production + staging smoke checks
 - open Railway/Vercel/Stripe dashboards
