@@ -39,6 +39,14 @@ STRIPE_PRICE_ID_CREATOR_MONTHLY="${THORPE_STRIPE_PRICE_ID_CREATOR_MONTHLY:-}"
 STRIPE_PRICE_ID_CREATOR_ANNUAL="${THORPE_STRIPE_PRICE_ID_CREATOR_ANNUAL:-}"
 STRIPE_PRICE_ID_ENTERPRISE_MONTHLY="${THORPE_STRIPE_PRICE_ID_ENTERPRISE_MONTHLY:-}"
 STRIPE_BILLING_PORTAL_RETURN_URL="${THORPE_STRIPE_BILLING_PORTAL_RETURN_URL:-}"
+RAILWAY_ROOT_DIRECTORY="${THORPE_RAILWAY_ROOT_DIRECTORY:-backend}"
+RAILWAY_API_SERVICE_NAME="${THORPE_RAILWAY_API_SERVICE_NAME:-thorpe-api}"
+RAILWAY_WORKER_SERVICE_NAME="${THORPE_RAILWAY_WORKER_SERVICE_NAME:-thorpe-worker}"
+RAILWAY_API_BUILD_COMMAND="${THORPE_RAILWAY_API_BUILD_COMMAND:-pip install -r requirements.txt}"
+RAILWAY_API_START_COMMAND="${THORPE_RAILWAY_API_START_COMMAND:-./scripts/start_production.sh}"
+RAILWAY_API_HEALTHCHECK_PATH="${THORPE_RAILWAY_API_HEALTHCHECK_PATH:-/health/ready}"
+RAILWAY_WORKER_BUILD_COMMAND="${THORPE_RAILWAY_WORKER_BUILD_COMMAND:-pip install -r requirements.txt}"
+RAILWAY_WORKER_START_COMMAND="${THORPE_RAILWAY_WORKER_START_COMMAND:-celery -A app.tasks.celery_app.celery_app worker -l info}"
 
 GREEN="\033[0;32m"
 CYAN="\033[0;36m"
@@ -112,6 +120,20 @@ mask_secret() {
     return 0
   fi
   printf "%s***%s" "${value:0:4}" "${value:len-4:4}"
+}
+
+is_placeholder_value() {
+  local value="${1:-}"
+  if [[ -z "$value" ]]; then
+    return 0
+  fi
+  if [[ "$value" == *"REPLACE_WITH"* ]]; then
+    return 0
+  fi
+  if [[ "$value" == *"<your-"* || "$value" == *"<"*">"* ]]; then
+    return 0
+  fi
+  return 1
 }
 
 prompt_repo_path() {
@@ -208,6 +230,39 @@ configure_stripe_settings() {
 
   say ""
   ok "Stripe settings updated for this session."
+}
+
+configure_railway_settings() {
+  local input=""
+  say ""
+  step "Configure Railway service settings"
+
+  read -r -p "Railway root directory [${RAILWAY_ROOT_DIRECTORY}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_ROOT_DIRECTORY="${input}"; fi
+
+  read -r -p "Railway API service name [${RAILWAY_API_SERVICE_NAME}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_API_SERVICE_NAME="${input}"; fi
+
+  read -r -p "Railway API build command [${RAILWAY_API_BUILD_COMMAND}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_API_BUILD_COMMAND="${input}"; fi
+
+  read -r -p "Railway API start command [${RAILWAY_API_START_COMMAND}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_API_START_COMMAND="${input}"; fi
+
+  read -r -p "Railway API healthcheck path [${RAILWAY_API_HEALTHCHECK_PATH}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_API_HEALTHCHECK_PATH="${input}"; fi
+
+  read -r -p "Railway Worker service name [${RAILWAY_WORKER_SERVICE_NAME}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_WORKER_SERVICE_NAME="${input}"; fi
+
+  read -r -p "Railway Worker build command [${RAILWAY_WORKER_BUILD_COMMAND}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_WORKER_BUILD_COMMAND="${input}"; fi
+
+  read -r -p "Railway Worker start command [${RAILWAY_WORKER_START_COMMAND}]: " input
+  if [[ -n "${input}" ]]; then RAILWAY_WORKER_START_COMMAND="${input}"; fi
+
+  say ""
+  ok "Railway settings updated for this session."
 }
 
 assert_repo() {
@@ -441,6 +496,11 @@ Current Launch Assistant config:
 - Stripe webhook:       $(mask_secret "$STRIPE_WEBHOOK_SECRET")
 - Stripe Pro monthly:   ${STRIPE_PRICE_ID_PRO_MONTHLY:-unset}
 - Stripe portal return: ${STRIPE_BILLING_PORTAL_RETURN_URL:-unset}
+- Railway root dir:     ${RAILWAY_ROOT_DIRECTORY}
+- Railway API service:  ${RAILWAY_API_SERVICE_NAME}
+- Railway Worker svc:   ${RAILWAY_WORKER_SERVICE_NAME}
+- Railway API start:    ${RAILWAY_API_START_COMMAND}
+- Railway Worker start: ${RAILWAY_WORKER_START_COMMAND}
 - Profile file:         ${PROFILE_FILE}
 
 CONFIG
@@ -478,6 +538,14 @@ export THORPE_STRIPE_PRICE_ID_CREATOR_MONTHLY="$STRIPE_PRICE_ID_CREATOR_MONTHLY"
 export THORPE_STRIPE_PRICE_ID_CREATOR_ANNUAL="$STRIPE_PRICE_ID_CREATOR_ANNUAL"
 export THORPE_STRIPE_PRICE_ID_ENTERPRISE_MONTHLY="$STRIPE_PRICE_ID_ENTERPRISE_MONTHLY"
 export THORPE_STRIPE_BILLING_PORTAL_RETURN_URL="$STRIPE_BILLING_PORTAL_RETURN_URL"
+export THORPE_RAILWAY_ROOT_DIRECTORY="$RAILWAY_ROOT_DIRECTORY"
+export THORPE_RAILWAY_API_SERVICE_NAME="$RAILWAY_API_SERVICE_NAME"
+export THORPE_RAILWAY_WORKER_SERVICE_NAME="$RAILWAY_WORKER_SERVICE_NAME"
+export THORPE_RAILWAY_API_BUILD_COMMAND="$RAILWAY_API_BUILD_COMMAND"
+export THORPE_RAILWAY_API_START_COMMAND="$RAILWAY_API_START_COMMAND"
+export THORPE_RAILWAY_API_HEALTHCHECK_PATH="$RAILWAY_API_HEALTHCHECK_PATH"
+export THORPE_RAILWAY_WORKER_BUILD_COMMAND="$RAILWAY_WORKER_BUILD_COMMAND"
+export THORPE_RAILWAY_WORKER_START_COMMAND="$RAILWAY_WORKER_START_COMMAND"
 PROFILE
   ok "Saved profile: $PROFILE_FILE"
 }
@@ -539,6 +607,107 @@ EVENTS
   ok "  $output_dir/stripe-backend.env"
   ok "  $output_dir/stripe-frontend.env"
   ok "  $output_dir/stripe-webhook-events.txt"
+}
+
+build_railway_settings_guide() {
+  local api_host frontend_url
+  api_host="$(host_from_url "$PROD_API_URL")"
+  frontend_url="$(normalize_url "$PROD_FRONTEND_URL")"
+  cat <<EOF
+Railway settings checklist
+==========================
+
+API Service (${RAILWAY_API_SERVICE_NAME})
+- Root Directory: ${RAILWAY_ROOT_DIRECTORY}
+- Build Command: ${RAILWAY_API_BUILD_COMMAND}
+- Start Command: ${RAILWAY_API_START_COMMAND}
+- Healthcheck Path: ${RAILWAY_API_HEALTHCHECK_PATH}
+- Custom Domain: ${api_host}
+- Attach Plugins: Postgres + Redis
+
+Worker Service (${RAILWAY_WORKER_SERVICE_NAME})
+- Root Directory: ${RAILWAY_ROOT_DIRECTORY}
+- Build Command: ${RAILWAY_WORKER_BUILD_COMMAND}
+- Start Command: ${RAILWAY_WORKER_START_COMMAND}
+- Attach Plugins: Postgres + Redis
+
+Environment variable sources
+- API service base vars: .launch-assistant-output/railway-api.env
+- Worker service vars: .launch-assistant-output/railway-worker.env
+- Frontend vars (Vercel): .launch-assistant-output/vercel.env
+- Optional Stripe vars for API service: .launch-assistant-output/stripe-backend.env
+
+Custom domain + CORS expectations
+- APP_BASE_URL should equal: ${frontend_url}
+- CORS_ORIGINS should include: ${frontend_url}
+- TRUSTED_HOSTS should include: ${api_host}
+
+After applying settings
+1) Redeploy API + Worker services
+2) Verify API health:
+   - ${PROD_API_URL}/health
+   - ${PROD_API_URL}/health/live
+   - ${PROD_API_URL}/health/ready
+3) Verify frontend proxies:
+   - ${PROD_FRONTEND_URL}/api/public/pricing
+   - ${PROD_FRONTEND_URL}/api/public/workers
+EOF
+}
+
+print_railway_settings_guide() {
+  step "Railway settings guide"
+  build_railway_settings_guide
+}
+
+save_railway_settings_file() {
+  assert_repo
+  local output_dir="$REPO_PATH/.launch-assistant-output"
+  local output_file="$output_dir/railway-settings-checklist.txt"
+  mkdir -p "$output_dir"
+  build_railway_settings_guide >"$output_file"
+  ok "Saved Railway checklist: $output_file"
+}
+
+run_railway_readiness_audit() {
+  local api_url frontend_url api_headers proxy_headers api_headers_lower proxy_headers_lower
+  api_url="$(normalize_url "$PROD_API_URL")"
+  frontend_url="$(normalize_url "$PROD_FRONTEND_URL")"
+
+  step "Railway readiness audit"
+
+  if is_placeholder_value "$RAILWAY_API_CNAME_TARGET"; then
+    warn "RAILWAY_API_CNAME_TARGET looks unset/placeholder: $RAILWAY_API_CNAME_TARGET"
+  else
+    ok "Railway API CNAME target configured: $RAILWAY_API_CNAME_TARGET"
+  fi
+
+  if check_url "API /health" "${api_url}/health"; then
+    api_headers="$(curl -sSI --max-time 15 "${api_url}/health" || true)"
+    api_headers_lower="${api_headers,,}"
+    if [[ "$api_headers_lower" == *"content-type: application/json"* ]]; then
+      ok "API /health is returning JSON."
+    elif [[ "$api_headers_lower" == *"content-type: text/html"* ]]; then
+      err "API domain is returning HTML, likely DNS/domain misrouting."
+    else
+      warn "API /health content-type is unexpected."
+    fi
+  fi
+
+  if check_url "Frontend pricing proxy" "${frontend_url}/api/public/pricing"; then
+    proxy_headers="$(curl -sSI --max-time 15 "${frontend_url}/api/public/pricing" || true)"
+    proxy_headers_lower="${proxy_headers,,}"
+    if [[ "$proxy_headers_lower" == *" 404 "* ]]; then
+      err "Frontend proxy route /api/public/pricing is 404 (likely outdated Vercel deploy)."
+    elif [[ "$proxy_headers_lower" == *"content-type: application/json"* ]]; then
+      ok "Frontend pricing proxy returns JSON."
+    elif [[ "$proxy_headers_lower" == *"content-type: text/html"* ]]; then
+      warn "Frontend pricing proxy returned HTML instead of JSON."
+    fi
+  fi
+
+  check_url "Frontend workers proxy" "${frontend_url}/api/public/workers" || true
+  check_url "API billing plans" "${api_url}/billing/plans" || true
+  check_url "API public workers" "${api_url}/public-workers" || true
 }
 
 print_stripe_connect_guide() {
@@ -632,7 +801,7 @@ print_ionos_dns_setup_plan() {
   say "1) Open IONOS: Domains & SSL -> your domain -> DNS"
   say "2) Add/update the records below (replace Railway targets if still placeholders)."
   say "3) Remove conflicting records for same host/type where needed."
-  say "4) Save changes, then run menu option 15 to check DNS propagation."
+  say "4) Save changes, then run menu option 19 to check DNS propagation."
   print_ionos_dns_record_table "production"
   print_ionos_dns_record_table "staging"
   say ""
@@ -799,9 +968,12 @@ Thorpe Workforce Launch Assistant
 19) Run DNS quick checks
 20) Print manual launch checklist
 21) Exit
+22) Configure Railway service settings
+23) Print Railway settings checklist
+24) Run Railway readiness audit
 
 MENU
-    read -r -p "Choose an option [1-21]: " option
+    read -r -p "Choose an option [1-24]: " option
     case "$option" in
       1) prompt_repo_path; assert_repo ;;
       2) show_current_config ;;
@@ -824,7 +996,10 @@ MENU
       19) run_dns_quick_checks ;;
       20) print_manual_launch_checklist ;;
       21) exit 0 ;;
-      *) warn "Invalid option. Choose 1-21." ;;
+      22) configure_railway_settings ;;
+      23) print_railway_settings_guide; save_railway_settings_file ;;
+      24) run_railway_readiness_audit ;;
+      *) warn "Invalid option. Choose 1-24." ;;
     esac
   done
 }

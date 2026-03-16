@@ -9,6 +9,7 @@ This folder provides a one-click macOS helper for final Thorpe Workforce setup a
   - Preflight checks
   - Env template generation
   - Deployment env var block generation (Railway API/Worker + Vercel)
+  - Railway settings helper (service fields + checklist + readiness audit)
   - Stripe connection helper (guided checklist + env blocks + webhook events)
   - Save Stripe env blocks to `.launch-assistant-output/stripe-*.env`
   - IONOS DNS record plan generator for frontend/API domains
@@ -62,6 +63,7 @@ THORPE_IONOS_ZONE_DOMAIN=thorpeworkforce.ai
 THORPE_RAILWAY_API_CNAME_TARGET=<your-railway-prod-domain>.up.railway.app
 THORPE_STRIPE_MODE=test
 THORPE_STRIPE_BILLING_PORTAL_RETURN_URL=https://thorpeworkforce.ai/app/settings/billing
+THORPE_RAILWAY_API_START_COMMAND=./scripts/start_production.sh
 ```
 
 You can also set staging URLs for one-click staging smoke tests.

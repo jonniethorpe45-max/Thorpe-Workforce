@@ -38,6 +38,7 @@ Thorpe Workforce Launch Assistant
 3) Choose menu options to complete:
    - preflight checks
    - env template creation
+   - Railway service settings + readiness audit
    - deployment env var generation
    - Stripe connection helper + webhook event list
    - IONOS DNS record planning

@@ -22,7 +22,7 @@ export THORPE_VERCEL_DASHBOARD_URL="https://vercel.com/dashboard"
 export THORPE_STRIPE_DASHBOARD_URL="https://dashboard.stripe.com"
 export THORPE_GITHUB_REPO_URL="https://github.com/jonniethorpe45-max/Thorpe-Workforce"
 
-# IONOS DNS helper defaults (used by Launch Assistant menu options 13-15)
+# IONOS DNS helper defaults (used by Launch Assistant menu options 17-19)
 export THORPE_IONOS_ZONE_DOMAIN="thorpeworkforce.ai"
 export THORPE_RAILWAY_API_CNAME_TARGET="REPLACE_WITH_PROD_RAILWAY_DOMAIN.up.railway.app"
 export THORPE_RAILWAY_STAGING_API_CNAME_TARGET="REPLACE_WITH_STAGING_RAILWAY_DOMAIN.up.railway.app"
@@ -41,3 +41,13 @@ export THORPE_STRIPE_PRICE_ID_CREATOR_MONTHLY=""
 export THORPE_STRIPE_PRICE_ID_CREATOR_ANNUAL=""
 export THORPE_STRIPE_PRICE_ID_ENTERPRISE_MONTHLY=""
 export THORPE_STRIPE_BILLING_PORTAL_RETURN_URL="https://thorpeworkforce.ai/app/settings/billing"
+
+# Railway helper defaults (menu options 22-24)
+export THORPE_RAILWAY_ROOT_DIRECTORY="backend"
+export THORPE_RAILWAY_API_SERVICE_NAME="thorpe-api"
+export THORPE_RAILWAY_WORKER_SERVICE_NAME="thorpe-worker"
+export THORPE_RAILWAY_API_BUILD_COMMAND="pip install -r requirements.txt"
+export THORPE_RAILWAY_API_START_COMMAND="./scripts/start_production.sh"
+export THORPE_RAILWAY_API_HEALTHCHECK_PATH="/health/ready"
+export THORPE_RAILWAY_WORKER_BUILD_COMMAND="pip install -r requirements.txt"
+export THORPE_RAILWAY_WORKER_START_COMMAND="celery -A app.tasks.celery_app.celery_app worker -l info"
