@@ -155,6 +155,21 @@ Recommended environment values:
   - `CORS_ORIGINS=["https://thorpeworkforce.ai","https://www.thorpeworkforce.ai"]`
   - `TRUSTED_HOSTS=api.thorpeworkforce.ai`
 
+## Railway deployment
+
+Backend Railway config has been added under `backend/`:
+
+- `backend/railway.json` (health check + web start command)
+- `backend/Procfile` (web + worker process commands)
+- `backend/scripts/start-web.sh` (optional migrate/seed on boot + uvicorn)
+- `backend/scripts/start-worker.sh` (celery worker)
+
+Follow `infrastructure/railway.md` for the exact setup, including:
+
+- API custom domain `api.thorpeworkforce.ai`
+- Postgres/Redis wiring
+- frontend env pointing to the API domain
+
 ## Demo Credentials
 
 After running seed:

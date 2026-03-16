@@ -1,0 +1,2 @@
+web: bash scripts/start-web.sh
+worker: bash scripts/start-worker.sh
