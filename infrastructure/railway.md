@@ -31,6 +31,7 @@ Required variables on API service:
 - `TRUSTED_HOSTS=api.thorpeworkforce.ai,*.up.railway.app`
 - `RUN_MIGRATIONS_ON_START=true`
 - `RUN_SEEDS_ON_START=false` (set `true` only for first bootstrap if you want auto-seed)
+- `UVICORN_HOST=::` (recommended for Railway private networking compatibility)
 
 Optional provider vars:
 
@@ -69,3 +70,13 @@ Create a DNS `CNAME` for `api.thorpeworkforce.ai` pointing to the Railway target
 - `GET https://api.thorpeworkforce.ai/health`
 - `GET https://api.thorpeworkforce.ai/health/live`
 - `GET https://api.thorpeworkforce.ai/health/ready`
+
+## Troubleshooting: "Failed to get private network endpoint"
+
+If Railway shows this error during deploy/network attach:
+
+1. Confirm API service is using `bash scripts/start-web.sh`.
+2. Ensure `UVICORN_HOST=::` (or equivalent IPv6-capable bind) on the API service.
+3. Redeploy the API service once, then redeploy Worker.
+4. Verify both services are in the same Railway project/environment.
+5. If using internal service-to-service URLs, use the Railway private domain over `http://` (not `https://`).
