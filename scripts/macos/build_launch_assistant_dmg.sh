@@ -39,6 +39,7 @@ Thorpe Workforce Launch Assistant
    - preflight checks
    - env template creation
    - deployment env var generation
+   - Stripe connection helper + webhook event list
    - IONOS DNS record planning
    - local stack startup
    - deployed smoke checks

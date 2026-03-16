@@ -29,6 +29,16 @@ RAILWAY_STAGING_API_CNAME_TARGET="${THORPE_RAILWAY_STAGING_API_CNAME_TARGET:-REP
 VERCEL_CNAME_TARGET="${THORPE_VERCEL_CNAME_TARGET:-cname.vercel-dns.com}"
 VERCEL_APEX_A_TARGET="${THORPE_VERCEL_APEX_A_TARGET:-76.76.21.21}"
 DNS_DEFAULT_TTL="${THORPE_DNS_DEFAULT_TTL:-3600}"
+STRIPE_MODE="${THORPE_STRIPE_MODE:-test}"
+STRIPE_SECRET_KEY="${THORPE_STRIPE_SECRET_KEY:-}"
+STRIPE_PUBLISHABLE_KEY="${THORPE_STRIPE_PUBLISHABLE_KEY:-}"
+STRIPE_WEBHOOK_SECRET="${THORPE_STRIPE_WEBHOOK_SECRET:-}"
+STRIPE_PRICE_ID_PRO_MONTHLY="${THORPE_STRIPE_PRICE_ID_PRO_MONTHLY:-}"
+STRIPE_PRICE_ID_PRO_ANNUAL="${THORPE_STRIPE_PRICE_ID_PRO_ANNUAL:-}"
+STRIPE_PRICE_ID_CREATOR_MONTHLY="${THORPE_STRIPE_PRICE_ID_CREATOR_MONTHLY:-}"
+STRIPE_PRICE_ID_CREATOR_ANNUAL="${THORPE_STRIPE_PRICE_ID_CREATOR_ANNUAL:-}"
+STRIPE_PRICE_ID_ENTERPRISE_MONTHLY="${THORPE_STRIPE_PRICE_ID_ENTERPRISE_MONTHLY:-}"
+STRIPE_BILLING_PORTAL_RETURN_URL="${THORPE_STRIPE_BILLING_PORTAL_RETURN_URL:-}"
 
 GREEN="\033[0;32m"
 CYAN="\033[0;36m"
@@ -89,6 +99,21 @@ dns_label_for_host() {
   printf "%s" "$host"
 }
 
+mask_secret() {
+  local value="${1:-}"
+  local len=0
+  if [[ -z "$value" ]]; then
+    printf "%s" "(not set)"
+    return 0
+  fi
+  len="${#value}"
+  if ((len <= 8)); then
+    printf "***"
+    return 0
+  fi
+  printf "%s***%s" "${value:0:4}" "${value:len-4:4}"
+}
+
 prompt_repo_path() {
   say ""
   say "Current repo path: ${REPO_PATH}"
@@ -138,6 +163,53 @@ configure_domain_defaults() {
   ok "Domain defaults updated for this session."
 }
 
+configure_stripe_settings() {
+  local input=""
+  local default_portal_url="$STRIPE_BILLING_PORTAL_RETURN_URL"
+  if [[ -z "$default_portal_url" ]]; then
+    default_portal_url="$(normalize_url "$PROD_FRONTEND_URL")/app/settings/billing"
+  fi
+
+  say ""
+  step "Configure Stripe settings"
+  read -r -p "Stripe mode [${STRIPE_MODE}] (test/live): " input
+  if [[ -n "${input}" ]]; then STRIPE_MODE="${input}"; fi
+
+  read -r -p "STRIPE_SECRET_KEY [$(mask_secret "$STRIPE_SECRET_KEY")]: " input
+  if [[ -n "${input}" ]]; then STRIPE_SECRET_KEY="${input}"; fi
+
+  read -r -p "STRIPE_PUBLISHABLE_KEY [$(mask_secret "$STRIPE_PUBLISHABLE_KEY")]: " input
+  if [[ -n "${input}" ]]; then STRIPE_PUBLISHABLE_KEY="${input}"; fi
+
+  read -r -p "STRIPE_WEBHOOK_SECRET [$(mask_secret "$STRIPE_WEBHOOK_SECRET")]: " input
+  if [[ -n "${input}" ]]; then STRIPE_WEBHOOK_SECRET="${input}"; fi
+
+  read -r -p "STRIPE_PRICE_ID_PRO_MONTHLY [${STRIPE_PRICE_ID_PRO_MONTHLY:-unset}]: " input
+  if [[ -n "${input}" ]]; then STRIPE_PRICE_ID_PRO_MONTHLY="${input}"; fi
+
+  read -r -p "STRIPE_PRICE_ID_PRO_ANNUAL [${STRIPE_PRICE_ID_PRO_ANNUAL:-unset}]: " input
+  if [[ -n "${input}" ]]; then STRIPE_PRICE_ID_PRO_ANNUAL="${input}"; fi
+
+  read -r -p "STRIPE_PRICE_ID_CREATOR_MONTHLY [${STRIPE_PRICE_ID_CREATOR_MONTHLY:-unset}]: " input
+  if [[ -n "${input}" ]]; then STRIPE_PRICE_ID_CREATOR_MONTHLY="${input}"; fi
+
+  read -r -p "STRIPE_PRICE_ID_CREATOR_ANNUAL [${STRIPE_PRICE_ID_CREATOR_ANNUAL:-unset}]: " input
+  if [[ -n "${input}" ]]; then STRIPE_PRICE_ID_CREATOR_ANNUAL="${input}"; fi
+
+  read -r -p "STRIPE_PRICE_ID_ENTERPRISE_MONTHLY [${STRIPE_PRICE_ID_ENTERPRISE_MONTHLY:-unset}]: " input
+  if [[ -n "${input}" ]]; then STRIPE_PRICE_ID_ENTERPRISE_MONTHLY="${input}"; fi
+
+  read -r -p "STRIPE_BILLING_PORTAL_RETURN_URL [${default_portal_url}]: " input
+  if [[ -n "${input}" ]]; then
+    STRIPE_BILLING_PORTAL_RETURN_URL="$(normalize_url "$input")"
+  else
+    STRIPE_BILLING_PORTAL_RETURN_URL="$default_portal_url"
+  fi
+
+  say ""
+  ok "Stripe settings updated for this session."
+}
+
 assert_repo() {
   if [[ ! -d "$REPO_PATH" ]]; then
     err "Repo path not found: $REPO_PATH"
@@ -178,6 +250,7 @@ run_preflight() {
   check_command npm
   check_command python3
   check_command curl
+  check_command stripe
   check_command open
   check_command gh
   say ""
@@ -323,12 +396,13 @@ Staging URLs configured:
 3) DNS
    - frontend domain points to Vercel
    - api subdomain points to Railway
-   - use menu option 13 to print IONOS DNS record plan
+   - use menu option 17 to print IONOS DNS record plan
 
 4) Stripe (if enabled)
    - Correct test/live keys configured per environment
    - webhook endpoint set: /billing/webhooks/stripe
    - webhook secret set in backend env
+   - use menu options 13-16 for Stripe helper flow
 
 5) Final smoke test
    - homepage
@@ -361,6 +435,12 @@ Current Launch Assistant config:
 - IONOS zone domain:    ${zone_display}
 - Railway API target:   ${RAILWAY_API_CNAME_TARGET}
 - Railway stg API tgt:  ${RAILWAY_STAGING_API_CNAME_TARGET}
+- Stripe mode:          ${STRIPE_MODE}
+- Stripe secret key:    $(mask_secret "$STRIPE_SECRET_KEY")
+- Stripe publishable:   $(mask_secret "$STRIPE_PUBLISHABLE_KEY")
+- Stripe webhook:       $(mask_secret "$STRIPE_WEBHOOK_SECRET")
+- Stripe Pro monthly:   ${STRIPE_PRICE_ID_PRO_MONTHLY:-unset}
+- Stripe portal return: ${STRIPE_BILLING_PORTAL_RETURN_URL:-unset}
 - Profile file:         ${PROFILE_FILE}
 
 CONFIG
@@ -388,8 +468,116 @@ export THORPE_RAILWAY_STAGING_API_CNAME_TARGET="$RAILWAY_STAGING_API_CNAME_TARGE
 export THORPE_VERCEL_CNAME_TARGET="$VERCEL_CNAME_TARGET"
 export THORPE_VERCEL_APEX_A_TARGET="$VERCEL_APEX_A_TARGET"
 export THORPE_DNS_DEFAULT_TTL="$DNS_DEFAULT_TTL"
+export THORPE_STRIPE_MODE="$STRIPE_MODE"
+export THORPE_STRIPE_SECRET_KEY="$STRIPE_SECRET_KEY"
+export THORPE_STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY"
+export THORPE_STRIPE_WEBHOOK_SECRET="$STRIPE_WEBHOOK_SECRET"
+export THORPE_STRIPE_PRICE_ID_PRO_MONTHLY="$STRIPE_PRICE_ID_PRO_MONTHLY"
+export THORPE_STRIPE_PRICE_ID_PRO_ANNUAL="$STRIPE_PRICE_ID_PRO_ANNUAL"
+export THORPE_STRIPE_PRICE_ID_CREATOR_MONTHLY="$STRIPE_PRICE_ID_CREATOR_MONTHLY"
+export THORPE_STRIPE_PRICE_ID_CREATOR_ANNUAL="$STRIPE_PRICE_ID_CREATOR_ANNUAL"
+export THORPE_STRIPE_PRICE_ID_ENTERPRISE_MONTHLY="$STRIPE_PRICE_ID_ENTERPRISE_MONTHLY"
+export THORPE_STRIPE_BILLING_PORTAL_RETURN_URL="$STRIPE_BILLING_PORTAL_RETURN_URL"
 PROFILE
   ok "Saved profile: $PROFILE_FILE"
+}
+
+build_stripe_backend_env_block() {
+  local portal_url="$STRIPE_BILLING_PORTAL_RETURN_URL"
+  if [[ -z "$portal_url" ]]; then
+    portal_url="$(normalize_url "$PROD_FRONTEND_URL")/app/settings/billing"
+  fi
+  cat <<EOF
+BILLING_PROVIDER=stripe
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-REPLACE_WITH_SK_${STRIPE_MODE}}
+STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-REPLACE_WITH_PK_${STRIPE_MODE}}
+STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-REPLACE_WITH_WHSEC_${STRIPE_MODE}}
+STRIPE_PRICE_ID_PRO_MONTHLY=${STRIPE_PRICE_ID_PRO_MONTHLY:-REPLACE_WITH_PRICE_ID}
+STRIPE_PRICE_ID_PRO_ANNUAL=${STRIPE_PRICE_ID_PRO_ANNUAL:-REPLACE_WITH_PRICE_ID}
+STRIPE_PRICE_ID_CREATOR_MONTHLY=${STRIPE_PRICE_ID_CREATOR_MONTHLY:-REPLACE_WITH_PRICE_ID}
+STRIPE_PRICE_ID_CREATOR_ANNUAL=${STRIPE_PRICE_ID_CREATOR_ANNUAL:-REPLACE_WITH_PRICE_ID}
+STRIPE_PRICE_ID_ENTERPRISE_MONTHLY=${STRIPE_PRICE_ID_ENTERPRISE_MONTHLY:-REPLACE_WITH_PRICE_ID}
+STRIPE_BILLING_PORTAL_RETURN_URL=${portal_url}
+EOF
+}
+
+build_stripe_frontend_env_block() {
+  cat <<EOF
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-REPLACE_WITH_PK_${STRIPE_MODE}}
+EOF
+}
+
+print_stripe_env_blocks() {
+  say ""
+  say "Stripe backend env vars (Railway API service):"
+  say "-----------------------------------------------"
+  build_stripe_backend_env_block
+  say ""
+  say "Stripe frontend env vars (Vercel):"
+  say "-----------------------------------"
+  build_stripe_frontend_env_block
+  say ""
+  warn "Keep Stripe keys secret; do not commit env files."
+}
+
+save_stripe_env_files() {
+  assert_repo
+  local output_dir="$REPO_PATH/.launch-assistant-output"
+  mkdir -p "$output_dir"
+  build_stripe_backend_env_block >"$output_dir/stripe-backend.env"
+  build_stripe_frontend_env_block >"$output_dir/stripe-frontend.env"
+  cat >"$output_dir/stripe-webhook-events.txt" <<'EVENTS'
+checkout.session.completed
+customer.subscription.created
+customer.subscription.updated
+customer.subscription.deleted
+invoice.paid
+invoice.payment_failed
+payment_intent.succeeded
+EVENTS
+  ok "Saved:"
+  ok "  $output_dir/stripe-backend.env"
+  ok "  $output_dir/stripe-frontend.env"
+  ok "  $output_dir/stripe-webhook-events.txt"
+}
+
+print_stripe_connect_guide() {
+  local api_url webhook_url
+  api_url="$(normalize_url "$PROD_API_URL")"
+  webhook_url="${api_url}/billing/webhooks/stripe"
+  step "Stripe connection guide (${STRIPE_MODE} mode)"
+  cat <<GUIDE
+1) In Stripe Dashboard, switch to the ${STRIPE_MODE} workspace/mode.
+2) Copy API keys:
+   - Secret key (sk_...)
+   - Publishable key (pk_...)
+3) Create or identify prices used by Thorpe Workforce plans:
+   - Pro monthly
+   - Pro annual
+   - Creator monthly
+   - Creator annual
+   - Enterprise monthly
+4) In Stripe Webhooks, add endpoint:
+   ${webhook_url}
+5) Subscribe endpoint to these events:
+   - checkout.session.completed
+   - customer.subscription.created
+   - customer.subscription.updated
+   - customer.subscription.deleted
+   - invoice.paid
+   - invoice.payment_failed
+   - payment_intent.succeeded
+6) Copy the webhook signing secret (whsec_...).
+7) Use menu option 15 (or 16) to generate env vars and paste:
+   - Railway API service: stripe-backend.env values
+   - Vercel project: stripe-frontend.env values
+8) Redeploy backend + frontend, then test:
+   - GET ${api_url}/billing/plans
+   - In app: Settings > Billing checkout flow
+   - Billing webhook delivery succeeds in Stripe logs
+GUIDE
+  say ""
+  warn "Use test keys in staging and live keys only in production."
 }
 
 build_ionos_dns_records() {
@@ -602,14 +790,18 @@ Thorpe Workforce Launch Assistant
 10) Run production smoke checks
 11) Run staging smoke checks
 12) Open Railway/Vercel/Stripe dashboards
-13) Print IONOS DNS setup plan
-14) Save IONOS DNS plan to file
-15) Run DNS quick checks
-16) Print manual launch checklist
-17) Exit
+13) Configure Stripe settings
+14) Print Stripe connection guide
+15) Print Stripe env var blocks
+16) Save Stripe env var files
+17) Print IONOS DNS setup plan
+18) Save IONOS DNS plan to file
+19) Run DNS quick checks
+20) Print manual launch checklist
+21) Exit
 
 MENU
-    read -r -p "Choose an option [1-17]: " option
+    read -r -p "Choose an option [1-21]: " option
     case "$option" in
       1) prompt_repo_path; assert_repo ;;
       2) show_current_config ;;
@@ -623,12 +815,16 @@ MENU
       10) smoke_check_deployed_urls "production" ;;
       11) smoke_check_deployed_urls "staging" ;;
       12) open_platform_dashboards ;;
-      13) print_ionos_dns_setup_plan ;;
-      14) save_ionos_dns_plan_file ;;
-      15) run_dns_quick_checks ;;
-      16) print_manual_launch_checklist ;;
-      17) exit 0 ;;
-      *) warn "Invalid option. Choose 1-17." ;;
+      13) configure_stripe_settings ;;
+      14) print_stripe_connect_guide ;;
+      15) print_stripe_env_blocks ;;
+      16) save_stripe_env_files ;;
+      17) print_ionos_dns_setup_plan ;;
+      18) save_ionos_dns_plan_file ;;
+      19) run_dns_quick_checks ;;
+      20) print_manual_launch_checklist ;;
+      21) exit 0 ;;
+      *) warn "Invalid option. Choose 1-21." ;;
     esac
   done
 }
