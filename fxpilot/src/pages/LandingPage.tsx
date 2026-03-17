@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PwaInstallButton } from '@/components/PwaInstallButton'
+import { PwaInstallHelpDialog } from '@/components/PwaInstallHelpDialog'
 
 const features = [
   {
@@ -62,6 +63,7 @@ export function LandingPage() {
               <Link to="/dashboard">View dashboard</Link>
             </Button>
             <PwaInstallButton />
+            <PwaInstallHelpDialog />
           </div>
           <p className="mt-6 text-xs text-danger">
             Risk Disclaimer: Forex trading carries significant risk and may not be suitable for all investors.
