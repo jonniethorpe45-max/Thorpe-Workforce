@@ -24,6 +24,12 @@ npm run dev
 - `npm run test` – unit tests (Vitest)
 - `npm run test:e2e` – Playwright tests
 
+## Install as PWA
+
+- Build and serve over HTTPS (or localhost during development).
+- Open FXPilot in Chrome/Edge.
+- Click **Install App** on the landing page (when browser install criteria are met).
+
 ## Supabase
 
 - SQL migration: `supabase/migrations/202603170001_init_fxpilot.sql`
