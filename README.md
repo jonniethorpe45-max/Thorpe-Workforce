@@ -208,6 +208,7 @@ Launch assistant:
 
 - `python infrastructure/launch_assistant.py checklist`
 - `python infrastructure/launch_assistant.py verify --api-url https://api.thorpeworkforce.ai --app-url https://thorpeworkforce.ai`
+- `python infrastructure/launch_assistant.py bootstrap-mac --repo-url https://github.com/jonniethorpe45-max/Thorpe-Workforce.git --target-dir ~/Developer/Thorpe-Workforce`
 - full operator notes: `LAUNCH_ASSISTANT.md`
 
 ## Demo Credentials
