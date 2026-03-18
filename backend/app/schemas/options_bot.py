@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -123,3 +123,60 @@ class OptionsBacktestResponse(BaseModel):
     metrics: OptionsBacktestMetricsRead
     trades: list[OptionsTradeRead]
     equity_curve: list[OptionsEquityPointRead]
+
+
+class ETradeStatusResponse(BaseModel):
+    provider: str = "etrade"
+    configured: bool
+    sandbox: bool
+    base_url: str
+    has_account_id_key: bool
+
+
+class ETradeDataResponse(BaseModel):
+    provider: str = "etrade"
+    message: str
+    data: dict[str, Any] | list[dict[str, Any]]
+
+
+class ETradeOptionChainRequest(BaseModel):
+    symbol: str = Field(min_length=1, max_length=15)
+    expiry_year: int | None = Field(default=None, ge=2000, le=2100)
+    expiry_month: int | None = Field(default=None, ge=1, le=12)
+    expiry_day: int | None = Field(default=None, ge=1, le=31)
+    strike_price_near: float | None = Field(default=None, gt=0)
+    chain_type: Literal["CALL", "PUT", "CALLPUT"] | None = None
+    skip_adjusted: bool = True
+    include_weeklys: bool = True
+
+    @model_validator(mode="after")
+    def normalize_symbol(self):
+        self.symbol = self.symbol.strip().upper()
+        return self
+
+
+class ETradeOrderPayloadBuildRequest(BaseModel):
+    symbol: str = Field(min_length=1, max_length=15)
+    call_put: Literal["CALL", "PUT"]
+    order_action: Literal["BUY_OPEN", "SELL_OPEN", "BUY_CLOSE", "SELL_CLOSE"]
+    quantity: int = Field(ge=1, le=1000)
+    strike_price: float = Field(gt=0)
+    expiry_year: int = Field(ge=2000, le=2100)
+    expiry_month: int = Field(ge=1, le=12)
+    expiry_day: int = Field(ge=1, le=31)
+    limit_price: float = Field(gt=0)
+    client_order_id: str | None = Field(default=None, max_length=120)
+    order_term: str = Field(default="GOOD_FOR_DAY", min_length=2, max_length=60)
+    market_session: str = Field(default="REGULAR", min_length=2, max_length=60)
+    quantity_type: str = Field(default="QUANTITY", min_length=2, max_length=60)
+    all_or_none: bool = False
+
+    @model_validator(mode="after")
+    def normalize_symbol(self):
+        self.symbol = self.symbol.strip().upper()
+        return self
+
+
+class ETradeOrderRequest(BaseModel):
+    account_id_key: str | None = Field(default=None, max_length=120)
+    payload: dict[str, Any] = Field(default_factory=dict)

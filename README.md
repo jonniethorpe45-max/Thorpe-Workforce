@@ -237,6 +237,7 @@ Implemented endpoint groups:
 - Replies (`/replies*`)
 - Meetings and calendar connect (`/meetings*`, `/calendar/connect/google`)
 - Analytics (`/analytics/*`)
+- Options bot + E*Trade compatibility (`/options-bot/*`, including `/options-bot/etrade/*`)
 - Onboarding (`/onboarding/state`, `/onboarding/recommendations`)
 - Support (`/support/contact`, `/support/contact/authenticated`, `/support/requests*`)
 - Email webhooks (`/webhooks/email/*`, including unsubscribe/bounce/reply handlers)
@@ -335,6 +336,16 @@ Frontend env additions:
 
 - `NEXT_PUBLIC_API_BASE_URL` (public API origin, e.g. `https://api.thorpeworkforce.ai`)
 - `NEXT_PUBLIC_APP_URL` (for sitemap/robots metadata base)
+
+Optional E*Trade env additions (for live broker connectivity):
+
+- `ETRADE_CONSUMER_KEY`
+- `ETRADE_CONSUMER_SECRET`
+- `ETRADE_ACCESS_TOKEN`
+- `ETRADE_ACCESS_TOKEN_SECRET`
+- `ETRADE_ACCOUNT_ID_KEY`
+- `ETRADE_SANDBOX` (`true` for sandbox, `false` for production)
+- `ETRADE_BASE_URL_OVERRIDE` (optional custom endpoint)
 
 ## Local Stripe webhook testing (Stripe CLI)
 

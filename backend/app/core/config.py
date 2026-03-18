@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     support_email: str = "support@thorpeworkforce.com"
     google_client_id: str = ""
     google_client_secret: str = ""
+    etrade_consumer_key: str = ""
+    etrade_consumer_secret: str = ""
+    etrade_access_token: str = ""
+    etrade_access_token_secret: str = ""
+    etrade_account_id_key: str = ""
+    etrade_sandbox: bool = True
+    etrade_base_url_override: str = ""
+    etrade_request_timeout_seconds: float = 15.0
     workspace_daily_send_cap: int = 250
     marketplace_platform_fee_percent: float = 0.30
     billing_provider: str = "placeholder"
@@ -66,7 +74,7 @@ class Settings(BaseSettings):
     def validate_marketplace_fee(cls, value: float) -> float:
         return max(0.0, min(1.0, float(value)))
 
-    @field_validator("app_base_url", "stripe_billing_portal_return_url")
+    @field_validator("app_base_url", "stripe_billing_portal_return_url", "etrade_base_url_override")
     @classmethod
     def normalize_base_urls(cls, value: str) -> str:
         return value.strip().rstrip("/")

@@ -56,3 +56,57 @@ def test_options_backtest_rejects_short_history(client):
     bars = [{"close": 100 + idx, "implied_vol": 0.25} for idx in range(20)]
     response = client.post("/options-bot/backtest", json={"bars": bars})
     assert response.status_code == 422
+
+
+def test_etrade_status_reflects_configuration_state(client):
+    response = client.get("/options-bot/etrade/status")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "etrade"
+    assert payload["configured"] is False
+
+
+def test_etrade_order_payload_builder(client):
+    response = client.post(
+        "/options-bot/etrade/order/payload",
+        json={
+            "symbol": "aapl",
+            "call_put": "CALL",
+            "order_action": "BUY_OPEN",
+            "quantity": 1,
+            "strike_price": 200,
+            "expiry_year": 2026,
+            "expiry_month": 6,
+            "expiry_day": 19,
+            "limit_price": 4.25,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    instrument = data["PreviewOrderRequest"]["Order"][0]["Instrument"][0]
+    assert instrument["Product"]["symbol"] == "AAPL"
+    assert instrument["Product"]["callPut"] == "CALL"
+    assert instrument["orderAction"] == "BUY_OPEN"
+
+
+def test_etrade_accounts_uses_provider(client, monkeypatch):
+    from app.api.routes import options_bot as options_bot_route
+
+    class _FakeETradeClient:
+        configured = True
+        base_url = "https://apisb.etrade.com"
+
+        def list_accounts(self):
+            return [{"accountId": "12345678", "accountIdKey": "ABC123KEY"}]
+
+    monkeypatch.setattr(options_bot_route, "ETradeClient", _FakeETradeClient)
+    response = client.get("/options-bot/etrade/accounts")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "etrade"
+    assert payload["data"][0]["accountIdKey"] == "ABC123KEY"
+
+
+def test_etrade_preview_requires_configuration_or_account_key(client):
+    response = client.post("/options-bot/etrade/order/preview", json={"payload": {"PreviewOrderRequest": {}}})
+    assert response.status_code == 400
