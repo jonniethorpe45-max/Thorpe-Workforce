@@ -95,6 +95,40 @@ docker-compose.yml
 
 ## Local Development
 
+## Cloud Agent Environment (Cursor)
+
+This repo now includes a cloud-agent environment config for a test-ready full stack:
+
+- `.cursor/environment.json`
+- `.cursor/scripts/install_backend_env.sh`
+- `.cursor/scripts/install_fullstack_env.sh`
+- `.cursor/scripts/start_fullstack_env.sh`
+
+On cloud-agent boot, Cursor will:
+
+1. create `backend/.venv`
+2. install Python backend dependencies from `backend/requirements.txt`
+3. preinstall core backend tooling (`pytest`, `fastapi`, `uvicorn`)
+4. install frontend dependencies from `frontend/package-lock.json`
+5. start in a full-stack test-ready context
+6. run startup smoke checks automatically:
+   - `backend/tests/test_options_bot.py`
+   - `frontend` lint
+
+You can disable startup smoke checks by setting:
+
+```bash
+RUN_SMOKE_CHECKS_ON_START=false
+```
+
+After startup, run validation with:
+
+```bash
+cd backend && python -m pytest
+cd frontend && npm run lint
+cd frontend && npm run build
+```
+
 ### 1) Start infrastructure
 
 ```bash
@@ -174,6 +208,7 @@ Launch assistant:
 
 - `python infrastructure/launch_assistant.py checklist`
 - `python infrastructure/launch_assistant.py verify --api-url https://api.thorpeworkforce.ai --app-url https://thorpeworkforce.ai`
+- `python infrastructure/launch_assistant.py bootstrap-mac --repo-url https://github.com/jonniethorpe45-max/Thorpe-Workforce.git --target-dir ~/Developer/Thorpe-Workforce`
 - full operator notes: `LAUNCH_ASSISTANT.md`
 
 ## Demo Credentials
@@ -203,6 +238,7 @@ Implemented endpoint groups:
 - Replies (`/replies*`)
 - Meetings and calendar connect (`/meetings*`, `/calendar/connect/google`)
 - Analytics (`/analytics/*`)
+- Options bot + E*Trade compatibility (`/options-bot/*`, including `/options-bot/etrade/*`)
 - Onboarding (`/onboarding/state`, `/onboarding/recommendations`)
 - Support (`/support/contact`, `/support/contact/authenticated`, `/support/requests*`)
 - Email webhooks (`/webhooks/email/*`, including unsubscribe/bounce/reply handlers)
@@ -301,6 +337,24 @@ Frontend env additions:
 
 - `NEXT_PUBLIC_API_BASE_URL` (public API origin, e.g. `https://api.thorpeworkforce.ai`)
 - `NEXT_PUBLIC_APP_URL` (for sitemap/robots metadata base)
+
+Optional E*Trade env additions (for live broker connectivity):
+
+- `ETRADE_CONSUMER_KEY`
+- `ETRADE_CONSUMER_SECRET`
+- `ETRADE_ACCESS_TOKEN` (optional fallback when workspace-scoped credentials are not connected)
+- `ETRADE_ACCESS_TOKEN_SECRET` (optional fallback when workspace-scoped credentials are not connected)
+- `ETRADE_ACCOUNT_ID_KEY`
+- `ETRADE_SANDBOX` (`true` for sandbox, `false` for production)
+- `ETRADE_BASE_URL_OVERRIDE` (optional custom endpoint)
+- `ETRADE_OAUTH_CALLBACK_URL` (OAuth callback URL used for connect flow)
+
+Workspace-scoped E*Trade OAuth flow:
+
+1. `POST /options-bot/etrade/connect/start` (authenticated) to get `authorize_url`
+2. authorize in E*Trade and capture `oauth_token` + `oauth_verifier`
+3. `POST /options-bot/etrade/connect/complete` (authenticated) with token + verifier
+4. broker actions (`/options-bot/etrade/accounts`, `/option-chain`, `/order/preview`, `/order/place`) will use workspace-scoped encrypted credentials first
 
 ## Local Stripe webhook testing (Stripe CLI)
 

@@ -2,6 +2,8 @@
 
 This assistant helps you finish all launch tasks that still require manual account/DNS actions.
 
+It now also includes a macOS bootstrap flow for cloning and installing the app locally.
+
 ## 1) Quick start
 
 Print the remaining manual tasks:
@@ -16,12 +18,35 @@ Run production verification checks:
 python infrastructure/launch_assistant.py verify --api-url https://api.thorpeworkforce.ai --app-url https://thorpeworkforce.ai
 ```
 
+Bootstrap on macOS (clone + install):
+
+```bash
+python infrastructure/launch_assistant.py bootstrap-mac \
+  --repo-url https://github.com/jonniethorpe45-max/Thorpe-Workforce.git \
+  --target-dir ~/Developer/Thorpe-Workforce
+```
+
+Preview commands without executing:
+
+```bash
+python infrastructure/launch_assistant.py bootstrap-mac --dry-run
+```
+
 The verification checks:
 
 - DNS resolution for API host
 - TLS handshake for API host
 - backend health endpoints (`/health`, `/health/live`, `/health/ready`)
 - CORS preflight response for your frontend origin
+
+The macOS bootstrap flow covers:
+
+- install/check prerequisites (Git, Python 3, Node.js/npm, Docker)
+- clone or update repository
+- backend venv + dependency installation
+- optional Docker services + migrations + seed data
+- frontend dependency installation
+- `.env`/`.env.local` template creation
 
 ## 2) Railway setup source of truth
 
