@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 from fastapi import APIRouter
 
 from app.schemas.options_bot import (
@@ -47,7 +49,7 @@ def options_backtest(payload: OptionsBacktestRequest):
     )
     return OptionsBacktestResponse(
         message=result.message,
-        metrics=result.metrics,
-        trades=result.trades,
-        equity_curve=result.equity_curve,
+        metrics=asdict(result.metrics),
+        trades=[asdict(item) for item in result.trades],
+        equity_curve=[asdict(item) for item in result.equity_curve],
     )
