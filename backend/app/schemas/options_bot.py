@@ -131,6 +131,8 @@ class ETradeStatusResponse(BaseModel):
     sandbox: bool
     base_url: str
     has_account_id_key: bool
+    workspace_connected: bool = False
+    connection_source: Literal["workspace", "settings", "none"] = "none"
 
 
 class ETradeDataResponse(BaseModel):
@@ -180,3 +182,28 @@ class ETradeOrderPayloadBuildRequest(BaseModel):
 class ETradeOrderRequest(BaseModel):
     account_id_key: str | None = Field(default=None, max_length=120)
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class ETradeConnectStartRequest(BaseModel):
+    redirect_uri: str | None = Field(default=None, max_length=2000)
+    account_id_key: str | None = Field(default=None, max_length=120)
+
+
+class ETradeConnectStartResponse(BaseModel):
+    provider: str = "etrade"
+    message: str
+    oauth_token: str
+    authorize_url: str
+    redirect_uri: str
+
+
+class ETradeConnectCompleteRequest(BaseModel):
+    oauth_token: str = Field(min_length=5, max_length=255)
+    oauth_verifier: str = Field(min_length=3, max_length=255)
+    account_id_key: str | None = Field(default=None, max_length=120)
+
+
+class ETradeDisconnectResponse(BaseModel):
+    provider: str = "etrade"
+    disconnected: bool = True
+    message: str

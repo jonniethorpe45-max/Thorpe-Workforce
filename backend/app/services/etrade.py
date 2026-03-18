@@ -31,40 +31,120 @@ class ETradeAPIError(Exception):
 
 
 class ETradeClient:
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        access_token: str | None = None,
+        access_token_secret: str | None = None,
+        account_id_key: str | None = None,
+    ):
         self.consumer_key = settings.etrade_consumer_key.strip()
         self.consumer_secret = settings.etrade_consumer_secret.strip()
-        self.access_token = settings.etrade_access_token.strip()
-        self.access_token_secret = settings.etrade_access_token_secret.strip()
-        self.default_account_id_key = settings.etrade_account_id_key.strip()
+        self.access_token = (access_token or settings.etrade_access_token).strip()
+        self.access_token_secret = (access_token_secret or settings.etrade_access_token_secret).strip()
+        self.default_account_id_key = (account_id_key or settings.etrade_account_id_key).strip()
         self.request_timeout_seconds = max(2.0, float(settings.etrade_request_timeout_seconds))
 
         if settings.etrade_base_url_override.strip():
             self.base_url = settings.etrade_base_url_override.strip().rstrip("/")
         else:
             self.base_url = "https://apisb.etrade.com" if settings.etrade_sandbox else "https://api.etrade.com"
+        self.authorize_base_url = "https://us.etrade.com"
 
     @property
     def configured(self) -> bool:
         return bool(self.consumer_key and self.consumer_secret and self.access_token and self.access_token_secret)
 
-    def _ensure_configured(self) -> None:
-        if self.configured:
+    @property
+    def oauth_ready(self) -> bool:
+        return bool(self.consumer_key and self.consumer_secret)
+
+    def _ensure_configured(self, *, require_access_token: bool = True) -> None:
+        if require_access_token and self.configured:
             return
+        if not require_access_token and self.oauth_ready:
+            return
+        if not require_access_token:
+            raise ETradeConfigurationError(
+                "E*Trade OAuth app credentials are not configured. Set ETRADE_CONSUMER_KEY and ETRADE_CONSUMER_SECRET."
+            )
         raise ETradeConfigurationError(
             "E*Trade credentials are not configured. Set ETRADE_CONSUMER_KEY, ETRADE_CONSUMER_SECRET, "
             "ETRADE_ACCESS_TOKEN, and ETRADE_ACCESS_TOKEN_SECRET."
         )
 
-    def _session(self) -> OAuth1Session:
-        self._ensure_configured()
-        return OAuth1Session(
-            client_key=self.consumer_key,
-            client_secret=self.consumer_secret,
-            resource_owner_key=self.access_token,
-            resource_owner_secret=self.access_token_secret,
-            signature_method="HMAC-SHA1",
+    def _session(
+        self,
+        *,
+        resource_owner_key: str | None = None,
+        resource_owner_secret: str | None = None,
+        callback_uri: str | None = None,
+        verifier: str | None = None,
+        require_access_token: bool = True,
+    ) -> OAuth1Session:
+        self._ensure_configured(require_access_token=require_access_token)
+        kwargs: dict[str, Any] = {
+            "client_key": self.consumer_key,
+            "client_secret": self.consumer_secret,
+            "signature_method": "HMAC-SHA1",
+        }
+        if callback_uri:
+            kwargs["callback_uri"] = callback_uri
+        if verifier:
+            kwargs["verifier"] = verifier
+        owner_key = resource_owner_key if resource_owner_key is not None else self.access_token
+        owner_secret = resource_owner_secret if resource_owner_secret is not None else self.access_token_secret
+        if owner_key:
+            kwargs["resource_owner_key"] = owner_key
+        if owner_secret:
+            kwargs["resource_owner_secret"] = owner_secret
+        return OAuth1Session(**kwargs)
+
+    def request_token(self, *, callback_url: str) -> dict[str, str]:
+        session = self._session(callback_uri=callback_url, require_access_token=False)
+        try:
+            token = session.fetch_request_token(f"{self.base_url}/oauth/request_token")
+        except requests.RequestException as exc:
+            raise ETradeAPIError(status_code=502, message=f"E*Trade request token failed: {exc}") from exc
+        oauth_token = str(token.get("oauth_token", "")).strip()
+        oauth_token_secret = str(token.get("oauth_token_secret", "")).strip()
+        if not oauth_token or not oauth_token_secret:
+            raise ETradeAPIError(
+                status_code=502,
+                message="E*Trade request token response was missing token values.",
+                payload=token,
+            )
+        return {"oauth_token": oauth_token, "oauth_token_secret": oauth_token_secret}
+
+    def build_authorize_url(self, *, oauth_token: str) -> str:
+        return f"{self.authorize_base_url}/e/t/etws/authorize?key={self.consumer_key}&token={oauth_token}"
+
+    def exchange_access_token(
+        self,
+        *,
+        oauth_token: str,
+        oauth_token_secret: str,
+        oauth_verifier: str,
+    ) -> dict[str, str]:
+        session = self._session(
+            resource_owner_key=oauth_token,
+            resource_owner_secret=oauth_token_secret,
+            verifier=oauth_verifier,
+            require_access_token=False,
         )
+        try:
+            token = session.fetch_access_token(f"{self.base_url}/oauth/access_token")
+        except requests.RequestException as exc:
+            raise ETradeAPIError(status_code=502, message=f"E*Trade access token exchange failed: {exc}") from exc
+        access_token = str(token.get("oauth_token", "")).strip()
+        access_token_secret = str(token.get("oauth_token_secret", "")).strip()
+        if not access_token or not access_token_secret:
+            raise ETradeAPIError(
+                status_code=502,
+                message="E*Trade access token response was missing token values.",
+                payload=token,
+            )
+        return {"access_token": access_token, "access_token_secret": access_token_secret}
 
     def _request(
         self,
@@ -74,7 +154,7 @@ class ETradeClient:
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        session = self._session()
+        session = self._session(require_access_token=True)
         url = f"{self.base_url}{path}"
         try:
             response = session.request(

@@ -341,11 +341,19 @@ Optional E*Trade env additions (for live broker connectivity):
 
 - `ETRADE_CONSUMER_KEY`
 - `ETRADE_CONSUMER_SECRET`
-- `ETRADE_ACCESS_TOKEN`
-- `ETRADE_ACCESS_TOKEN_SECRET`
+- `ETRADE_ACCESS_TOKEN` (optional fallback when workspace-scoped credentials are not connected)
+- `ETRADE_ACCESS_TOKEN_SECRET` (optional fallback when workspace-scoped credentials are not connected)
 - `ETRADE_ACCOUNT_ID_KEY`
 - `ETRADE_SANDBOX` (`true` for sandbox, `false` for production)
 - `ETRADE_BASE_URL_OVERRIDE` (optional custom endpoint)
+- `ETRADE_OAUTH_CALLBACK_URL` (OAuth callback URL used for connect flow)
+
+Workspace-scoped E*Trade OAuth flow:
+
+1. `POST /options-bot/etrade/connect/start` (authenticated) to get `authorize_url`
+2. authorize in E*Trade and capture `oauth_token` + `oauth_verifier`
+3. `POST /options-bot/etrade/connect/complete` (authenticated) with token + verifier
+4. broker actions (`/options-bot/etrade/accounts`, `/option-chain`, `/order/preview`, `/order/place`) will use workspace-scoped encrypted credentials first
 
 ## Local Stripe webhook testing (Stripe CLI)
 

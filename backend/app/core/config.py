@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     etrade_account_id_key: str = ""
     etrade_sandbox: bool = True
     etrade_base_url_override: str = ""
+    etrade_oauth_callback_url: str = "http://localhost:8000/options-bot/etrade/connect/callback"
     etrade_request_timeout_seconds: float = 15.0
     workspace_daily_send_cap: int = 250
     marketplace_platform_fee_percent: float = 0.30
@@ -74,7 +75,12 @@ class Settings(BaseSettings):
     def validate_marketplace_fee(cls, value: float) -> float:
         return max(0.0, min(1.0, float(value)))
 
-    @field_validator("app_base_url", "stripe_billing_portal_return_url", "etrade_base_url_override")
+    @field_validator(
+        "app_base_url",
+        "stripe_billing_portal_return_url",
+        "etrade_base_url_override",
+        "etrade_oauth_callback_url",
+    )
     @classmethod
     def normalize_base_urls(cls, value: str) -> str:
         return value.strip().rstrip("/")
