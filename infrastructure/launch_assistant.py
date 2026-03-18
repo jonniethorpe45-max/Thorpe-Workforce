@@ -91,12 +91,12 @@ def _run_command_step(
 
 
 def _copy_if_missing(name: str, src: Path, dst: Path, *, dry_run: bool = False) -> CheckResult:
+    if dry_run:
+        return CheckResult(name, True, f"DRY RUN: copy {src} -> {dst}")
     if dst.exists():
         return CheckResult(name, True, f"exists: {dst}")
     if not src.exists():
         return CheckResult(name, False, f"missing source file: {src}")
-    if dry_run:
-        return CheckResult(name, True, f"DRY RUN: copy {src} -> {dst}")
     dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     return CheckResult(name, True, f"copied {src.name} -> {dst.name}")
 
