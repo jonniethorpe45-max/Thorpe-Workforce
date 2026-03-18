@@ -111,6 +111,15 @@ On cloud-agent boot, Cursor will:
 3. preinstall core backend tooling (`pytest`, `fastapi`, `uvicorn`)
 4. install frontend dependencies from `frontend/package-lock.json`
 5. start in a full-stack test-ready context
+6. run startup smoke checks automatically:
+   - `backend/tests/test_options_bot.py`
+   - `frontend` lint
+
+You can disable startup smoke checks by setting:
+
+```bash
+RUN_SMOKE_CHECKS_ON_START=false
+```
 
 After startup, run validation with:
 
