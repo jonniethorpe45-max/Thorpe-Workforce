@@ -9,13 +9,31 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-python3 -m venv backend/.venv
-source backend/.venv/bin/activate
+PYTHON_CMD="python3"
+PIP_CMD="python3 -m pip"
+VENV_CREATED="false"
 
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -r backend/requirements.txt
+if python3 -m venv backend/.venv >/tmp/cursor_venv_setup.log 2>&1; then
+  # shellcheck disable=SC1091
+  source backend/.venv/bin/activate
+  PYTHON_CMD="python"
+  PIP_CMD="python -m pip"
+  VENV_CREATED="true"
+else
+  rm -rf backend/.venv || true
+  echo "python3-venv unavailable; using system Python environment fallback."
+fi
+
+${PIP_CMD} install --upgrade pip setuptools wheel
+${PIP_CMD} install -r backend/requirements.txt
 
 # Explicitly ensure common test/runtime tools are available.
-python -m pip install --upgrade pytest fastapi "uvicorn[standard]"
+${PIP_CMD} install --upgrade pytest fastapi "uvicorn[standard]"
 
-echo "Cloud agent backend dependencies installed."
+if [[ "${VENV_CREATED}" == "true" ]]; then
+  echo "Cloud agent backend dependencies installed in backend/.venv."
+else
+  echo "Cloud agent backend dependencies installed in system Python fallback."
+fi
+
+${PYTHON_CMD} --version
