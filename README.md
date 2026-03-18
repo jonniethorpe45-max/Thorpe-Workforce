@@ -95,6 +95,29 @@ docker-compose.yml
 
 ## Local Development
 
+## Cloud Agent Environment (Cursor)
+
+This repo now includes a cloud-agent environment config for backend testing:
+
+- `.cursor/environment.json`
+- `.cursor/scripts/install_backend_env.sh`
+- `.cursor/scripts/start_backend_env.sh`
+
+On cloud-agent boot, Cursor will:
+
+1. create `backend/.venv`
+2. install Python backend dependencies from `backend/requirements.txt`
+3. preinstall core backend tooling (`pytest`, `fastapi`, `uvicorn`)
+4. start in a backend test-ready context
+
+After startup, run backend tests with:
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m pytest
+```
+
 ### 1) Start infrastructure
 
 ```bash

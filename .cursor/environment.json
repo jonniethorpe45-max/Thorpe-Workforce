@@ -1,0 +1,9 @@
+{
+  "install": "bash .cursor/scripts/install_backend_env.sh",
+  "start": "bash .cursor/scripts/start_backend_env.sh",
+  "env": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PIP_DISABLE_PIP_VERSION_CHECK": "1"
+  }
+}
