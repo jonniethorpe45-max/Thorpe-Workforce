@@ -26,6 +26,7 @@ from app.api.routes import (
     worker_runs,
     worker_tools,
     workers,
+    options_bot,
     workspace,
 )
 from app.core.config import settings
@@ -61,6 +62,7 @@ app.include_router(messages.router)
 app.include_router(replies.router)
 app.include_router(meetings.router)
 app.include_router(analytics.router)
+app.include_router(options_bot.router)
 app.include_router(onboarding.router)
 app.include_router(support.router)
 app.include_router(webhooks.router)
