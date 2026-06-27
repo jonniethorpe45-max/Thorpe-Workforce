@@ -14,7 +14,9 @@ export function HealthScoreRing({ score, size = "md" }: HealthScoreRingProps) {
   const offset = circumference - (score / 100) * circumference;
 
   const color =
-    score >= 80 ? "#22c55e" : score >= 60 ? "#eab308" : score >= 40 ? "#f97316" : "#ef4444";
+    score >= 80 ? "#22C55E" : score >= 60 ? "#F59E0B" : score >= 40 ? "#F97316" : "#EF4444";
+
+  const trackColor = "#1E3A5F";
 
   const labelSize = size === "sm" ? "text-lg" : size === "md" ? "text-2xl" : "text-3xl";
 
@@ -26,7 +28,7 @@ export function HealthScoreRing({ score, size = "md" }: HealthScoreRingProps) {
           cy={dim / 2}
           r={radius}
           fill="none"
-          stroke="#2d3f56"
+          stroke={trackColor}
           strokeWidth={stroke}
         />
         <circle

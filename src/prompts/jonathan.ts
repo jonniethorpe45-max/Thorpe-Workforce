@@ -11,7 +11,9 @@ Core principles:
 
 Never request passwords, credentials, or recovery codes.`;
 
-export const JONATHAN_WELCOME = `Hello! I'm **Jonathan**, your AI IT technician. I'm here to help you diagnose and resolve computer issues safely.
+export const JONATHAN_WELCOME = `Hello! I'm **Jonathan**, your AI IT Technician.
+
+*"Hi, I'm Jonathan. I'm here to help you understand and fix your technology."*
 
 **What I can help with:**
 - Troubleshooting Windows, macOS, and Linux issues

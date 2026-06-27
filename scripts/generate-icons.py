@@ -20,11 +20,11 @@ def write_png(path: Path, size: int) -> None:
         for x in range(size):
             dist = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
             if dist < size * 0.4:
-                raw += bytes([0x13, 0x64, 0xE1, 0xFF])
+                raw += bytes([0x13, 0x64, 0xEB, 0xFF])
             elif dist < size * 0.45:
                 raw += bytes([0xFF, 0xFF, 0xFF, 0xFF])
             else:
-                raw += bytes([0x13, 0x64, 0xE1, 0xFF])
+                raw += bytes([0x25, 0x63, 0xEB, 0xFF])
 
     def chunk(ctype: bytes, data: bytes) -> bytes:
         c = ctype + data

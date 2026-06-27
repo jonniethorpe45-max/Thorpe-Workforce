@@ -1,10 +1,10 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
-  MessageSquare,
-  Scan,
-  FileText,
+  Activity,
+  FileSearch,
   Wrench,
+  MessageSquare,
   Briefcase,
   BookOpen,
   Settings,
@@ -13,20 +13,25 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Shield,
+  Laptop,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppStore } from "../../services/store";
 import { NotificationCenter } from "./NotificationCenter";
 import { useEffect } from "react";
 import { thorpeApi } from "../../services/tauri";
+import { ThorpeLogo } from "../brand/ThorpeLogo";
 
-const navItems = [
+const primaryNav = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/jonathan", icon: MessageSquare, label: "Jonathan AI" },
-  { to: "/scanner", icon: Scan, label: "System Scanner" },
-  { to: "/reports", icon: FileText, label: "Reports" },
+  { to: "/scanner", icon: Activity, label: "System Health" },
+  { to: "/reports", icon: FileSearch, label: "Diagnostics" },
   { to: "/repairs", icon: Wrench, label: "Repair Center" },
+  { to: "/workspace", icon: Laptop, label: "Devices" },
+];
+
+const secondaryNav = [
+  { to: "/jonathan", icon: MessageSquare, label: "Jonathan AI" },
   { to: "/workspace", icon: Briefcase, label: "Technician Workspace" },
   { to: "/knowledge", icon: BookOpen, label: "Knowledge Base" },
   { to: "/settings", icon: Settings, label: "Settings" },
@@ -50,42 +55,56 @@ export function AppLayout() {
     }
   };
 
+  const navLinkClass = (isActive: boolean) =>
+    clsx(
+      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+      isActive
+        ? "nav-active pl-[10px] text-thorpe-primary"
+        : "text-steel hover:bg-surface-overlay hover:text-slate-200"
+    );
+
   return (
-    <div className="flex h-screen overflow-hidden bg-surface">
+    <div className="flex h-screen overflow-hidden bg-brand-gradient">
       <aside
         className={clsx(
-          "flex flex-col border-r border-surface-border bg-surface-raised transition-all duration-300",
-          sidebarCollapsed ? "w-[68px]" : "w-64"
+          "flex flex-col border-r border-navy-border bg-navy transition-all duration-300",
+          sidebarCollapsed ? "w-[72px]" : "w-64"
         )}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-surface-border px-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-thorpe-600">
-            <Shield className="h-5 w-5 text-white" />
-          </div>
-          {!sidebarCollapsed && (
-            <div className="animate-fade-in">
-              <h1 className="text-lg font-bold text-white">Thorpe</h1>
-              <p className="text-xs text-gray-400">AI IT Support</p>
-            </div>
+        <div className="flex h-[4.5rem] items-center border-b border-navy-border px-4">
+          {sidebarCollapsed ? (
+            <img src="/brand/thorpe-shield.svg" alt="Thorpe" className="mx-auto h-9 w-9" />
+          ) : (
+            <ThorpeLogo />
           )}
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {!sidebarCollapsed && (
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-steel">
+              Main
+            </p>
+          )}
+          {primaryNav.map(({ to, icon: Icon, label }) => (
             <NavLink
-              key={to}
+              key={`${to}-${label}`}
               to={to}
               end={to === "/"}
-              className={({ isActive }) =>
-                clsx(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-                  isActive
-                    ? "bg-thorpe-600/20 text-thorpe-400"
-                    : "text-gray-400 hover:bg-surface-overlay hover:text-gray-200"
-                )
-              }
+              className={({ isActive }) => navLinkClass(isActive)}
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <Icon className="h-5 w-5 shrink-0" strokeWidth={1.75} />
+              {!sidebarCollapsed && <span>{label}</span>}
+            </NavLink>
+          ))}
+
+          {!sidebarCollapsed && (
+            <p className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-steel">
+              More
+            </p>
+          )}
+          {secondaryNav.map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => navLinkClass(isActive)}>
+              <Icon className="h-5 w-5 shrink-0" strokeWidth={1.75} />
               {!sidebarCollapsed && <span>{label}</span>}
             </NavLink>
           ))}
@@ -93,16 +112,19 @@ export function AppLayout() {
 
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="flex items-center justify-center border-t border-surface-border p-3 text-gray-400 hover:text-gray-200"
+          className="flex items-center justify-center border-t border-navy-border p-3 text-steel hover:text-slate-200"
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {sidebarCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </button>
       </aside>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center justify-between border-b border-surface-border bg-surface-raised/50 px-6 backdrop-blur-sm">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-hero-glow" />
+
+        <header className="relative z-10 flex h-16 items-center justify-between border-b border-navy-border/80 bg-navy/80 px-6 backdrop-blur-md">
           <form onSubmit={handleSearch} className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" />
             <input
               type="search"
               placeholder="Search knowledge base, reports..."
@@ -111,12 +133,10 @@ export function AppLayout() {
               className="input pl-10"
             />
           </form>
-          <div className="flex items-center gap-4">
-            <NotificationCenter />
-          </div>
+          <NotificationCenter />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="relative z-10 flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

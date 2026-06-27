@@ -8,7 +8,13 @@
   }
 
   body {
-    @apply bg-surface text-gray-100;
+    @apply bg-navy font-sans text-slate-100 antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
   }
 
   ::-webkit-scrollbar {
@@ -16,52 +22,60 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-surface;
+    @apply bg-navy;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-surface-overlay rounded-full;
+    @apply rounded-full bg-navy-border;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-thorpe-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-thorpe-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-thorpe-primary px-5 py-2.5 text-sm font-semibold text-white shadow-brand transition-all hover:bg-thorpe-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-surface-border bg-surface-raised px-4 py-2.5 text-sm font-medium text-gray-200 transition-all hover:bg-surface-overlay active:scale-[0.98] disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-raised px-5 py-2.5 text-sm font-medium text-slate-200 transition-all hover:border-thorpe-primary/30 hover:bg-surface-overlay active:scale-[0.98] disabled:opacity-50;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-red-600/20 border border-red-500/30 px-4 py-2.5 text-sm font-medium text-red-400 transition-all hover:bg-red-600/30 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-600/20 px-5 py-2.5 text-sm font-medium text-red-400 transition-all hover:bg-red-600/30 active:scale-[0.98];
   }
 
   .card {
-    @apply rounded-xl border border-surface-border bg-surface-raised p-5 shadow-lg shadow-black/20;
+    @apply rounded-2xl border border-surface-border bg-surface-raised p-5 shadow-card;
+  }
+
+  .card-brand {
+    @apply card border-thorpe-primary/20 bg-gradient-to-br from-surface-raised to-navy-light;
   }
 
   .input {
-    @apply w-full rounded-lg border border-surface-border bg-surface px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 outline-none transition-colors focus:border-thorpe-500 focus:ring-1 focus:ring-thorpe-500/50;
-  }
-
-  .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply w-full rounded-xl border border-surface-border bg-navy-light px-3 py-2.5 text-sm text-slate-100 placeholder-steel outline-none transition-colors focus:border-thorpe-primary focus:ring-1 focus:ring-thorpe-primary/40;
   }
 
   .badge-low {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-500/15 text-green-400;
+    @apply inline-flex items-center rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success;
   }
 
   .badge-medium {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-500/15 text-yellow-400;
+    @apply inline-flex items-center rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning;
   }
 
   .badge-high {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-orange-500/15 text-orange-400;
+    @apply inline-flex items-center rounded-full bg-orange-500/15 px-2.5 py-0.5 text-xs font-medium text-orange-400;
   }
 
   .badge-critical {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-500/15 text-red-400;
+    @apply inline-flex items-center rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-medium text-red-400;
+  }
+
+  .stat-card {
+    @apply card flex flex-col gap-1 transition-all hover:border-thorpe-primary/25;
+  }
+
+  .nav-active {
+    @apply border-l-2 border-thorpe-primary bg-thorpe-primary/10 text-thorpe-primary;
   }
 }
