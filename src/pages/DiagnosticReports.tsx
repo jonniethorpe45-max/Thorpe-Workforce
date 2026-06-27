@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { save } from "@tauri-apps/plugin-dialog";
 import { FileText, Download, Trash2, Search, Eye } from "lucide-react";
 import { RiskBadge } from "../components/ui/RiskBadge";
 import { HealthScoreRing } from "../components/ui/HealthScoreRing";
@@ -59,12 +60,27 @@ export function DiagnosticReports() {
         });
         return;
       }
-      const path = `/tmp/thorpe-report-${report.id}.pdf`;
-      await thorpeApi.exportReportPdf(report.id, path);
+
+      const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+      let outputPath: string | null;
+
+      if (isTauri) {
+        outputPath = await save({
+          defaultPath: `thorpe-report-${report.id.slice(0, 8)}.pdf`,
+          filters: [{ name: "PDF Document", extensions: ["pdf"] }],
+        });
+        if (!outputPath) {
+          return;
+        }
+      } else {
+        outputPath = `thorpe-report-${report.id.slice(0, 8)}.pdf`;
+      }
+
+      const savedPath = await thorpeApi.exportReportPdf(report.id, outputPath);
       addNotification({
         type: "success",
         title: "PDF Exported",
-        message: `Saved to ${path}`,
+        message: isTauri ? `Saved to ${savedPath}` : "PDF export is available in the desktop app.",
       });
     } catch (err) {
       addNotification({ type: "error", title: "Export Failed", message: String(err) });

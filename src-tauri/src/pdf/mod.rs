@@ -1,18 +1,63 @@
 use crate::db::DiagnosticReport;
+use crate::licensing;
 use crate::AppState;
 use printpdf::*;
 use std::fs::File;
 use std::io::BufWriter;
+use std::path::{Component, Path, PathBuf};
 use tauri::State;
 
 #[tauri::command]
 pub fn export_report_pdf(state: State<AppState>, report_id: String, output_path: String) -> Result<String, String> {
-    let report = state.db.lock().unwrap().get_report(&report_id).map_err(|e| e.to_string())?;
-    generate_pdf(&report, &output_path)?;
-    Ok(output_path)
+    let report = {
+        let db = state.db.lock().unwrap();
+        licensing::require_feature(&db, "pdf_export")?;
+        db.get_report(&report_id).map_err(|e| e.to_string())?
+    };
+    let validated_path = validate_pdf_output_path(&output_path)?;
+    generate_pdf(&report, &validated_path)?;
+    Ok(validated_path.to_string_lossy().to_string())
 }
 
-fn generate_pdf(report: &DiagnosticReport, path: &str) -> Result<(), String> {
+pub(crate) fn validate_pdf_output_path(path: &str) -> Result<PathBuf, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Output path is required.".to_string());
+    }
+
+    let path = Path::new(trimmed);
+    if !path.is_absolute() {
+        return Err("Output path must be an absolute path.".to_string());
+    }
+
+    if path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("pdf"))
+        != Some(true)
+    {
+        return Err("Output path must use a .pdf extension.".to_string());
+    }
+
+    for component in path.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err("Invalid output path: parent directory traversal is not allowed.".to_string());
+        }
+    }
+
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| "Output path must include a parent directory.".to_string())?;
+
+    if !parent.exists() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create output directory: {}", e))?;
+    }
+
+    Ok(path.to_path_buf())
+}
+
+fn generate_pdf(report: &DiagnosticReport, path: &Path) -> Result<(), String> {
     let (doc, page1, layer1) = PdfDocument::new(
         &report.title,
         Mm(210.0),
@@ -109,4 +154,30 @@ fn wrap_text(text: &str, max_chars: usize) -> Vec<String> {
         lines.push(current);
     }
     lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_relative_paths() {
+        assert!(validate_pdf_output_path("report.pdf").is_err());
+    }
+
+    #[test]
+    fn rejects_path_traversal() {
+        assert!(validate_pdf_output_path("/tmp/../etc/passwd.pdf").is_err());
+    }
+
+    #[test]
+    fn rejects_non_pdf_extension() {
+        assert!(validate_pdf_output_path("/tmp/report.txt").is_err());
+    }
+
+    #[test]
+    fn accepts_valid_pdf_path() {
+        let path = validate_pdf_output_path("/tmp/thorpe-report.pdf").unwrap();
+        assert_eq!(path, PathBuf::from("/tmp/thorpe-report.pdf"));
+    }
 }

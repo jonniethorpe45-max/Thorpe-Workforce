@@ -1,4 +1,5 @@
 use crate::db::RepairRecord;
+use crate::licensing;
 use crate::AppState;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -149,16 +150,36 @@ fn cleanup_temp_files() -> (bool, String, Option<String>) {
         let path = std::path::Path::new(&temp_dir);
         if path.exists() {
             let mut count = 0u32;
+            let cutoff = std::time::SystemTime::now()
+                .checked_sub(std::time::Duration::from_secs(3600))
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
             if let Ok(entries) = std::fs::read_dir(path) {
-                for entry in entries.flatten().take(100) {
-                    if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
-                        if std::fs::remove_file(entry.path()).is_ok() {
-                            count += 1;
-                        }
+                for entry in entries.flatten().take(200) {
+                    let entry_path = entry.path();
+                    if !entry_path.is_file() {
+                        continue;
+                    }
+                    let ext = entry_path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("")
+                        .to_ascii_lowercase();
+                    if ext != "tmp" && ext != "temp" && ext != "log" {
+                        continue;
+                    }
+                    let modified = entry
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                    if modified > cutoff {
+                        continue;
+                    }
+                    if std::fs::remove_file(&entry_path).is_ok() {
+                        count += 1;
                     }
                 }
             }
-            cleaned.push(format!("Removed {} temporary files from {:?}", count, path));
+            cleaned.push(format!("Removed {} old temporary files from {:?}", count, path));
         }
     }
     #[cfg(target_os = "linux")]
@@ -344,6 +365,11 @@ pub fn list_repair_actions() -> Result<Vec<RepairAction>, String> {
 
 #[tauri::command]
 pub fn execute_repair(state: State<AppState>, action_id: String, confirmed: bool) -> Result<RepairResult, String> {
+    {
+        let db = state.db.lock().unwrap();
+        licensing::require_feature(&db, "repair_center")?;
+    }
+
     let actions = get_available_actions();
     let action = actions
         .iter()

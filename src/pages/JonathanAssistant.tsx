@@ -5,6 +5,7 @@ import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import { JONATHAN_WELCOME } from "../prompts/jonathan";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
+import { SafeMarkdown } from "../components/ui/SafeMarkdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -62,20 +63,6 @@ export function JonathanAssistant() {
     }
   };
 
-  const formatContent = (content: string) => {
-    return content.split("\n").map((line, i) => {
-      const formatted = line
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.*?)\*/g, "<em>$1</em>");
-      return (
-        <span key={i}>
-          <span dangerouslySetInnerHTML={{ __html: formatted }} />
-          {i < content.split("\n").length - 1 && <br />}
-        </span>
-      );
-    });
-  };
-
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col animate-fade-in">
       <div className="card-brand mb-4 flex items-center justify-between gap-4 p-4">
@@ -125,7 +112,11 @@ export function JonathanAssistant() {
                     : "border border-navy-border bg-navy-light text-slate-200"
                 }`}
               >
-                {formatContent(msg.content)}
+                {msg.role === "user" ? (
+                  msg.content
+                ) : (
+                  <SafeMarkdown content={msg.content} />
+                )}
                 {msg.source && msg.role === "assistant" && (
                   <p className="mt-2 flex items-center gap-1 text-xs text-steel">
                     <Sparkles className="h-3 w-3 text-cyber-teal" />

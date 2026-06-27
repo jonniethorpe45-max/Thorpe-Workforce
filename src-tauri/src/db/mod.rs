@@ -317,6 +317,12 @@ impl Database {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
+    pub fn count_reports(&self) -> DbResult<i64> {
+        self.conn
+            .query_row("SELECT COUNT(*) FROM diagnostic_reports", [], |row| row.get(0))
+            .map_err(Into::into)
+    }
+
     pub fn get_report(&self, id: &str) -> DbResult<DiagnosticReport> {
         self.conn
             .query_row(

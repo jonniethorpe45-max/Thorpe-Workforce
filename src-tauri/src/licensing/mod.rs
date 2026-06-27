@@ -1,6 +1,9 @@
+use crate::db::Database;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+
+pub const FREE_REPORT_LIMIT: i64 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LicenseInfo {
@@ -76,6 +79,39 @@ fn tier_level(tier: &str) -> u8 {
     }
 }
 
+pub fn has_feature(db: &Database, feature: &str) -> Result<bool, String> {
+    let record = db.get_license().map_err(|e| e.to_string())?;
+    let user_features = tier_features(&record.tier);
+    let required = feature_required_tier(feature);
+    Ok(user_features.contains(&feature.to_string()) || tier_level(&record.tier) >= tier_level(required))
+}
+
+pub fn require_feature(db: &Database, feature: &str) -> Result<(), String> {
+    if has_feature(db, feature)? {
+        Ok(())
+    } else {
+        let required = feature_required_tier(feature);
+        Err(format!(
+            "This feature requires a {} license. Upgrade in Licensing settings.",
+            tier_display(required)
+        ))
+    }
+}
+
+pub fn require_report_generation(db: &Database) -> Result<(), String> {
+    if has_feature(db, "unlimited_reports")? {
+        return Ok(());
+    }
+    let count = db.count_reports().map_err(|e| e.to_string())?;
+    if count >= FREE_REPORT_LIMIT {
+        return Err(format!(
+            "Free tier is limited to {} diagnostic reports. Upgrade to Professional for unlimited reports.",
+            FREE_REPORT_LIMIT
+        ));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn get_license_info(state: State<AppState>) -> Result<LicenseInfo, String> {
     let record = state.db.lock().unwrap().get_license().map_err(|e| e.to_string())?;
@@ -144,6 +180,12 @@ pub fn check_feature(state: State<AppState>, feature: String) -> Result<FeatureC
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::Database;
+    use std::path::Path;
+
+    fn test_db() -> Database {
+        Database::new(Path::new(":memory:")).expect("in-memory db")
+    }
 
     #[test]
     fn free_tier_has_basic_features() {
@@ -168,5 +210,43 @@ mod tests {
     fn tier_levels_order_correctly() {
         assert!(tier_level("enterprise") > tier_level("professional"));
         assert!(tier_level("professional") > tier_level("free"));
+    }
+
+    #[test]
+    fn free_tier_blocks_repair_center() {
+        let db = test_db();
+        assert!(!has_feature(&db, "repair_center").unwrap());
+        assert!(require_feature(&db, "repair_center").is_err());
+    }
+
+    #[test]
+    fn professional_license_unlocks_repairs() {
+        let db = test_db();
+        db.activate_license("PRO-TEST-KEY", "professional", None)
+            .expect("activate");
+        assert!(has_feature(&db, "repair_center").unwrap());
+        assert!(require_feature(&db, "repair_center").is_ok());
+    }
+
+    #[test]
+    fn free_tier_enforces_report_limit() {
+        let db = test_db();
+        for i in 0..FREE_REPORT_LIMIT {
+            db.save_report(&crate::db::DiagnosticReport {
+                id: format!("report-{i}"),
+                scan_id: None,
+                title: format!("Report {i}"),
+                summary: "summary".into(),
+                findings: "[]".into(),
+                recommendations: "[]".into(),
+                health_score: 80,
+                risk_level: "low".into(),
+                technician_notes: None,
+                plain_language: "plain".into(),
+                created_at: chrono::Utc::now().to_rfc3339(),
+            })
+            .expect("save report");
+        }
+        assert!(require_report_generation(&db).is_err());
     }
 }

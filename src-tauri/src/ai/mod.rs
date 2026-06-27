@@ -1,4 +1,5 @@
 use crate::db::DiagnosticReport;
+use crate::licensing;
 use crate::scanner::SystemScanResult;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
@@ -239,6 +240,11 @@ fn summarize_scan_context(ctx: &str) -> String {
 
 #[tauri::command]
 pub fn generate_diagnostic_report(state: State<AppState>, scan_id: Option<String>) -> Result<DiagnosticReport, String> {
+    {
+        let db = state.db.lock().unwrap();
+        licensing::require_report_generation(&db)?;
+    }
+
     let db = state.db.lock().unwrap();
 
     let scan: SystemScanResult = if let Some(id) = scan_id {

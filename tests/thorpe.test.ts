@@ -84,6 +84,24 @@ describe("Knowledge base structure", () => {
   });
 });
 
+describe("Safe markdown rendering", () => {
+  it("renders bold and italic without HTML injection", async () => {
+    const React = await import("react");
+    const { render, screen } = await import("@testing-library/react");
+    const { SafeMarkdown } = await import("../src/components/ui/SafeMarkdown");
+
+    render(
+      React.createElement(SafeMarkdown, {
+        content: "**bold** and *italic*\n<script>alert(1)</script>",
+      })
+    );
+
+    expect(screen.getByText("bold").tagName).toBe("STRONG");
+    expect(screen.getByText("italic").tagName).toBe("EM");
+    expect(screen.getByText("<script>alert(1)</script>")).toBeTruthy();
+  });
+});
+
 describe("Mock API", () => {
   it("returns mock scan data", async () => {
     const { mockInvoke } = await import("../src/services/mock");
