@@ -131,6 +131,6 @@ async fn check_for_updates() -> Result<UpdateInfo, String> {
         latest_version: current,
         update_available: false,
         release_notes: "You are running the latest version of Thorpe.".to_string(),
-        download_url: "https://thorpe.app/downloads".to_string(),
+        download_url: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest".to_string(),
     })
 }

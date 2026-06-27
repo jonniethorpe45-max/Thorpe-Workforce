@@ -229,7 +229,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         latest_version: "1.0.0",
         update_available: false,
         release_notes: "You are running the latest version.",
-        download_url: "https://thorpe.app/downloads",
+        download_url: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
       } as T;
 
     case "list_clients":
