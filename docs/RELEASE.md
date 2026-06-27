@@ -37,6 +37,8 @@ git push origin v1.0.0
 
 Artifacts are kept for 30 days.
 
+> **Note:** Cross-compiled bundles are written under `src-tauri/target/<triple>/release/bundle/`. The release workflow paths must match the Rust target triple for each platform.
+
 ## Option 3: Manual workflow + draft release
 
 1. **Actions → Thorpe Release → Run workflow**
