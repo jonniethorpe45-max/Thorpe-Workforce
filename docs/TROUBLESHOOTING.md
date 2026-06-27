@@ -1,5 +1,19 @@
 # Troubleshooting Guide
 
+## Download Says "No Permissions"
+
+**On GitHub**
+- Download only from the **[Latest release](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest)** page
+- Draft releases (e.g. older v1.0.1) are **not public** — GitHub shows a permissions error for anonymous users
+- Use the direct links in [INSTALLATION.md](INSTALLATION.md) or Thorpe → **Updates**
+
+**After download (Windows)**
+- Unsigned builds may show SmartScreen: click **More info → Run anyway**
+- If the browser blocked the file, check Downloads → **Keep** or **Allow**
+
+**After download (macOS)**
+- Right-click the app → **Open** the first time to bypass Gatekeeper
+
 ## Application Won't Start
 
 ### Windows

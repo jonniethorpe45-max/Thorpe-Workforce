@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
-import { Download, CheckCircle, RefreshCw } from "lucide-react";
+import { Download, CheckCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { THORPE_DOWNLOADS } from "../config/downloads";
 import { thorpeApi } from "../services/tauri";
 import type { UpdateInfo } from "../services/types";
+
+const PLATFORM_DOWNLOADS = [
+  { label: "Windows (.exe)", href: THORPE_DOWNLOADS.windowsExe },
+  { label: "Windows (.msi)", href: THORPE_DOWNLOADS.windowsMsi },
+  { label: "macOS Apple Silicon (.dmg)", href: THORPE_DOWNLOADS.macosDmg },
+  { label: "Linux (.AppImage)", href: THORPE_DOWNLOADS.linuxAppImage },
+  { label: "Linux (.deb)", href: THORPE_DOWNLOADS.linuxDeb },
+];
 
 export function UpdateManager() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -74,11 +83,43 @@ export function UpdateManager() {
         )}
       </div>
 
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-medium text-white">Download Installers</h3>
+          <a
+            href={THORPE_DOWNLOADS.releasesPage}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-thorpe-400 hover:text-thorpe-300"
+          >
+            All releases <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+        <p className="text-sm text-gray-400">
+          Use the latest public release. If a download says &ldquo;No permissions&rdquo;, make sure you
+          are on the published release (not a draft) or use the direct links below.
+        </p>
+        <div className="grid gap-2">
+          {PLATFORM_DOWNLOADS.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-4 py-3 text-sm text-gray-200 transition-colors hover:border-thorpe-500/40 hover:bg-thorpe-600/5"
+            >
+              <span>{item.label}</span>
+              <Download className="h-4 w-4 text-thorpe-400" />
+            </a>
+          ))}
+        </div>
+      </div>
+
       <div className="card">
         <h3 className="mb-3 font-medium text-white">Supported Platforms</h3>
         <div className="grid gap-2 text-sm text-gray-400">
           <p>Windows 10/11 — .exe installer, .msi</p>
-          <p>macOS (Intel & Apple Silicon) — .dmg</p>
+          <p>macOS (Apple Silicon) — .dmg</p>
           <p>Linux — .AppImage, .deb</p>
         </div>
       </div>

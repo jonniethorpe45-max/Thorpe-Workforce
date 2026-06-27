@@ -107,6 +107,11 @@ See [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md).
 
 Demo license keys: `PRO-DEMO-1234-KEYS-B65C`, `ENT-DEMO-5678-KEYS-F20C`
 
+## Downloads
+
+Installers: **[Latest release](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest)**  
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) for direct download links per platform.
+
 ## Documentation
 
 - [BUILD.md](BUILD.md) — Build instructions

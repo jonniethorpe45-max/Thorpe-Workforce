@@ -1,25 +1,42 @@
 # Installation Guide
 
+## Download
+
+**Use the latest published release only:**  
+https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest
+
+Direct download links (v1.0.2+):
+
+| Platform | File | Link |
+|----------|------|------|
+| Windows | `.exe` installer | [Thorpe_1.0.0_x64-setup.exe](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_x64-setup.exe) |
+| Windows | `.msi` installer | [Thorpe_1.0.0_x64_en-US.msi](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_x64_en-US.msi) |
+| macOS (Apple Silicon) | `.dmg` | [Thorpe_1.0.0_aarch64.dmg](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_aarch64.dmg) |
+| Linux | `.AppImage` | [Thorpe_1.0.0_amd64.AppImage](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_amd64.AppImage) |
+| Linux | `.deb` | [Thorpe_1.0.0_amd64.deb](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_amd64.deb) |
+
+> **“No permissions” when downloading?** Older draft releases (e.g. v1.0.1) are not publicly downloadable. Use the links above or the **Latest** release page. Inside Thorpe, open **Updates** for the same direct links.
+
 ## System Requirements
 
 | Platform | Minimum Version | RAM | Disk |
 |----------|----------------|-----|------|
 | Windows | 10 (1809+) | 4 GB | 200 MB |
-| macOS | 10.15 Catalina | 4 GB | 200 MB |
+| macOS | 11+ (Apple Silicon build) | 4 GB | 200 MB |
 | Linux | Ubuntu 20.04+ / equivalent | 4 GB | 200 MB |
 
 ## Windows
 
-1. Download `Thorpe_1.0.0_x64-setup.exe` from the releases page
+1. Download `Thorpe_1.0.0_x64-setup.exe` using the link above
 2. Run the installer
-3. Follow the setup wizard
+3. If Windows SmartScreen appears, choose **More info → Run anyway** (the build is unsigned)
 4. Launch Thorpe from the Start Menu
 
 **Alternative:** Use the MSI installer for enterprise deployment via Group Policy.
 
 ## macOS
 
-1. Download `Thorpe_1.0.0_universal.dmg`
+1. Download `Thorpe_1.0.0_aarch64.dmg`
 2. Open the DMG file
 3. Drag Thorpe to Applications
 4. Right-click → Open on first launch (if Gatekeeper prompts)
@@ -36,7 +53,7 @@ chmod +x Thorpe_1.0.0_amd64.AppImage
 ### Debian/Ubuntu (.deb)
 
 ```bash
-sudo dpkg -i thorpe_1.0.0_amd64.deb
+sudo dpkg -i Thorpe_1.0.0_amd64.deb
 sudo apt-get install -f  # resolve dependencies if needed
 ```
 
