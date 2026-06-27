@@ -31,3 +31,8 @@ All notable changes to Thorpe are documented in this file.
 - AI security boundaries (no credential requests)
 - User-controlled data deletion
 - CSP configuration
+- Backend license enforcement for repairs, reports, and PDF export
+- HMAC-signed license key validation
+- API keys stored in OS keyring with encrypted fallback
+- Safe chat rendering (no HTML injection)
+- PDF export path validation and save dialog
