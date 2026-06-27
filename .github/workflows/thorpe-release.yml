@@ -1,0 +1,189 @@
+name: Thorpe Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a GitHub Release and attach installers"
+        type: boolean
+        default: false
+      tag_name:
+        description: "Tag for the release (e.g. v1.0.0). Required when create_release is true."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: thorpe-release-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: windows-x64
+            platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle_paths: |
+              src-tauri/target/release/bundle/nsis/**
+              src-tauri/target/release/bundle/msi/**
+          - label: macos-arm64
+            platform: macos-latest
+            target: aarch64-apple-darwin
+            bundle_paths: src-tauri/target/release/bundle/dmg/**
+          - label: linux-x64
+            platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundle_paths: |
+              src-tauri/target/release/bundle/appimage/**
+              src-tauri/target/release/bundle/deb/**
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf
+
+      - name: Generate icons
+        shell: bash
+        run: |
+          if command -v python3 >/dev/null 2>&1; then
+            python3 scripts/generate-icons.py
+          else
+            python scripts/generate-icons.py
+          fi
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Refine icons from SVG
+        run: npx tauri icon public/thorpe-icon.svg
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri installers
+        run: npm run tauri:build -- --target ${{ matrix.target }}
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: thorpe-${{ matrix.label }}
+          path: ${{ matrix.bundle_paths }}
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish Release
+    needs: build
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (startsWith(github.ref, 'refs/tags/v') ||
+        (github.event_name == 'workflow_dispatch' && inputs.create_release == true))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Attach installers to GitHub Release (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Thorpe ${{ github.ref_name }}
+          body: |
+            ## Thorpe ${{ github.ref_name }}
+
+            AI-powered IT support desktop application.
+
+            ### Downloads
+            | Platform | Files |
+            |----------|-------|
+            | Windows | `.exe` (NSIS) and `.msi` |
+            | macOS (Apple Silicon) | `.dmg` |
+            | Linux | `.AppImage` and `.deb` |
+
+            Documentation: [INSTALLATION.md](https://github.com/${{ github.repository }}/blob/main/docs/INSTALLATION.md)
+          files: release-artifacts/**
+          draft: false
+          prerelease: false
+
+      - name: Attach installers to GitHub Release (manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.create_release == true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          name: Thorpe ${{ inputs.tag_name }}
+          body: |
+            ## Thorpe ${{ inputs.tag_name }}
+
+            Manual release build from GitHub Actions.
+          files: release-artifacts/**
+          draft: true
+          prerelease: false
+
+  summary:
+    name: Release summary
+    needs: [build, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Thorpe release workflow"
+            echo ""
+            if [ "${{ github.event_name }}" = "push" ]; then
+              echo "**Tag:** \`${{ github.ref_name }}\`"
+              echo ""
+              echo "Installers are published to [Releases](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})."
+            elif [ "${{ inputs.create_release }}" = "true" ]; then
+              echo "**Draft release:** \`${{ inputs.tag_name }}\`"
+              echo ""
+              echo "Review and publish on the [Releases](https://github.com/${{ github.repository }}/releases) page."
+            else
+              echo "Installers uploaded as workflow artifacts (30-day retention):"
+              echo "- \`thorpe-windows-x64\`"
+              echo "- \`thorpe-macos-arm64\`"
+              echo "- \`thorpe-linux-x64\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
