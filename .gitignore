@@ -11,3 +11,10 @@ frontend/node_modules/
 dist/
 coverage/
 test.db
+
+# Thorpe Desktop
+.env
+src-tauri/target/
+src-tauri/gen/
+*.db
+*.tsbuildinfo
