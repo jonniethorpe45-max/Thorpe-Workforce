@@ -42,6 +42,18 @@ npm run tauri:dev
 
 ## Production Build
 
+### Windows (one-click)
+
+Double-click or run from Command Prompt:
+
+```bat
+scripts\build-windows.bat
+```
+
+This checks prerequisites, installs dependencies, generates icons, builds the frontend, and runs `tauri build`. Installers open in `src-tauri\target\release\bundle\` when finished.
+
+### All platforms
+
 ```bash
 bash scripts/build.sh
 ```

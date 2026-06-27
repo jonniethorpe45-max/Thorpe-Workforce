@@ -45,6 +45,10 @@ The web preview uses mock data for UI development.
 
 ### Build Installers
 
+**Windows:** double-click `scripts\build-windows.bat` (or run it from Command Prompt).
+
+**macOS / Linux:**
+
 ```bash
 bash scripts/build.sh
 ```
