@@ -33,18 +33,18 @@ jobs:
             platform: windows-latest
             target: x86_64-pc-windows-msvc
             bundle_paths: |
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/**
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/**
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
           - label: macos-arm64
             platform: macos-latest
             target: aarch64-apple-darwin
-            bundle_paths: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/**
+            bundle_paths: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           - label: linux-x64
             platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             bundle_paths: |
-              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/**
-              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/**
+              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -124,6 +124,24 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Prepare installer files
+        shell: bash
+        run: |
+          mkdir -p installers
+          find release-artifacts -type f \( \
+            -name '*.AppImage' -o \
+            -name '*.deb' -o \
+            -name '*.dmg' -o \
+            -name '*.exe' -o \
+            -name '*.msi' \
+          \) -exec cp -v {} installers/ \;
+          if [ -z "$(ls -A installers)" ]; then
+            echo "No installer files found in artifacts"
+            find release-artifacts -type f | head -50
+            exit 1
+          fi
+          ls -lah installers/
+
       - name: Attach installers to GitHub Release (tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -143,7 +161,7 @@ jobs:
             | Linux | `.AppImage` and `.deb` |
 
             Documentation: [INSTALLATION.md](https://github.com/${{ github.repository }}/blob/main/docs/INSTALLATION.md)
-          files: release-artifacts/**
+          files: installers/*
           draft: false
           prerelease: false
 
@@ -157,7 +175,7 @@ jobs:
             ## Thorpe ${{ inputs.tag_name }}
 
             Manual release build from GitHub Actions.
-          files: release-artifacts/**
+          files: installers/*
           draft: true
           prerelease: false
 
