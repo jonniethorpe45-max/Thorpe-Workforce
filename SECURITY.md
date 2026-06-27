@@ -10,7 +10,7 @@ Thorpe is designed with security and user trust as foundational principles. This
 
 - All user data stored locally in SQLite (`thorpe.db` in app data directory)
 - No telemetry or data collection by default
-- Cloud AI is opt-in only; API keys stored locally
+- Cloud AI is opt-in only; API keys stored in the OS credential store (with encrypted local fallback)
 
 ### Consent Model
 

@@ -173,10 +173,14 @@ export interface FeatureCheck {
 
 export interface AiConfig {
   provider: string;
-  api_key: string | null;
+  api_key_configured: boolean;
   model: string;
   base_url: string;
   enabled: boolean;
+}
+
+export interface AiConfigUpdate extends AiConfig {
+  api_key?: string | null;
 }
 
 export interface ChatRequest {

@@ -10,7 +10,7 @@ use tauri::State;
 #[tauri::command]
 pub fn export_report_pdf(state: State<AppState>, report_id: String, output_path: String) -> Result<String, String> {
     let report = {
-        let db = state.db.lock().unwrap();
+        let db = state.lock_db()?;
         licensing::require_feature(&db, "pdf_export")?;
         db.get_report(&report_id).map_err(|e| e.to_string())?
     };

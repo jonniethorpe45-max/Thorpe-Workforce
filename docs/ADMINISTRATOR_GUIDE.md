@@ -26,8 +26,8 @@ Deploy `.dmg` via MDM (Jamf, Kandji) or manual installation. Code signing requir
 
 Distribute license keys to users. Keys follow the format:
 
-- Professional: `PRO-XXXX-XXXX`
-- Enterprise: `ENT-XXXX-XXXX`
+- Professional: `PRO-XXXX-XXXX-XXXX-CCCC`
+- Enterprise: `ENT-XXXX-XXXX-XXXX-CCCC`
 
 Users activate in **Licensing & Subscription**.
 

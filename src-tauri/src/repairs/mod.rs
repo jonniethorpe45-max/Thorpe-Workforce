@@ -366,7 +366,7 @@ pub fn list_repair_actions() -> Result<Vec<RepairAction>, String> {
 #[tauri::command]
 pub fn execute_repair(state: State<AppState>, action_id: String, confirmed: bool) -> Result<RepairResult, String> {
     {
-        let db = state.db.lock().unwrap();
+        let db = state.lock_db()?;
         licensing::require_feature(&db, "repair_center")?;
     }
 
@@ -391,7 +391,7 @@ pub fn execute_repair(state: State<AppState>, action_id: String, confirmed: bool
         created_at: Utc::now().to_rfc3339(),
     };
     let record_id = record.id.clone();
-    state.db.lock().unwrap().save_repair(&record).map_err(|e| e.to_string())?;
+    state.lock_db()?.save_repair(&record).map_err(|e| e.to_string())?;
 
     Ok(RepairResult {
         success,

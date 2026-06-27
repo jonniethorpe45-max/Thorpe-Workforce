@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AiConfig,
+  AiConfigUpdate,
   AppInfo,
   ChatRequest,
   ChatResponse,
@@ -60,7 +61,7 @@ export const thorpeApi = {
   chatWithJonathan: (request: ChatRequest) =>
     invokeOrMock<ChatResponse>("chat_with_jonathan", { request }),
   getAiConfig: () => invokeOrMock<AiConfig>("get_ai_config"),
-  setAiConfig: (config: AiConfig) => invokeOrMock<void>("set_ai_config", { config }),
+  setAiConfig: (config: AiConfigUpdate) => invokeOrMock<void>("set_ai_config", { config }),
 
   listKnowledgeArticles: (category?: string) =>
     invokeOrMock<KnowledgeArticle[]>("list_knowledge_articles", { category }),

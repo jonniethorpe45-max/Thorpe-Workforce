@@ -4,13 +4,24 @@ pub mod licensing;
 pub mod pdf;
 pub mod repairs;
 pub mod scanner;
+pub mod secrets;
 
 use db::Database;
-use std::sync::Mutex;
+use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
 use tauri::Manager;
 
 pub struct AppState {
     pub db: Mutex<Database>,
+    pub data_dir: PathBuf,
+}
+
+impl AppState {
+    pub fn lock_db(&self) -> Result<MutexGuard<'_, Database>, String> {
+        self.db
+            .lock()
+            .map_err(|_| "Database is temporarily unavailable. Please try again.".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,8 +38,13 @@ pub fn run() {
             std::fs::create_dir_all(&data_dir).ok();
             let db_path = data_dir.join("thorpe.db");
             let database = Database::new(&db_path).expect("Failed to initialize database");
+            if let Ok(Some(legacy_key)) = database.get_setting("ai_api_key") {
+                secrets::migrate_api_key_from_db(&data_dir, Some(legacy_key)).ok();
+                let _ = database.delete_setting("ai_api_key");
+            }
             app.manage(AppState {
                 db: Mutex::new(database),
+                data_dir,
             });
             Ok(())
         })

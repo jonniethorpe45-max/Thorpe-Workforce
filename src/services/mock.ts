@@ -185,7 +185,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "get_ai_config":
       return {
         provider: "openai",
-        api_key: null,
+        api_key_configured: false,
         model: "gpt-4o-mini",
         base_url: "https://api.openai.com/v1",
         enabled: false,

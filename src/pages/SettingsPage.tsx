@@ -7,6 +7,7 @@ import type { AiConfig, Profile } from "../services/types";
 export function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState("");
   const [appInfo, setAppInfo] = useState<{ name: string; version: string; platform: string; data_dir: string } | null>(null);
   const { addNotification } = useAppStore();
 
@@ -38,7 +39,13 @@ export function SettingsPage() {
   const saveAiConfig = async () => {
     if (!aiConfig) return;
     try {
-      await thorpeApi.setAiConfig(aiConfig);
+      await thorpeApi.setAiConfig({
+        ...aiConfig,
+        api_key: apiKeyInput.trim() || undefined,
+      });
+      setApiKeyInput("");
+      const refreshed = await thorpeApi.getAiConfig();
+      setAiConfig(refreshed);
       addNotification({ type: "success", title: "AI Settings Saved", message: "AI configuration updated." });
     } catch (err) {
       addNotification({ type: "error", title: "Save Failed", message: String(err) });
@@ -128,10 +135,13 @@ export function SettingsPage() {
               <input
                 className="input font-mono"
                 type="password"
-                placeholder="sk-..."
-                value={aiConfig.api_key || ""}
-                onChange={(e) => setAiConfig({ ...aiConfig, api_key: e.target.value || null })}
+                placeholder={aiConfig.api_key_configured ? "Key configured — enter a new key to replace" : "sk-..."}
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
               />
+              {aiConfig.api_key_configured && !apiKeyInput && (
+                <p className="mt-1 text-xs text-gray-500">An API key is stored securely on this device.</p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs text-gray-400">Model</label>

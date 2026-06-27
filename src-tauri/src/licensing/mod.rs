@@ -1,3 +1,7 @@
+mod keys;
+
+pub use keys::{DEMO_ENT_LICENSE, DEMO_PRO_LICENSE};
+
 use crate::db::Database;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
@@ -114,7 +118,7 @@ pub fn require_report_generation(db: &Database) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_license_info(state: State<AppState>) -> Result<LicenseInfo, String> {
-    let record = state.db.lock().unwrap().get_license().map_err(|e| e.to_string())?;
+    let record = state.lock_db()?.get_license().map_err(|e| e.to_string())?;
     Ok(LicenseInfo {
         tier: record.tier.clone(),
         tier_display: tier_display(&record.tier).to_string(),
@@ -134,21 +138,11 @@ pub struct ActivateLicenseRequest {
 
 #[tauri::command]
 pub fn activate_license(state: State<AppState>, request: ActivateLicenseRequest) -> Result<LicenseInfo, String> {
-    let tier = if request.license_key.starts_with("ENT-") {
-        "enterprise"
-    } else if request.license_key.starts_with("PRO-") {
-        "professional"
-    } else if request.license_key.starts_with("THORPE-") {
-        "professional"
-    } else {
-        return Err("Invalid license key format. Keys should start with PRO-, ENT-, or THORPE-.".to_string());
-    };
+    let (tier, normalized_key) = keys::validate_license_key(&request.license_key)?;
 
     let record = state
-        .db
-        .lock()
-        .unwrap()
-        .activate_license(&request.license_key, tier, request.organization.as_deref())
+        .lock_db()?
+        .activate_license(&normalized_key, tier, request.organization.as_deref())
         .map_err(|e| e.to_string())?;
 
     Ok(LicenseInfo {
@@ -164,7 +158,7 @@ pub fn activate_license(state: State<AppState>, request: ActivateLicenseRequest)
 
 #[tauri::command]
 pub fn check_feature(state: State<AppState>, feature: String) -> Result<FeatureCheck, String> {
-    let record = state.db.lock().unwrap().get_license().map_err(|e| e.to_string())?;
+    let record = state.lock_db()?.get_license().map_err(|e| e.to_string())?;
     let user_features = tier_features(&record.tier);
     let required = feature_required_tier(&feature);
     let allowed = user_features.contains(&feature)
@@ -222,7 +216,8 @@ mod tests {
     #[test]
     fn professional_license_unlocks_repairs() {
         let db = test_db();
-        db.activate_license("PRO-TEST-KEY", "professional", None)
+        let key = keys::signed_key("PRO", "TEST", "0001", "DEMO");
+        db.activate_license(&key, "professional", None)
             .expect("activate");
         assert!(has_feature(&db, "repair_center").unwrap());
         assert!(require_feature(&db, "repair_center").is_ok());

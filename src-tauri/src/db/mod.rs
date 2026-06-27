@@ -228,6 +228,12 @@ impl Database {
         Ok(())
     }
 
+    pub fn delete_setting(&self, key: &str) -> DbResult<()> {
+        self.conn
+            .execute("DELETE FROM settings WHERE key = ?1", params![key])?;
+        Ok(())
+    }
+
     pub fn get_all_settings(&self) -> DbResult<Vec<(String, String)>> {
         let mut stmt = self.conn.prepare("SELECT key, value FROM settings")?;
         let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
@@ -885,102 +891,118 @@ pub struct ChatMessage {
 
 pub mod commands {
     use super::*;
+    use crate::secrets;
     use crate::AppState;
     use tauri::State;
 
+    const SENSITIVE_SETTINGS: &[&str] = &["ai_api_key"];
+
+    fn redact_settings(settings: Vec<(String, String)>) -> Vec<(String, String)> {
+        settings
+            .into_iter()
+            .filter(|(key, _)| !SENSITIVE_SETTINGS.contains(&key.as_str()))
+            .collect()
+    }
+
     #[tauri::command]
     pub fn get_settings(state: State<AppState>) -> Result<Vec<(String, String)>, String> {
-        state.db.lock().unwrap().get_all_settings().map_err(|e| e.to_string())
+        let settings = state.lock_db()?.get_all_settings().map_err(|e| e.to_string())?;
+        Ok(redact_settings(settings))
     }
 
     #[tauri::command]
     pub fn update_settings(state: State<AppState>, key: String, value: String) -> Result<(), String> {
-        state.db.lock().unwrap().set_setting(&key, &value).map_err(|e| e.to_string())
+        if SENSITIVE_SETTINGS.contains(&key.as_str()) {
+            return Err("This setting must be updated through AI Settings.".to_string());
+        }
+        state.lock_db()?.set_setting(&key, &value).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn list_reports(state: State<AppState>, limit: Option<i64>) -> Result<Vec<DiagnosticReport>, String> {
-        state.db.lock().unwrap().list_reports(limit.unwrap_or(50)).map_err(|e| e.to_string())
+        state.lock_db()?.list_reports(limit.unwrap_or(50)).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn get_report(state: State<AppState>, id: String) -> Result<DiagnosticReport, String> {
-        state.db.lock().unwrap().get_report(&id).map_err(|e| e.to_string())
+        state.lock_db()?.get_report(&id).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn delete_report(state: State<AppState>, id: String) -> Result<(), String> {
-        state.db.lock().unwrap().delete_report(&id).map_err(|e| e.to_string())
+        state.lock_db()?.delete_report(&id).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn search_reports(state: State<AppState>, query: String) -> Result<Vec<DiagnosticReport>, String> {
-        state.db.lock().unwrap().search_reports(&query).map_err(|e| e.to_string())
+        state.lock_db()?.search_reports(&query).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn list_knowledge_articles(state: State<AppState>, category: Option<String>) -> Result<Vec<KnowledgeArticle>, String> {
-        state.db.lock().unwrap().list_knowledge(category.as_deref()).map_err(|e| e.to_string())
+        state.lock_db()?.list_knowledge(category.as_deref()).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn get_knowledge_article(state: State<AppState>, id: String) -> Result<KnowledgeArticle, String> {
-        state.db.lock().unwrap().get_knowledge(&id).map_err(|e| e.to_string())
+        state.lock_db()?.get_knowledge(&id).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn get_profile(state: State<AppState>) -> Result<Profile, String> {
-        state.db.lock().unwrap().get_profile().map_err(|e| e.to_string())
+        state.lock_db()?.get_profile().map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn update_profile(state: State<AppState>, display_name: String, email: Option<String>, skill_level: String) -> Result<Profile, String> {
-        state.db.lock().unwrap().update_profile(&display_name, email.as_deref(), &skill_level).map_err(|e| e.to_string())
+        state.lock_db()?.update_profile(&display_name, email.as_deref(), &skill_level).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn delete_all_user_data(state: State<AppState>) -> Result<(), String> {
-        state.db.lock().unwrap().delete_all_user_data().map_err(|e| e.to_string())
+        state.lock_db()?.delete_all_user_data().map_err(|e| e.to_string())?;
+        secrets::delete_api_key(&state.data_dir)?;
+        Ok(())
     }
 
     #[tauri::command]
     pub fn list_clients(state: State<AppState>) -> Result<Vec<Client>, String> {
-        state.db.lock().unwrap().list_clients().map_err(|e| e.to_string())
+        state.lock_db()?.list_clients().map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn create_client(state: State<AppState>, client: CreateClient) -> Result<Client, String> {
-        state.db.lock().unwrap().create_client(&client).map_err(|e| e.to_string())
+        state.lock_db()?.create_client(&client).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn update_client(state: State<AppState>, id: String, client: CreateClient) -> Result<Client, String> {
-        state.db.lock().unwrap().update_client(&id, &client).map_err(|e| e.to_string())
+        state.lock_db()?.update_client(&id, &client).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn list_cases(state: State<AppState>) -> Result<Vec<SupportCase>, String> {
-        state.db.lock().unwrap().list_cases().map_err(|e| e.to_string())
+        state.lock_db()?.list_cases().map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn create_case(state: State<AppState>, case: CreateCase) -> Result<SupportCase, String> {
-        state.db.lock().unwrap().create_case(&case).map_err(|e| e.to_string())
+        state.lock_db()?.create_case(&case).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn update_case(state: State<AppState>, id: String, case: UpdateCase) -> Result<SupportCase, String> {
-        state.db.lock().unwrap().update_case(&id, &case).map_err(|e| e.to_string())
+        state.lock_db()?.update_case(&id, &case).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn add_technician_note(state: State<AppState>, note: CreateNote) -> Result<TechnicianNote, String> {
-        state.db.lock().unwrap().add_note(&note).map_err(|e| e.to_string())
+        state.lock_db()?.add_note(&note).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn list_technician_notes(state: State<AppState>, case_id: Option<String>, report_id: Option<String>) -> Result<Vec<TechnicianNote>, String> {
-        state.db.lock().unwrap().list_notes(case_id.as_deref(), report_id.as_deref()).map_err(|e| e.to_string())
+        state.lock_db()?.list_notes(case_id.as_deref(), report_id.as_deref()).map_err(|e| e.to_string())
     }
 }
 

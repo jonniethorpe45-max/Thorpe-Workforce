@@ -344,9 +344,7 @@ pub fn run_system_scan(state: State<AppState>) -> Result<SystemScanResult, Strin
     let mut result = collect_system_info();
     let scan_json = serde_json::to_string(&result).map_err(|e| e.to_string())?;
     let scan_id = state
-        .db
-        .lock()
-        .unwrap()
+        .lock_db()?
         .save_scan(&scan_json, result.health_score)
         .map_err(|e| e.to_string())?;
     result.id = scan_id;
@@ -355,7 +353,7 @@ pub fn run_system_scan(state: State<AppState>) -> Result<SystemScanResult, Strin
 
 #[tauri::command]
 pub fn get_last_scan(state: State<AppState>) -> Result<Option<SystemScanResult>, String> {
-    let scans = state.db.lock().unwrap().list_scans(1).map_err(|e| e.to_string())?;
+    let scans = state.lock_db()?.list_scans(1).map_err(|e| e.to_string())?;
     if let Some(scan) = scans.first() {
         let mut result: SystemScanResult =
             serde_json::from_str(&scan.scan_data).map_err(|e| e.to_string())?;
@@ -369,9 +367,7 @@ pub fn get_last_scan(state: State<AppState>) -> Result<Option<SystemScanResult>,
 #[tauri::command]
 pub fn list_scans(state: State<AppState>, limit: Option<i64>) -> Result<Vec<ScanRecord>, String> {
     state
-        .db
-        .lock()
-        .unwrap()
+        .lock_db()?
         .list_scans(limit.unwrap_or(20))
         .map_err(|e| e.to_string())
 }

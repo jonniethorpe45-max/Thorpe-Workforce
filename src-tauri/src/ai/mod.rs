@@ -35,6 +35,15 @@ Format responses with clear sections when providing diagnostic information."#;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiConfig {
     pub provider: String,
+    pub api_key_configured: bool,
+    pub model: String,
+    pub base_url: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AiConfigUpdate {
+    pub provider: String,
     pub api_key: Option<String>,
     pub model: String,
     pub base_url: String,
@@ -78,10 +87,14 @@ struct OpenAiMessage {
 
 #[tauri::command]
 pub fn get_ai_config(state: State<AppState>) -> Result<AiConfig, String> {
-    let db = state.db.lock().unwrap();
+    let db = state.lock_db()?;
+    let api_key_configured = crate::secrets::get_api_key(&state.data_dir)?
+        .map(|key| !key.is_empty())
+        .unwrap_or(false);
+
     Ok(AiConfig {
         provider: db.get_setting("ai_provider").ok().flatten().unwrap_or_else(|| "openai".to_string()),
-        api_key: db.get_setting("ai_api_key").ok().flatten(),
+        api_key_configured,
         model: db.get_setting("ai_model").ok().flatten().unwrap_or_else(|| "gpt-4o-mini".to_string()),
         base_url: db.get_setting("ai_base_url").ok().flatten().unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
         enabled: db.get_setting("ai_enabled").ok().flatten().map(|v| v == "true").unwrap_or(false),
@@ -89,11 +102,13 @@ pub fn get_ai_config(state: State<AppState>) -> Result<AiConfig, String> {
 }
 
 #[tauri::command]
-pub fn set_ai_config(state: State<AppState>, config: AiConfig) -> Result<(), String> {
-    let db = state.db.lock().unwrap();
+pub fn set_ai_config(state: State<AppState>, config: AiConfigUpdate) -> Result<(), String> {
+    let db = state.lock_db()?;
     db.set_setting("ai_provider", &config.provider).map_err(|e| e.to_string())?;
     if let Some(key) = &config.api_key {
-        db.set_setting("ai_api_key", key).map_err(|e| e.to_string())?;
+        if !key.trim().is_empty() {
+            crate::secrets::store_api_key(&state.data_dir, key.trim())?;
+        }
     }
     db.set_setting("ai_model", &config.model).map_err(|e| e.to_string())?;
     db.set_setting("ai_base_url", &config.base_url).map_err(|e| e.to_string())?;
@@ -101,14 +116,19 @@ pub fn set_ai_config(state: State<AppState>, config: AiConfig) -> Result<(), Str
     Ok(())
 }
 
+fn resolve_api_key(state: &State<AppState>) -> Result<Option<String>, String> {
+    crate::secrets::get_api_key(&state.data_dir)
+}
+
 #[tauri::command]
 pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest) -> Result<ChatResponse, String> {
     let config = get_ai_config(state.clone())?;
+    let api_key = resolve_api_key(&state)?;
 
-    state.db.lock().unwrap().save_chat("user", &request.message).ok();
+    state.lock_db()?.save_chat("user", &request.message).ok();
 
-    let response = if config.enabled && config.api_key.is_some() {
-        match call_openai(&config, &request).await {
+    let response = if config.enabled && api_key.is_some() {
+        match call_openai(&config, api_key.as_ref().unwrap(), &request).await {
             Ok(msg) => ChatResponse { message: msg, source: "openai".to_string() },
             Err(e) => {
                 let fallback = generate_local_response(&request, &e);
@@ -120,12 +140,11 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
         ChatResponse { message: fallback, source: "local".to_string() }
     };
 
-    state.db.lock().unwrap().save_chat("assistant", &response.message).ok();
+    state.lock_db()?.save_chat("assistant", &response.message).ok();
     Ok(response)
 }
 
-async fn call_openai(config: &AiConfig, request: &ChatRequest) -> Result<String, String> {
-    let api_key = config.api_key.as_ref().ok_or("No API key configured")?;
+async fn call_openai(config: &AiConfig, api_key: &str, request: &ChatRequest) -> Result<String, String> {
 
     let skill_context = match request.skill_level.as_str() {
         "advanced" => "The user is technically advanced. You may use technical terminology.",
@@ -241,11 +260,11 @@ fn summarize_scan_context(ctx: &str) -> String {
 #[tauri::command]
 pub fn generate_diagnostic_report(state: State<AppState>, scan_id: Option<String>) -> Result<DiagnosticReport, String> {
     {
-        let db = state.db.lock().unwrap();
+        let db = state.lock_db()?;
         licensing::require_report_generation(&db)?;
     }
 
-    let db = state.db.lock().unwrap();
+    let db = state.lock_db()?;
 
     let scan: SystemScanResult = if let Some(id) = scan_id {
         let record = db.get_scan(&id).map_err(|e| e.to_string())?;

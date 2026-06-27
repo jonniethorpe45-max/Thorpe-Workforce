@@ -147,12 +147,12 @@ export function LicensingPage() {
       <div className="card space-y-4">
         <h3 className="font-medium text-white">Activate License Key</h3>
         <p className="text-sm text-gray-400">
-          Enter your license key to activate. Demo keys: PRO-DEMO-1234, ENT-DEMO-5678
+          Enter your license key to activate. Demo keys: PRO-DEMO-1234-KEYS-B65C, ENT-DEMO-5678-KEYS-F20C
         </p>
         <div className="flex gap-3">
           <input
             className="input flex-1 font-mono"
-            placeholder="PRO-XXXX-XXXX or ENT-XXXX-XXXX"
+            placeholder="PRO-XXXX-XXXX-XXXX-CCCC"
             value={licenseKey}
             onChange={(e) => setLicenseKey(e.target.value)}
           />

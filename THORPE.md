@@ -105,7 +105,7 @@ See [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md).
 | Technician Workspace | | | ✓ |
 | Multi-device | | | ✓ |
 
-Demo license keys: `PRO-DEMO-1234`, `ENT-DEMO-5678`
+Demo license keys: `PRO-DEMO-1234-KEYS-B65C`, `ENT-DEMO-5678-KEYS-F20C`
 
 ## Documentation
 
