@@ -116,7 +116,18 @@ cp .env.example .env
 
 ## Cross-Compilation
 
-Tauri supports cross-compilation via GitHub Actions. See `.github/workflows/` for CI build configurations.
+Use **GitHub Actions** to build all platforms without local machines. See [docs/RELEASE.md](docs/RELEASE.md).
+
+Quick start:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The **Thorpe Release** workflow uploads Windows `.exe`/`.msi`, macOS `.dmg`, and Linux `.AppImage`/`.deb` to GitHub Releases.
+
+Or run **Actions → Thorpe Release → Run workflow** to download artifacts without creating a release.
 
 ## Troubleshooting Builds
 

@@ -115,6 +115,7 @@ Demo license keys: `PRO-DEMO-1234`, `ENT-DEMO-5678`
 - [docs/ADMINISTRATOR_GUIDE.md](docs/ADMINISTRATOR_GUIDE.md) — Administrator guide
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — Troubleshooting
 - [docs/API.md](docs/API.md) — Tauri command API reference
+- [docs/RELEASE.md](docs/RELEASE.md) — CI builds and GitHub Releases
 
 ## Testing
 
