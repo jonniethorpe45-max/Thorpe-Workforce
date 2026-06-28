@@ -2,6 +2,13 @@
 
 All notable changes to Thorpe are documented in this file.
 
+## [1.0.7] - 2026-06-28
+
+### Added
+
+- Jonathan addresses the logged-in user by **first name** in chat, dashboard, and cloud AI responses
+- First name is derived from the profile **Display Name** in Settings
+
 ## [1.0.6] - 2026-06-28
 
 ### Changed
