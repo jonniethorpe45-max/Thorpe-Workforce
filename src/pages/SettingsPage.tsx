@@ -38,15 +38,34 @@ export function SettingsPage() {
 
   const saveAiConfig = async () => {
     if (!aiConfig) return;
+
+    const hasNewKey = Boolean(apiKeyInput.trim());
+    if (aiConfig.enabled && !aiConfig.api_key_configured && !hasNewKey) {
+      addNotification({
+        type: "error",
+        title: "API Key Required",
+        message: "Enter your OpenAI API key before enabling Cloud AI.",
+      });
+      return;
+    }
+
     try {
       await thorpeApi.setAiConfig({
-        ...aiConfig,
+        provider: aiConfig.provider,
+        model: aiConfig.model,
+        base_url: aiConfig.base_url,
+        enabled: aiConfig.enabled,
         api_key: apiKeyInput.trim() || undefined,
       });
       setApiKeyInput("");
       const refreshed = await thorpeApi.getAiConfig();
       setAiConfig(refreshed);
-      addNotification({ type: "success", title: "AI Settings Saved", message: "AI configuration updated." });
+      const status = refreshed.enabled && refreshed.api_key_configured
+        ? "Cloud AI is active."
+        : refreshed.enabled
+          ? "Cloud AI is enabled but needs a valid API key."
+          : "Jonathan will use local autonomous repair mode.";
+      addNotification({ type: "success", title: "AI Settings Saved", message: status });
     } catch (err) {
       addNotification({ type: "error", title: "Save Failed", message: String(err) });
     }
@@ -160,6 +179,21 @@ export function SettingsPage() {
               />
             </div>
             <button onClick={saveAiConfig} className="btn-primary text-sm">Save AI Settings</button>
+            <p
+              className={`text-xs ${
+                aiConfig.enabled && aiConfig.api_key_configured
+                  ? "text-success"
+                  : aiConfig.enabled
+                    ? "text-warning"
+                    : "text-gray-500"
+              }`}
+            >
+              {aiConfig.enabled && aiConfig.api_key_configured
+                ? "Status: Cloud AI active — Jonathan will use your API key for responses."
+                : aiConfig.enabled
+                  ? "Status: Cloud AI enabled — add and save an API key to activate."
+                  : "Status: Local autonomous repair mode (no API key required)."}
+            </p>
           </>
         )}
       </section>

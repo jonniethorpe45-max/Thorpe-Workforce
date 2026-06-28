@@ -19,6 +19,16 @@ describe("Jonathan prompts", () => {
   });
 });
 
+describe("Jonathan mode labels", () => {
+  it("labels cloud and fallback sources", async () => {
+    const { getJonathanSourceLabel, isCloudAiActive } = await import("../src/lib/jonathanMode");
+    expect(getJonathanSourceLabel("openai")).toBe("Cloud AI");
+    expect(getJonathanSourceLabel("cloud_fallback")).toBe("Cloud AI (local fallback)");
+    expect(isCloudAiActive({ enabled: true, api_key_configured: true })).toBe(true);
+    expect(isCloudAiActive({ enabled: true, api_key_configured: false })).toBe(false);
+  });
+});
+
 describe("User name helpers", () => {
   it("extracts first name from display name", () => {
     expect(extractFirstName("Jordan Smith")).toBe("Jordan");

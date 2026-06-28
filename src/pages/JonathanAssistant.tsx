@@ -7,7 +7,8 @@ import { buildJonathanWelcome } from "../prompts/jonathan";
 import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
-import type { RepairResult } from "../services/types";
+import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
+import type { AiConfig, RepairResult } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -21,6 +22,7 @@ export function JonathanAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [skillLevel, setSkillLevel] = useState("beginner");
+  const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(0);
   const { lastScan, addNotification } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -30,10 +32,10 @@ export function JonathanAssistant() {
   }, []);
 
   useEffect(() => {
-    thorpeApi
-      .getProfile()
-      .then((profile) => {
+    Promise.all([thorpeApi.getProfile(), thorpeApi.getAiConfig()])
+      .then(([profile, config]) => {
         setSkillLevel(profile.skill_level);
+        setAiConfig(config);
         const name = extractFirstName(profile.display_name);
         setMessages([{ role: "assistant", content: buildJonathanWelcome(name) }]);
         setTypingMessageIndex(0);
@@ -95,6 +97,8 @@ export function JonathanAssistant() {
     }
   };
 
+  const cloudAiActive = aiConfig ? isCloudAiActive(aiConfig) : false;
+
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col animate-fade-in">
       <div className="card-brand mb-4 flex items-center justify-between gap-4 p-4">
@@ -106,7 +110,9 @@ export function JonathanAssistant() {
             </p>
             <h1 className="font-display text-xl font-bold tracking-[0.08em] text-white">JONATHAN</h1>
             <p className="text-sm text-steel">
-              Autonomous IT technician — I diagnose and repair issues for you automatically.
+              {cloudAiActive
+                ? "Cloud AI enabled — I diagnose, repair, and respond with GPT-powered summaries."
+                : "Autonomous IT technician — I diagnose and repair issues for you automatically."}
             </p>
           </div>
         </div>
@@ -123,9 +129,24 @@ export function JonathanAssistant() {
       <div className="mb-4 flex items-start gap-3 rounded-xl border border-thorpe-primary/20 bg-thorpe-primary/5 px-4 py-3 text-sm text-slate-300">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-thorpe-primary" />
         <p>
-          <span className="font-medium text-white">Autonomous repair mode.</span> Describe your
-          issue and I&apos;ll run fixes automatically — no manual steps required. Works on the Free
-          plan.
+          {cloudAiActive ? (
+            <>
+              <span className="font-medium text-white">Cloud AI mode.</span> Repairs still run
+              automatically on your device; responses are enhanced by your configured OpenAI model.
+            </>
+          ) : aiConfig?.enabled ? (
+            <>
+              <span className="font-medium text-warning">Cloud AI enabled but not active.</span> Add
+              your API key in Settings → Jonathan AI (Cloud) and save to switch from autonomous
+              mode.
+            </>
+          ) : (
+            <>
+              <span className="font-medium text-white">Autonomous repair mode.</span> Describe your
+              issue and I&apos;ll run fixes automatically — no manual steps required. Works on the
+              Free plan.
+            </>
+          )}
           {lastScan ? " Using your latest scan for context." : " Run a scan first for deeper fixes."}
         </p>
       </div>
@@ -169,7 +190,7 @@ export function JonathanAssistant() {
                 {msg.source && msg.role === "assistant" && !isTyping && (
                   <p className="mt-2 flex items-center gap-1 text-xs text-steel">
                     <Sparkles className="h-3 w-3 text-cyber-teal" />
-                    {msg.source === "openai" ? "Cloud AI" : "Autonomous repair"}
+                    {getJonathanSourceLabel(msg.source)}
                   </p>
                 )}
                 {msg.repairs && msg.repairs.length > 0 && !isTyping && (

@@ -98,6 +98,21 @@ pub fn get_ai_config(state: State<AppState>) -> Result<AiConfig, String> {
 
 #[tauri::command]
 pub fn set_ai_config(state: State<AppState>, config: AiConfigUpdate) -> Result<(), String> {
+    let has_new_key = config
+        .api_key
+        .as_ref()
+        .map(|key| !key.trim().is_empty())
+        .unwrap_or(false);
+    let has_existing_key = crate::secrets::get_api_key(&state.data_dir)?
+        .map(|key| !key.is_empty())
+        .unwrap_or(false);
+
+    if config.enabled && !has_new_key && !has_existing_key {
+        return Err(
+            "Cloud AI requires an API key. Enter your OpenAI API key and save again.".to_string(),
+        );
+    }
+
     let db = state.lock_db()?;
     db.set_setting("ai_provider", &config.provider).map_err(|e| e.to_string())?;
     if let Some(key) = &config.api_key {
@@ -145,7 +160,22 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
             .and_then(|profile| extract_first_name(&profile.display_name))
     };
 
-    let response = if config.enabled && api_key.is_some() {
+    let response = if config.enabled && api_key.is_none() {
+        ChatResponse {
+            message: format!(
+                "{}\n\n**Cloud AI is enabled in Settings but no API key is stored on this device.** Open Settings → Jonathan AI (Cloud), enter your OpenAI API key, and save again.",
+                format_technician_response(
+                    &request,
+                    scan.as_ref(),
+                    &repairs_executed,
+                    user_first_name.as_deref(),
+                    None,
+                )
+            ),
+            source: "cloud_unconfigured".to_string(),
+            repairs_executed,
+        }
+    } else if config.enabled && api_key.is_some() {
         match call_openai(
             &config,
             api_key.as_ref().unwrap(),
@@ -169,7 +199,7 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
                     user_first_name.as_deref(),
                     Some(&e),
                 ),
-                source: "local".to_string(),
+                source: "cloud_fallback".to_string(),
                 repairs_executed,
             },
         }
