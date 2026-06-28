@@ -9,13 +9,18 @@ All notable changes to Thorpe are documented in this file.
 - **Senior Engineer Platform**: Jonathan agent planner, evidence collectors, intel/RAG, repair packs, watchdog, PSA webhooks, Intelligence Console
 - **Ed25519 repair pack signing** with `thorpe-pack-sign` CLI (legacy HMAC still supported)
 - **Real update checker** via GitHub Releases API
+- **`thorpe-license-key` CLI** for generating production license keys
+- **License activation server** (`tools/license-server/`) for online activation pilots
 - Optional online license activation via `THORPE_LICENSE_API_URL`
 - Per-message repair approval in Jonathan chat
+- Route smoke tests and `scripts/check-versions.sh` for release validation
+- `docs/GA_CHECKLIST.md` for pre-release verification
 
 ### Changed
 
 - Enterprise tier marketing aligned to shipped features (Technician Workspace, AI Console, Intelligence Console)
 - Demo license keys restricted to debug builds with 30-day evaluation expiry
+- `THORPE_LICENSE_SIGNING_SECRET` required for release builds (env-based HMAC secret)
 - Version alignment across `package.json`, `Cargo.toml`, and `tauri.conf.json`
 
 ### Security

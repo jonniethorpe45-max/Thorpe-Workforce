@@ -97,6 +97,13 @@ export function LicensingPage() {
             {license.organization && (
               <p className="text-sm text-gray-400">{license.organization}</p>
             )}
+            {license.expires_at && (
+              <p className="text-sm text-gray-400">
+                {license.tier === "free" && license.tier_display.includes("expired")
+                  ? `Expired ${new Date(license.expires_at).toLocaleDateString()}`
+                  : `Renews ${new Date(license.expires_at).toLocaleDateString()}`}
+              </p>
+            )}
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 mod keys;
 mod online;
 
-pub use keys::{DEMO_ENT_LICENSE, DEMO_PRO_LICENSE};
+pub use keys::{generate_license_key, DEMO_ENT_LICENSE, DEMO_PRO_LICENSE, validate_license_key};
 
 use crate::db::Database;
 use crate::AppState;

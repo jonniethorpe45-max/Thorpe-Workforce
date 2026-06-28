@@ -43,6 +43,10 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 name = "thorpe-pack-sign"
 path = "src/bin/thorpe-pack-sign.rs"
 
+[[bin]]
+name = "thorpe-license-key"
+path = "src/bin/thorpe-license-key.rs"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winuser"] }
 

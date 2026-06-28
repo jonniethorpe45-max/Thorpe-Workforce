@@ -83,6 +83,10 @@ See [Tauri signing docs](https://v2.tauri.app/distribute/sign/) for key generati
 
 For commercial deployments, set `THORPE_LICENSE_API_URL` to your HTTPS license activation endpoint at build or runtime. When set, activation requires the server; offline HMAC validation is used only when the variable is unset (development and air-gapped pilots).
 
+See [tools/license-server/README.md](../tools/license-server/README.md) for deploying the reference activation server.
+
+For release builds, set `THORPE_LICENSE_SIGNING_SECRET` in CI and generate keys with `npm run license-key`.
+
 ## Troubleshooting CI builds
 
 - **Linux job fails on webkit**: Ensure `ubuntu-22.04` and apt packages in the workflow match [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
