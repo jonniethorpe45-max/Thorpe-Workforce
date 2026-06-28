@@ -181,8 +181,12 @@ export interface AiConfig {
   enabled: boolean;
 }
 
-export interface AiConfigUpdate extends AiConfig {
+export interface AiConfigUpdate {
+  provider: string;
   api_key?: string | null;
+  model: string;
+  base_url: string;
+  enabled: boolean;
 }
 
 export interface ChatRequest {
