@@ -2,6 +2,13 @@
 
 All notable changes to Thorpe are documented in this file.
 
+## [1.0.5] - 2026-06-28
+
+### Added
+
+- Jonathan chat replies now type out **one word at a time** with a speaking-style cursor for a more conversational feel
+- Repair results and source labels appear after typing completes
+
 ## [1.0.4] - 2026-06-28
 
 ### Changed

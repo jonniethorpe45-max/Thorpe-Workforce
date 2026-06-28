@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, User, Sparkles, Mic, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import { JONATHAN_WELCOME } from "../prompts/jonathan";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
-import { SafeMarkdown } from "../components/ui/SafeMarkdown";
+import { WordByWordReply } from "../components/ui/WordByWordReply";
 import type { RepairResult } from "../services/types";
 
 interface Message {
@@ -22,16 +22,21 @@ export function JonathanAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [skillLevel, setSkillLevel] = useState("beginner");
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(0);
   const { lastScan, addNotification } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
     thorpeApi.getProfile().then((profile) => setSkillLevel(profile.skill_level)).catch(console.error);
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, loading, typingMessageIndex]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -50,15 +55,19 @@ export function JonathanAssistant() {
         history,
       });
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: response.message,
-          source: response.source,
-          repairs: response.repairs_executed,
-        },
-      ]);
+      setMessages((prev) => {
+        const nextIndex = prev.length;
+        setTypingMessageIndex(nextIndex);
+        return [
+          ...prev,
+          {
+            role: "assistant",
+            content: response.message,
+            source: response.source,
+            repairs: response.repairs_executed,
+          },
+        ];
+      });
 
       if (response.repairs_executed && response.repairs_executed.length > 0) {
         const fixed = response.repairs_executed.filter((r) => r.success).length;
@@ -116,7 +125,10 @@ export function JonathanAssistant() {
 
       <div className="card flex flex-1 flex-col overflow-hidden p-0">
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          {messages.map((msg, i) => (
+          {messages.map((msg, i) => {
+            const isTyping = msg.role === "assistant" && typingMessageIndex === i;
+
+            return (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 8 }}
@@ -140,15 +152,20 @@ export function JonathanAssistant() {
                 {msg.role === "user" ? (
                   msg.content
                 ) : (
-                  <SafeMarkdown content={msg.content} />
+                  <WordByWordReply
+                    content={msg.content}
+                    animate={isTyping}
+                    onComplete={() => setTypingMessageIndex(null)}
+                    onProgress={scrollToBottom}
+                  />
                 )}
-                {msg.source && msg.role === "assistant" && (
+                {msg.source && msg.role === "assistant" && !isTyping && (
                   <p className="mt-2 flex items-center gap-1 text-xs text-steel">
                     <Sparkles className="h-3 w-3 text-cyber-teal" />
                     {msg.source === "openai" ? "Cloud AI" : "Autonomous repair"}
                   </p>
                 )}
-                {msg.repairs && msg.repairs.length > 0 && (
+                {msg.repairs && msg.repairs.length > 0 && !isTyping && (
                   <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
                       Repairs executed
@@ -165,7 +182,8 @@ export function JonathanAssistant() {
                 )}
               </div>
             </motion.div>
-          ))}
+            );
+          })}
           {loading && (
             <div className="flex gap-3">
               <JonathanAvatar size="sm" showRing={false} />

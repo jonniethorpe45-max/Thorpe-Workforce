@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { JONATHAN_WELCOME, JONATHAN_SYSTEM_PROMPT } from "../src/prompts/jonathan";
 
 describe("Jonathan prompts", () => {
@@ -82,6 +82,46 @@ describe("Knowledge base structure", () => {
     requiredFields.forEach((field) => {
       expect(article).toHaveProperty(field);
     });
+  });
+});
+
+describe("Word-by-word reveal", () => {
+  it("tokenizes words and whitespace", async () => {
+    const { tokenizeForReveal } = await import("../src/lib/wordByWord");
+    expect(tokenizeForReveal("Hello world")).toEqual(["Hello", " ", "world"]);
+    expect(tokenizeForReveal("One\ntwo")).toEqual(["One", "\n", "two"]);
+  });
+
+  it("reveals assistant text progressively", async () => {
+    const React = await import("react");
+    const { render, screen, act } = await import("@testing-library/react");
+    const { WordByWordReply } = await import("../src/components/ui/WordByWordReply");
+
+    vi.useFakeTimers();
+
+    try {
+      const { container } = render(
+        React.createElement(WordByWordReply, {
+          content: "Hello there friend",
+          animate: true,
+        })
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(90);
+      });
+
+      expect(container.textContent).toContain("Hello");
+      expect(container.textContent).not.toContain("friend");
+
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(screen.getByText(/friend/)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
