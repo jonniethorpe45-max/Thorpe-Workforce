@@ -7,8 +7,8 @@
 Deploy via NSIS `.exe` installer or MSI package. Use Group Policy or MDM for enterprise rollout.
 
 ```powershell
-# Silent install (NSIS)
-Thorpe_1.0.0_x64-setup.exe /S
+# Silent install (NSIS) — replace version with your release tag
+Thorpe_1.1.0_x64-setup.exe /S
 ```
 
 ### macOS
@@ -18,7 +18,7 @@ Deploy `.dmg` via MDM (Jamf, Kandji) or manual installation. Code signing requir
 ### Linux
 
 - **AppImage**: No installation required, chmod +x and run
-- **.deb**: `sudo dpkg -i thorpe_1.0.0_amd64.deb`
+- **.deb**: `sudo dpkg -i Thorpe_1.1.0_amd64.deb`
 
 ## License Management
 
@@ -77,10 +77,24 @@ Enterprise feature for IT teams:
 
 ## Updates
 
-Configure update endpoint in `.env`:
+Thorpe checks **GitHub Releases** for new versions (Update Manager). Optional custom endpoint via `THORPE_UPDATE_API_URL` at build/runtime.
 
-```
-VITE_UPDATE_ENDPOINT=https://updates.yourcompany.com/v1/check
+After publishing a release, verify artifacts:
+
+```bash
+bash scripts/verify-release.sh v1.1.0
 ```
 
 Users check for updates in **Update Manager**.
+
+## License server deployment
+
+Deploy `tools/license-server/` for online activation and Stripe billing. See:
+
+- [tools/license-server/README.md](../tools/license-server/README.md)
+- [PILOT_ONBOARDING.md](./PILOT_ONBOARDING.md)
+
+Set on distributed builds:
+
+- `THORPE_LICENSE_API_URL=https://<host>/activate`
+- `THORPE_BILLING_API_URL=https://<host>`

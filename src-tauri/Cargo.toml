@@ -38,6 +38,7 @@ hostname = "0.4"
 rand = "0.8"
 url = "2"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
+tauri-plugin-opener = "2"
 
 [[bin]]
 name = "thorpe-pack-sign"

@@ -22,6 +22,9 @@ jobs:
       - run: npm run build
       - run: npm run test
       - run: npm run test:e2e
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
+        continue-on-error: true
 
   rust:
     runs-on: ubuntu-latest
@@ -42,5 +45,10 @@ jobs:
       - run: cd src-tauri && cargo check
       - run: cd src-tauri && cargo test
       - run: cd src-tauri && cargo build --release
+      - name: cargo audit
+        run: |
+          cargo install cargo-audit --locked
+          cd src-tauri && cargo audit
+        continue-on-error: true
       - name: License server smoke tests
         run: cd tools/license-server && python3 test_server.py

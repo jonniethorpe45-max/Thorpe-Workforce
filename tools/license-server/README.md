@@ -46,6 +46,32 @@ cp .env.example .env  # edit secrets
 docker compose up --build
 ```
 
+## Fly.io
+
+```bash
+cd tools/license-server
+fly launch --no-deploy
+fly secrets set THORPE_LICENSE_SIGNING_SECRET=... STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=...
+fly volumes create license_data --size 1
+fly deploy
+```
+
+Set desktop builds to `https://<app>.fly.dev/activate` and `https://<app>.fly.dev`.
+
+## Railway
+
+1. Create a new Railway project from this directory (`tools/license-server`)
+2. Add a persistent volume mounted at `/data`
+3. Set secrets from `.env.example`
+4. Deploy — health check uses `GET /health`
+
+## Rate limiting
+
+Per-IP rate limits apply to all endpoints (default: 120 requests / 60 seconds). Tune with:
+
+- `THORPE_LICENSE_RATE_LIMIT` — max requests per window (`0` disables)
+- `THORPE_LICENSE_RATE_WINDOW_SEC` — window length in seconds
+
 ## Stripe setup
 
 1. Create **Professional** and **Enterprise** recurring prices in Stripe

@@ -228,9 +228,9 @@ pub async fn get_checkout_status(session_id: String) -> Result<CheckoutStatus, S
 #[tauri::command]
 pub async fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
     crate::net::validate_https_url(&url, false)?;
-    use tauri_plugin_shell::ShellExt;
-    app.shell()
-        .open(url, None)
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())?;
     Ok(())
 }

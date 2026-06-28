@@ -78,6 +78,27 @@ describe("E2E user flows", () => {
     );
   });
 
+  it("dashboard shows expired license renewal banner", async () => {
+    vi.spyOn(thorpeApi, "getLicenseInfo").mockResolvedValue({
+      tier: "free",
+      tier_display: "Professional (expired)",
+      features: ["jonathan_ai", "basic_scans", "limited_reports"],
+      license_key: "PRO-E2E-0001-EXPIRED",
+      activated_at: new Date(Date.now() - 86400000 * 400).toISOString(),
+      expires_at: new Date(Date.now() - 86400000).toISOString(),
+      organization: null,
+    });
+
+    renderApp("/");
+    await waitForAppReady();
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeTruthy();
+      expect(screen.getByText(/license expired/i)).toBeTruthy();
+      expect(screen.getByRole("link", { name: /renew license/i })).toBeTruthy();
+    });
+  });
+
   it("licensing: activates a professional license key", async () => {
     renderApp("/licensing");
     await waitForAppReady();
