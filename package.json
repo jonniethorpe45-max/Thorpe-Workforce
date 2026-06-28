@@ -12,6 +12,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e",
+    "test:all": "bash scripts/e2e.sh",
     "test:watch": "vitest",
     "pack-sign": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-pack-sign --",
     "license-key": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-license-key --",

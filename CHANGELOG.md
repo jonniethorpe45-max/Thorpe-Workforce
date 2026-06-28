@@ -18,6 +18,8 @@ All notable changes to Thorpe are documented in this file.
 - **Stripe subscription flow** on Licensing page with checkout polling
 - **Billing backend** (`src-tauri/src/billing/`) and license server Stripe endpoints
 - Docker deployment for license server; `docs/GITHUB_SECRETS.md`
+- Comprehensive E2E suite (`tests/e2e/`) — 38 tests covering all routes, API commands, and user flows
+- `npm run test:e2e` and `bash scripts/e2e.sh` full-stack verification script
 
 ### Changed
 

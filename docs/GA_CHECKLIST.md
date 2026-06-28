@@ -26,7 +26,8 @@ Use this checklist before tagging a commercial release (e.g. `v1.1.0`).
 ## Quality gates
 
 - [ ] `npm run lint`
-- [ ] `npm run test`
+- [ ] `npm run test:e2e` (38 tests — all pages, API commands, user flows)
+- [ ] `npm run test:all` or `bash scripts/e2e.sh` for full stack verification
 - [ ] `cd src-tauri && cargo test`
 - [ ] `cd src-tauri && cargo build --release`
 - [ ] `cd tools/license-server && python3 test_server.py`
@@ -54,4 +55,4 @@ Use this checklist before tagging a commercial release (e.g. `v1.1.0`).
 | Custom branding | Not shipped |
 | Team management | Not shipped |
 | Stripe billing UI | Subscribe flow + checkout polling (requires license server + Stripe) |
-| Tauri WebDriver E2E | Route + billing smoke tests; full desktop WebDriver not in CI |
+| Tauri WebDriver E2E | 38 browser E2E tests (pages, flows, API); native WebDriver optional |

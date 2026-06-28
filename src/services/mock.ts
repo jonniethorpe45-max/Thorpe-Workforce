@@ -137,6 +137,110 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "list_reports":
       return [] as T;
 
+    case "get_report":
+      return {
+        id: (args?.id as string) || "report-1",
+        scan_id: mockScan.id,
+        title: "System Diagnostic Report",
+        summary: `Health score: ${mockScan.health_score}/100`,
+        findings: JSON.stringify(mockScan.issues),
+        recommendations: "[]",
+        health_score: mockScan.health_score,
+        risk_level: "low",
+        technician_notes: null,
+        plain_language: "Your system is in good shape overall.",
+        created_at: new Date().toISOString(),
+      } as T;
+
+    case "search_reports":
+      return [] as T;
+
+    case "delete_report":
+    case "delete_all_user_data":
+    case "set_ai_config":
+    case "update_settings":
+    case "open_external_url":
+    case "rotate_provider_api_key":
+      return undefined as T;
+
+    case "update_profile":
+      return {
+        id: "mock-profile",
+        display_name: (args?.displayName as string) || "Alex Johnson",
+        email: (args?.email as string | null) ?? null,
+        skill_level: (args?.skillLevel as string) || "beginner",
+        role: (args?.role as string) || "admin",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as T;
+
+    case "export_report_pdf":
+      return ((args?.outputPath as string) || "/tmp/report.pdf") as T;
+
+    case "create_client": {
+      const client = args?.client as Record<string, string> | undefined;
+      return {
+        id: `client-${Date.now()}`,
+        name: client?.name ?? "Acme Corp",
+        email: client?.email ?? "support@acme.test",
+        phone: null,
+        company: client?.company ?? "Acme",
+        notes: client?.notes ?? null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as T;
+    }
+
+    case "update_client":
+      return {
+        id: (args?.id as string) || "client-1",
+        name: "Acme Corp",
+        email: "support@acme.test",
+        phone: null,
+        company: "Acme",
+        notes: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as T;
+
+    case "create_case": {
+      const supportCase = args?.case as Record<string, string> | undefined;
+      return {
+        id: `case-${Date.now()}`,
+        client_id: supportCase?.client_id ?? null,
+        title: supportCase?.title ?? "New case",
+        description: supportCase?.description ?? "",
+        status: "open",
+        priority: supportCase?.priority ?? "medium",
+        assigned_to: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as T;
+    }
+
+    case "update_case":
+      return {
+        id: (args?.id as string) || "case-1",
+        client_id: null,
+        title: "Updated case",
+        description: "",
+        status: "open",
+        priority: "medium",
+        assigned_to: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as T;
+
+    case "add_technician_note":
+      return {
+        id: `note-${Date.now()}`,
+        case_id: null,
+        report_id: null,
+        author: "Alex Johnson",
+        content: "Test note",
+        created_at: new Date().toISOString(),
+      } as T;
+
     case "list_repair_actions":
       return [
         {
@@ -245,9 +349,6 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         enabled: false,
       } as T;
 
-    case "set_ai_config":
-      return undefined as T;
-
     case "list_knowledge_articles":
       return mockArticles as T;
 
@@ -326,9 +427,6 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         license_key: "PRO-MOCK-0001-PAID-B65C",
       } as T;
     }
-
-    case "open_external_url":
-      return undefined as T;
 
     case "check_feature": {
       const feature = args?.feature as string;
@@ -423,7 +521,6 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "upsert_ai_provider":
     case "upsert_ai_agent":
     case "update_ai_org_policy":
-    case "rotate_provider_api_key":
     case "test_ai_provider_health":
       return {} as T;
 
@@ -550,7 +647,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       } as T;
 
     case "export_agent_session_pdf":
-      return "/tmp/agent-session.pdf" as T;
+      return ((args?.outputPath as string) || "/tmp/agent-session.pdf") as T;
 
     case "list_clients":
     case "list_cases":
