@@ -1,6 +1,6 @@
 [package]
 name = "thorpe"
-version = "1.0.5"
+version = "1.0.6"
 description = "Thorpe — AI-powered IT support platform"
 authors = ["Thorpe Team"]
 edition = "2021"
