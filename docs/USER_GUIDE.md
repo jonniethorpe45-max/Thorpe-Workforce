@@ -4,7 +4,7 @@
 
 1. **Install Thorpe** from the installer for your platform
 2. **Launch** the application
-3. **Meet Jonathan** — your AI IT technician on the Dashboard
+3. **Meet Jonathan** — open **Jonathan AI** in the sidebar to start a conversation (the dashboard banner is a welcome message, not the chat)
 
 ## Running a System Scan
 

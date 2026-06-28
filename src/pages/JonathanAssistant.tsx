@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, User, Sparkles, Mic } from "lucide-react";
+import { Send, User, Sparkles, Mic, Info } from "lucide-react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import { JONATHAN_WELCOME } from "../prompts/jonathan";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { SafeMarkdown } from "../components/ui/SafeMarkdown";
+import type { AiConfig } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -20,11 +22,17 @@ export function JonathanAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [skillLevel, setSkillLevel] = useState("beginner");
-  const { lastScan, addNotification } = useAppStore();
+  const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
+  const { lastScan, license, addNotification } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    thorpeApi.getProfile().then((p) => setSkillLevel(p.skill_level)).catch(console.error);
+    Promise.all([thorpeApi.getProfile(), thorpeApi.getAiConfig()])
+      .then(([profile, config]) => {
+        setSkillLevel(profile.skill_level);
+        setAiConfig(config);
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -87,6 +95,30 @@ export function JonathanAssistant() {
           <option value="beginner">Beginner explanations</option>
           <option value="advanced">Advanced explanations</option>
         </select>
+      </div>
+
+      <div className="mb-4 flex items-start gap-3 rounded-xl border border-cyber-teal/20 bg-cyber-teal/5 px-4 py-3 text-sm text-slate-300">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyber-teal" />
+        <div>
+          <p>
+            <span className="font-medium text-white">Jonathan is interactive on the Free plan.</span>{" "}
+            Type a message below and press Enter or the send button. The dashboard welcome banner is
+            informational only — chat happens here.
+          </p>
+          <p className="mt-1 text-steel">
+            {aiConfig?.enabled && aiConfig.api_key_configured
+              ? "Cloud AI is enabled for richer, conversational responses."
+              : "You are in local guidance mode (built-in troubleshooting tips). Run a scan first for personalized answers, or enable cloud AI in Settings."}
+            {license?.tier === "free" && (
+              <>
+                {" "}
+                <Link to="/settings" className="text-thorpe-primary hover:underline">
+                  Settings
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
       </div>
 
       <div className="card flex flex-1 flex-col overflow-hidden p-0">
