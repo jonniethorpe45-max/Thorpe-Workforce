@@ -85,6 +85,7 @@ pub fn run() {
             db::commands::get_knowledge_article,
             db::commands::get_profile,
             db::commands::update_profile,
+            db::commands::get_chat_history,
             db::commands::delete_all_user_data,
             licensing::get_license_info,
             licensing::activate_license,

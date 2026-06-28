@@ -40,6 +40,7 @@ const PLANS = [
     features: [
       "Everything in Professional",
       "Technician Workspace",
+      "Enterprise AI Console",
       "Multi-device management",
       "Custom branding",
       "Advanced reporting",

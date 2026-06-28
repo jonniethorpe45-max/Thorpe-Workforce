@@ -19,7 +19,16 @@ pub struct RepairAction {
     pub risk_level: String,
     pub category: String,
     pub requires_confirmation: bool,
+    pub action_kind: String,
     pub platform: Vec<String>,
+}
+
+pub fn action_kind(action_id: &str) -> &'static str {
+    match action_id {
+        "temp-cleanup" | "dns-flush" | "print-spooler-restart" => "mutating",
+        "disk-analysis" | "high-resource-id" | "network-diagnostics" => "diagnostic",
+        _ => "advisory",
+    }
 }
 
 fn get_available_actions() -> Vec<RepairAction> {
@@ -32,6 +41,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "storage".to_string(),
             requires_confirmation: true,
+            action_kind: "mutating".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -42,6 +52,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "network".to_string(),
             requires_confirmation: true,
+            action_kind: "mutating".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -52,6 +63,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "storage".to_string(),
             requires_confirmation: false,
+            action_kind: "diagnostic".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -62,6 +74,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "performance".to_string(),
             requires_confirmation: false,
+            action_kind: "advisory".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -72,6 +85,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "performance".to_string(),
             requires_confirmation: false,
+            action_kind: "diagnostic".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -82,6 +96,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "network".to_string(),
             requires_confirmation: false,
+            action_kind: "diagnostic".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -92,6 +107,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "updates".to_string(),
             requires_confirmation: false,
+            action_kind: "advisory".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
@@ -102,6 +118,7 @@ fn get_available_actions() -> Vec<RepairAction> {
             risk_level: "low".to_string(),
             category: "maintenance".to_string(),
             requires_confirmation: false,
+            action_kind: "advisory".to_string(),
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
     ];
@@ -115,6 +132,7 @@ fn get_available_actions() -> Vec<RepairAction> {
         risk_level: "medium".to_string(),
         category: "printers".to_string(),
         requires_confirmation: true,
+        action_kind: "mutating".to_string(),
         platform: vec!["windows".to_string()],
     });
 
@@ -131,6 +149,13 @@ pub struct RepairResult {
     pub record_id: String,
     pub action_id: String,
     pub action_name: String,
+    pub action_kind: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatRepairPlan {
+    pub to_run: Vec<String>,
+    pub pending_confirmation: Vec<RepairAction>,
 }
 
 fn execute_action(action_id: &str) -> (bool, String, Option<String>) {
@@ -390,7 +415,32 @@ pub fn perform_repair(db: &Database, action_id: &str) -> Result<RepairResult, St
         record_id,
         action_id: action.id.clone(),
         action_name: action.name.clone(),
+        action_kind: action_kind(action_id).to_string(),
     })
+}
+
+pub fn plan_chat_repairs(planned: &[String], confirmed: &[String]) -> ChatRepairPlan {
+    let actions = get_available_actions();
+    let confirmed_set: std::collections::HashSet<&str> =
+        confirmed.iter().map(|s| s.as_str()).collect();
+    let mut to_run = Vec::new();
+    let mut pending_confirmation = Vec::new();
+
+    for id in planned {
+        let Some(action) = actions.iter().find(|a| &a.id == id) else {
+            continue;
+        };
+        if action.requires_confirmation && !confirmed_set.contains(id.as_str()) {
+            pending_confirmation.push(action.clone());
+        } else {
+            to_run.push(id.clone());
+        }
+    }
+
+    ChatRepairPlan {
+        to_run,
+        pending_confirmation,
+    }
 }
 
 pub fn perform_repairs(db: &Database, action_ids: &[String]) -> Vec<RepairResult> {
@@ -398,6 +448,49 @@ pub fn perform_repairs(db: &Database, action_ids: &[String]) -> Vec<RepairResult
         .iter()
         .filter_map(|id| perform_repair(db, id).ok())
         .collect()
+}
+
+pub fn perform_repairs_with_failures(db: &Database, action_ids: &[String]) -> Vec<RepairResult> {
+    action_ids
+        .iter()
+        .map(|id| {
+            perform_repair(db, id).unwrap_or_else(|e| RepairResult {
+                success: false,
+                message: e,
+                details: None,
+                record_id: String::new(),
+                action_id: id.clone(),
+                action_name: id.clone(),
+                action_kind: action_kind(id).to_string(),
+            })
+        })
+        .collect()
+}
+
+pub fn any_mutating_success(results: &[RepairResult]) -> bool {
+    results.iter().any(|r| r.success && r.action_kind == "mutating")
+}
+
+#[cfg(test)]
+mod chat_plan_tests {
+    use super::*;
+
+    #[test]
+    fn defers_confirmation_required_repairs() {
+        let planned = vec!["dns-flush".to_string(), "disk-analysis".to_string()];
+        let plan = plan_chat_repairs(&planned, &[]);
+        assert_eq!(plan.to_run, vec!["disk-analysis".to_string()]);
+        assert_eq!(plan.pending_confirmation.len(), 1);
+        assert_eq!(plan.pending_confirmation[0].id, "dns-flush");
+    }
+
+    #[test]
+    fn runs_confirmed_mutating_repairs() {
+        let planned = vec!["temp-cleanup".to_string()];
+        let plan = plan_chat_repairs(&planned, &["temp-cleanup".to_string()]);
+        assert_eq!(plan.to_run, vec!["temp-cleanup".to_string()]);
+        assert!(plan.pending_confirmation.is_empty());
+    }
 }
 
 #[tauri::command]

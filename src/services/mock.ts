@@ -147,6 +147,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
           risk_level: "low",
           category: "storage",
           requires_confirmation: true,
+          action_kind: "mutating",
           platform: ["linux"],
         },
         {
@@ -157,6 +158,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
           risk_level: "low",
           category: "network",
           requires_confirmation: true,
+          action_kind: "mutating",
           platform: ["linux"],
         },
       ] as T;
@@ -186,19 +188,53 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
                 record_id: "mock-repair-1",
                 action_id: "dns-flush",
                 action_name: "Flush DNS Cache",
+                action_kind: "mutating",
               },
             ]
           : [];
-      const greeting = firstName ? `**Hi ${firstName}, autonomous repair complete**` : "**Jonathan — autonomous repair complete**";
+      const greeting = firstName ? `**Hi ${firstName}, here's what I did**` : "**Jonathan — here's what I did**";
       const closing = firstName
-        ? `The issue has been handled, ${firstName}.`
-        : "The issue has been handled.";
+        ? `Let me know if you need anything else, ${firstName}.`
+        : "Let me know if you need anything else.";
       const response =
         repairs.length > 0
-          ? `${greeting}\n\nI've applied the following fixes on your behalf:\n\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n${closing}`
-          : `${greeting}\n\nI've run diagnostics and applied automated maintenance on your system.`;
-      return { message: response, source: "local", repairs_executed: repairs } as T;
+          ? `${greeting}\n\n**Repairs applied:**\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n${closing}`
+          : `${greeting}\n\nI analyzed your request but no automated actions were run.\n\n${closing}`;
+      return {
+        message: response,
+        source: "local",
+        repairs_executed: repairs,
+        pending_repairs: msg.includes("slow")
+          ? [
+              {
+                id: "temp-cleanup",
+                name: "Clean Temporary Files",
+                description: "Remove temporary files",
+                purpose: "Free disk space",
+                risk_level: "low",
+                category: "storage",
+                requires_confirmation: true,
+                action_kind: "mutating",
+                platform: ["linux"],
+              },
+            ]
+          : [],
+        verification: repairs.length
+          ? {
+              health_before: 78,
+              health_after: 82,
+              issues_before: 2,
+              issues_after: 1,
+              improved: true,
+            }
+          : null,
+        escalation_case_id: msg.includes("virus") ? "mock-case-1" : null,
+        kb_suggestions: [],
+      } as T;
     }
+
+    case "get_chat_history":
+      return [] as T;
 
     case "get_ai_config":
       return {

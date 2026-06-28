@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send, User, Sparkles, Mic, Info } from "lucide-react";
+import { Send, User, Sparkles, Mic, Info, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import { buildJonathanWelcome } from "../prompts/jonathan";
@@ -8,13 +9,29 @@ import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
-import type { AiConfig, RepairResult } from "../services/types";
+import type { AiConfig, RepairAction, RepairResult, RepairVerification } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   source?: string;
   repairs?: RepairResult[];
+  pendingRepairs?: RepairAction[];
+  verification?: RepairVerification | null;
+  escalationCaseId?: string | null;
+}
+
+function repairKindLabel(kind?: string): string {
+  switch (kind) {
+    case "mutating":
+      return "Repair";
+    case "diagnostic":
+      return "Diagnostic";
+    case "advisory":
+      return "Recommendation";
+    default:
+      return "Action";
+  }
 }
 
 export function JonathanAssistant() {
@@ -23,7 +40,8 @@ export function JonathanAssistant() {
   const [loading, setLoading] = useState(false);
   const [skillLevel, setSkillLevel] = useState("beginner");
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
-  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(0);
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<RepairAction[]>([]);
   const { lastScan, addNotification } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,29 +50,32 @@ export function JonathanAssistant() {
   }, []);
 
   useEffect(() => {
-    Promise.all([thorpeApi.getProfile(), thorpeApi.getAiConfig()])
-      .then(([profile, config]) => {
+    Promise.all([thorpeApi.getProfile(), thorpeApi.getAiConfig(), thorpeApi.getChatHistory(50)])
+      .then(([profile, config, history]) => {
         setSkillLevel(profile.skill_level);
         setAiConfig(config);
         const name = extractFirstName(profile.display_name);
-        setMessages([{ role: "assistant", content: buildJonathanWelcome(name) }]);
-        setTypingMessageIndex(0);
+        const restored: Message[] = history.map((h) => ({
+          role: h.role as "user" | "assistant",
+          content: h.content,
+        }));
+        if (restored.length === 0) {
+          setMessages([{ role: "assistant", content: buildJonathanWelcome(name) }]);
+          setTypingMessageIndex(0);
+        } else {
+          setMessages(restored);
+          setTypingMessageIndex(null);
+        }
       })
       .catch(console.error);
   }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, loading, typingMessageIndex]);
+  }, [messages, loading, typingMessageIndex, scrollToBottom]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+  const sendChat = async (userMessage: string, confirmedRepairs?: string[]) => {
     setLoading(true);
-
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
       const response = await thorpeApi.chatWithJonathan({
@@ -62,6 +83,7 @@ export function JonathanAssistant() {
         skill_level: skillLevel,
         scan_context: lastScan ? JSON.stringify(lastScan) : undefined,
         history,
+        confirmed_repairs: confirmedRepairs,
       });
 
       setMessages((prev) => {
@@ -74,16 +96,37 @@ export function JonathanAssistant() {
             content: response.message,
             source: response.source,
             repairs: response.repairs_executed,
+            pendingRepairs: response.pending_repairs,
+            verification: response.verification,
+            escalationCaseId: response.escalation_case_id,
           },
         ];
       });
 
-      if (response.repairs_executed && response.repairs_executed.length > 0) {
-        const fixed = response.repairs_executed.filter((r) => r.success).length;
+      setPendingApproval(response.pending_repairs ?? []);
+
+      const mutating = response.repairs_executed?.filter(
+        (r) => r.success && r.action_kind === "mutating"
+      ).length ?? 0;
+      if (mutating > 0) {
         addNotification({
           type: "success",
-          title: "Jonathan applied repairs",
-          message: `${fixed} automated fix(es) completed on your system.`,
+          title: "Repairs applied",
+          message: `${mutating} repair(s) completed on your system.`,
+        });
+      }
+      if (response.verification?.improved) {
+        addNotification({
+          type: "success",
+          title: "Verification passed",
+          message: `Health score improved to ${response.verification.health_after}/100.`,
+        });
+      }
+      if (response.escalation_case_id) {
+        addNotification({
+          type: "info",
+          title: "Case escalated",
+          message: "A support case was opened in Technician Workspace.",
         });
       }
     } catch (err) {
@@ -95,6 +138,23 @@ export function JonathanAssistant() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMessage = input.trim();
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    await sendChat(userMessage);
+  };
+
+  const approvePendingRepairs = async () => {
+    if (pendingApproval.length === 0 || loading) return;
+    const ids = pendingApproval.map((p) => p.id);
+    const userMessage = `Approve and run: ${pendingApproval.map((p) => p.name).join(", ")}`;
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setPendingApproval([]);
+    await sendChat(userMessage, ids);
   };
 
   const cloudAiActive = aiConfig ? isCloudAiActive(aiConfig) : false;
@@ -111,8 +171,8 @@ export function JonathanAssistant() {
             <h1 className="font-display text-xl font-bold tracking-[0.08em] text-white">JONATHAN</h1>
             <p className="text-sm text-steel">
               {cloudAiActive
-                ? "Cloud AI enabled — I diagnose, repair, and respond with GPT-powered summaries."
-                : "Autonomous IT technician — I diagnose and repair issues for you automatically."}
+                ? "Cloud AI enabled — I run repairs, verify results, and summarize with GPT."
+                : "Autonomous technician — safe diagnostics and repairs with verification."}
             </p>
           </div>
         </div>
@@ -131,25 +191,35 @@ export function JonathanAssistant() {
         <p>
           {cloudAiActive ? (
             <>
-              <span className="font-medium text-white">Cloud AI mode.</span> Repairs still run
-              automatically on your device; responses are enhanced by your configured OpenAI model.
+              <span className="font-medium text-white">Cloud AI mode.</span> Repairs still run locally;
+              mutating actions require your approval before execution.
             </>
           ) : aiConfig?.enabled ? (
             <>
               <span className="font-medium text-warning">Cloud AI enabled but not active.</span> Add
-              your API key in Settings → Jonathan AI (Cloud) and save to switch from autonomous
-              mode.
+              your API key in Settings → Jonathan AI (Cloud).
             </>
           ) : (
             <>
-              <span className="font-medium text-white">Autonomous repair mode.</span> Describe your
-              issue and I&apos;ll run fixes automatically — no manual steps required. Works on the
-              Free plan.
+              <span className="font-medium text-white">Autonomous mode.</span> I run diagnostics
+              automatically; system-changing repairs need your approval.
             </>
           )}
-          {lastScan ? " Using your latest scan for context." : " Run a scan first for deeper fixes."}
+          {lastScan ? " Using your latest scan for context." : " Run a scan first for deeper analysis."}
         </p>
       </div>
+
+      {pendingApproval.length > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <div className="text-sm text-amber-100">
+            <span className="font-medium">Approval needed:</span>{" "}
+            {pendingApproval.map((p) => p.name).join(", ")}
+          </div>
+          <button onClick={approvePendingRepairs} disabled={loading} className="btn-primary shrink-0">
+            Approve repairs
+          </button>
+        </div>
+      )}
 
       <div className="card flex flex-1 flex-col overflow-hidden p-0">
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -157,59 +227,77 @@ export function JonathanAssistant() {
             const isTyping = msg.role === "assistant" && typingMessageIndex === i;
 
             return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-            >
-              {msg.role === "user" ? (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-navy-border">
-                  <User className="h-4 w-4 text-steel" />
-                </div>
-              ) : (
-                <JonathanAvatar size="sm" showRing={false} />
-              )}
-              <div
-                className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-thorpe-primary text-white shadow-brand"
-                    : "border border-navy-border bg-navy-light text-slate-200"
-                }`}
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
               >
                 {msg.role === "user" ? (
-                  msg.content
-                ) : (
-                  <WordByWordReply
-                    content={msg.content}
-                    animate={isTyping}
-                    onComplete={() => setTypingMessageIndex(null)}
-                    onProgress={scrollToBottom}
-                  />
-                )}
-                {msg.source && msg.role === "assistant" && !isTyping && (
-                  <p className="mt-2 flex items-center gap-1 text-xs text-steel">
-                    <Sparkles className="h-3 w-3 text-cyber-teal" />
-                    {getJonathanSourceLabel(msg.source)}
-                  </p>
-                )}
-                {msg.repairs && msg.repairs.length > 0 && !isTyping && (
-                  <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
-                      Repairs executed
-                    </p>
-                    {msg.repairs.map((repair) => (
-                      <p
-                        key={repair.record_id}
-                        className={`text-xs ${repair.success ? "text-success" : "text-warning"}`}
-                      >
-                        {repair.success ? "✓" : "⚠"} {repair.action_name || repair.message}
-                      </p>
-                    ))}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-navy-border">
+                    <User className="h-4 w-4 text-steel" />
                   </div>
+                ) : (
+                  <JonathanAvatar size="sm" showRing={false} />
                 )}
-              </div>
-            </motion.div>
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-thorpe-primary text-white shadow-brand"
+                      : "border border-navy-border bg-navy-light text-slate-200"
+                  }`}
+                >
+                  {msg.role === "user" ? (
+                    msg.content
+                  ) : (
+                    <WordByWordReply
+                      content={msg.content}
+                      animate={isTyping}
+                      onComplete={() => setTypingMessageIndex(null)}
+                      onProgress={scrollToBottom}
+                    />
+                  )}
+                  {msg.source && msg.role === "assistant" && !isTyping && (
+                    <p className="mt-2 flex items-center gap-1 text-xs text-steel">
+                      <Sparkles className="h-3 w-3 text-cyber-teal" />
+                      {getJonathanSourceLabel(msg.source)}
+                    </p>
+                  )}
+                  {msg.verification && msg.role === "assistant" && !isTyping && (
+                    <p className="mt-2 flex items-center gap-1 text-xs text-emerald-400">
+                      <ShieldCheck className="h-3 w-3" />
+                      Verified: health {msg.verification.health_before} → {msg.verification.health_after}
+                      {msg.verification.improved && " ✓"}
+                    </p>
+                  )}
+                  {msg.escalationCaseId && msg.role === "assistant" && !isTyping && (
+                    <p className="mt-2 text-xs text-amber-300">
+                      Case{" "}
+                      <Link to="/workspace" className="underline">
+                        {msg.escalationCaseId.slice(0, 8)}…
+                      </Link>{" "}
+                      opened in Workspace.
+                    </p>
+                  )}
+                  {msg.repairs && msg.repairs.length > 0 && !isTyping && (
+                    <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
+                        Actions taken
+                      </p>
+                      {msg.repairs.map((repair) => (
+                        <p
+                          key={repair.record_id || repair.action_id}
+                          className={`text-xs ${repair.success ? "text-success" : "text-warning"}`}
+                        >
+                          {repair.success ? "✓" : "⚠"}{" "}
+                          <span className="text-steel">[{repairKindLabel(repair.action_kind)}]</span>{" "}
+                          {repair.action_name || repair.message}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
             );
           })}
           {loading && (
@@ -250,8 +338,9 @@ export function JonathanAssistant() {
               <Send className="h-4 w-4" />
             </button>
           </div>
-          <p className="mt-2 text-xs text-steel">
-            Jonathan never requests passwords or credentials. All diagnostics require your consent.
+          <p className="mt-2 flex items-center gap-1 text-xs text-steel">
+            <CheckCircle2 className="h-3 w-3" />
+            Jonathan never requests passwords. Mutating repairs require explicit approval.
           </p>
         </div>
       </div>

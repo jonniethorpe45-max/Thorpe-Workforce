@@ -1,7 +1,7 @@
-use crate::db::DiagnosticReport;
+use crate::db::{CreateCase, DiagnosticReport};
 use crate::licensing;
-use crate::repairs::{self, RepairResult};
-use crate::scanner::SystemScanResult;
+use crate::repairs::{self, RepairAction, RepairResult};
+use crate::scanner::{self, SystemScanResult};
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -14,9 +14,7 @@ Your job is to FIX problems — not give the user manual steps or knowledge-base
 Behavior:
 - Diagnose issues from scan data and the user's description
 - Execute automated repairs through Thorpe's repair engine (already run before you respond)
-- Report what you fixed in past tense: "I flushed the DNS cache", "I cleaned temporary files"
-- Be concise, confident, and professional — you are the technician, not a help desk script
-- Never tell the user to open Settings, Task Manager, or follow multi-step DIY instructions unless a repair failed and requires physical/hardware escalation
+- Report mutating repairs in past tense; describe diagnostics as "I checked/analyzed"; label advisory items as recommendations
 - Never invent repairs — only describe repairs that appear in the repair results provided to you
 - When you know the user's first name, address them naturally by first name in greetings and closings
 - Escalate to a human only for hardware failure, malware/ransomware, or issues requiring credentials
@@ -45,17 +43,34 @@ pub struct AiConfigUpdate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatHistoryItem {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatRequest {
     pub message: String,
     pub skill_level: String,
     pub scan_context: Option<String>,
     pub history: Vec<ChatHistoryItem>,
+    pub confirmed_repairs: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatHistoryItem {
-    pub role: String,
-    pub content: String,
+pub struct RepairVerification {
+    pub health_before: i32,
+    pub health_after: i32,
+    pub issues_before: usize,
+    pub issues_after: usize,
+    pub improved: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KbSuggestion {
+    pub id: String,
+    pub title: String,
+    pub summary: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +78,10 @@ pub struct ChatResponse {
     pub message: String,
     pub source: String,
     pub repairs_executed: Vec<RepairResult>,
+    pub pending_repairs: Vec<RepairAction>,
+    pub verification: Option<RepairVerification>,
+    pub escalation_case_id: Option<String>,
+    pub kb_suggestions: Vec<KbSuggestion>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -144,26 +163,180 @@ fn resolve_api_key(state: &State<AppState>) -> Result<Option<String>, String> {
     crate::secrets::get_api_key(&state.data_dir)
 }
 
+#[derive(Debug, Clone)]
+struct ChatExtras {
+    pending_repairs: Vec<RepairAction>,
+    verification: Option<RepairVerification>,
+    escalation_case_id: Option<String>,
+    kb_suggestions: Vec<KbSuggestion>,
+}
+
+fn enrich_message_with_extras(mut message: String, extras: &ChatExtras) -> String {
+    if let Some(id) = &extras.escalation_case_id {
+        message.push_str(&format!(
+            "\n\n**Support case opened:** `{id}` — track it in Technician Workspace."
+        ));
+    }
+    if !extras.pending_repairs.is_empty() {
+        message.push_str("\n\n**Awaiting your approval:** ");
+        message.push_str(
+            &extras
+                .pending_repairs
+                .iter()
+                .map(|a| a.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+    }
+    if let Some(v) = &extras.verification {
+        message.push_str(&format!(
+            "\n\n**Verification:** Health {} → {} (issues {} → {}).",
+            v.health_before, v.health_after, v.issues_before, v.issues_after
+        ));
+    }
+    message
+}
+
+fn chat_response(
+    message: String,
+    source: String,
+    repairs_executed: Vec<RepairResult>,
+    extras: ChatExtras,
+) -> ChatResponse {
+    ChatResponse {
+        message,
+        source,
+        repairs_executed,
+        pending_repairs: extras.pending_repairs,
+        verification: extras.verification,
+        escalation_case_id: extras.escalation_case_id,
+        kb_suggestions: extras.kb_suggestions,
+    }
+}
+
+fn is_security_escalation(message: &str) -> Option<&'static str> {
+    let m = message.to_lowercase();
+    if m.contains("virus") || m.contains("malware") || m.contains("ransomware") {
+        return Some("Potential malware or ransomware reported by user");
+    }
+    if m.contains("password") || m.contains("credential") {
+        return Some("User issue involves credentials — security boundary");
+    }
+    None
+}
+
+fn create_escalation_case(db: &crate::db::Database, title: &str, description: &str) -> Option<String> {
+    let case = CreateCase {
+        client_id: None,
+        device_id: None,
+        title: title.to_string(),
+        status: "open".to_string(),
+        priority: "high".to_string(),
+        description: Some(description.to_string()),
+        report_id: None,
+    };
+    db.create_case(&case).ok().map(|c| c.id)
+}
+
+fn kb_suggestions_for(db: &crate::db::Database, message: &str) -> Vec<KbSuggestion> {
+    db.search_knowledge_for_message(message, 2)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|article| KbSuggestion {
+            id: article.id,
+            title: article.title,
+            summary: article.symptoms.chars().take(160).collect(),
+        })
+        .collect()
+}
+
+fn run_repairs_and_verify(
+    state: &State<'_, AppState>,
+    request: &ChatRequest,
+    scan: &Option<SystemScanResult>,
+) -> (Vec<RepairResult>, ChatExtras) {
+    if is_security_escalation(&request.message).is_some() {
+        let escalation_case_id = {
+            let db = state.lock_db().ok();
+            db.and_then(|db| {
+                create_escalation_case(
+                    &db,
+                    "Jonathan security escalation",
+                    &request.message,
+                )
+            })
+        };
+        return (vec![], ChatExtras {
+            pending_repairs: vec![],
+            verification: None,
+            escalation_case_id,
+            kb_suggestions: vec![],
+        });
+    }
+
+    let planned = repairs::plan_repairs(&request.message, scan.as_ref());
+    let confirmed = request.confirmed_repairs.clone().unwrap_or_default();
+    let repair_plan = repairs::plan_chat_repairs(&planned, &confirmed);
+
+    let health_before = scan.as_ref().map(|s| s.health_score).unwrap_or(0);
+    let issues_before = scan.as_ref().map(|s| s.issues.len()).unwrap_or(0);
+
+    let repairs_executed = {
+        let Ok(db) = state.lock_db() else {
+            return (vec![], ChatExtras {
+                pending_repairs: repair_plan.pending_confirmation,
+                verification: None,
+                escalation_case_id: None,
+                kb_suggestions: vec![],
+            });
+        };
+        repairs::perform_repairs_with_failures(&db, &repair_plan.to_run)
+    };
+
+    let verification = if repairs::any_mutating_success(&repairs_executed) {
+        let after = scanner::quick_system_scan();
+        Some(RepairVerification {
+            health_before,
+            health_after: after.health_score,
+            issues_before,
+            issues_after: after.issues.len(),
+            improved: after.health_score > health_before || after.issues.len() < issues_before,
+        })
+    } else {
+        None
+    };
+
+    let needs_kb = repairs_executed.iter().any(|r| !r.success)
+        || repairs_executed.iter().all(|r| r.action_kind == "advisory")
+        || repairs_executed.is_empty();
+    let kb_suggestions = if needs_kb {
+        state
+            .lock_db()
+            .ok()
+            .map(|db| kb_suggestions_for(&db, &request.message))
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    (
+        repairs_executed,
+        ChatExtras {
+            pending_repairs: repair_plan.pending_confirmation,
+            verification,
+            escalation_case_id: None,
+            kb_suggestions,
+        },
+    )
+}
+
 #[tauri::command]
 pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest) -> Result<ChatResponse, String> {
     let scan = parse_scan_context(request.scan_context.as_deref());
 
     state.lock_db()?.save_chat("user", &request.message).ok();
 
-    let skip_auto_repair = {
-        let m = request.message.to_lowercase();
-        m.contains("virus") || m.contains("malware") || m.contains("ransomware")
-    };
-
-    let planned = if skip_auto_repair {
-        vec![]
-    } else {
-        repairs::plan_repairs(&request.message, scan.as_ref())
-    };
-    let repairs_executed = {
-        let db = state.lock_db()?;
-        repairs::perform_repairs(&db, &planned)
-    };
+    let (repairs_executed, extras) = run_repairs_and_verify(&state, &request, &scan);
 
     let user_first_name = {
         let db = state.lock_db()?;
@@ -203,49 +376,54 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
                         result.completion_tokens,
                     );
                 }
-                ChatResponse {
-                    message: result.content,
-                    source: "enterprise".to_string(),
+                chat_response(
+                    enrich_message_with_extras(result.content, &extras),
+                    "enterprise".to_string(),
                     repairs_executed,
-                }
+                    extras,
+                )
             }
-            Err(e) => ChatResponse {
-                message: format_technician_response(
+            Err(e) => chat_response(
+                format_technician_response(
                     &request,
                     scan.as_ref(),
                     &repairs_executed,
+                    &extras,
                     user_first_name.as_deref(),
                     Some(&e),
                 ),
-                source: "cloud_fallback".to_string(),
+                "cloud_fallback".to_string(),
                 repairs_executed,
-            },
+                extras,
+            ),
         },
         Ok(None) => resolve_user_cloud_response(
-            &state,
             &config,
             api_key.as_deref(),
             &request,
             scan.as_ref(),
             &repairs_executed,
+            &extras,
             user_first_name.as_deref(),
         )
         .await,
-        Err(policy_err) => ChatResponse {
-            message: format!(
+        Err(policy_err) => chat_response(
+            format!(
                 "{}\n\n**Organization policy:** {}",
                 format_technician_response(
                     &request,
                     scan.as_ref(),
                     &repairs_executed,
+                    &extras,
                     user_first_name.as_deref(),
                     None,
                 ),
                 policy_err
             ),
-            source: "policy_blocked".to_string(),
+            "policy_blocked".to_string(),
             repairs_executed,
-        },
+            extras,
+        ),
     };
 
     state.lock_db()?.save_chat("assistant", &response.message).ok();
@@ -253,30 +431,33 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
 }
 
 async fn resolve_user_cloud_response(
-    _state: &State<'_, AppState>,
     config: &AiConfig,
     api_key: Option<&str>,
     request: &ChatRequest,
     scan: Option<&SystemScanResult>,
     repairs_executed: &[RepairResult],
+    extras: &ChatExtras,
     user_first_name: Option<&str>,
 ) -> ChatResponse {
     let repairs_executed = repairs_executed.to_vec();
+    let extras = extras.clone();
     if config.enabled && api_key.is_none() {
-        ChatResponse {
-            message: format!(
+        chat_response(
+            format!(
                 "{}\n\n**Cloud AI is enabled in Settings but no API key is stored on this device.** Open Settings → Jonathan AI (Cloud), enter your OpenAI API key, and save again.",
                 format_technician_response(
                     request,
                     scan,
                     &repairs_executed,
+                    &extras,
                     user_first_name,
                     None,
                 )
             ),
-            source: "cloud_unconfigured".to_string(),
+            "cloud_unconfigured".to_string(),
             repairs_executed,
-        }
+            extras,
+        )
     } else if config.enabled && api_key.is_some() {
         match call_openai_compatible(
             &config.base_url,
@@ -289,35 +470,40 @@ async fn resolve_user_cloud_response(
         )
         .await
         {
-            Ok(result) => ChatResponse {
-                message: result.content,
-                source: "openai".to_string(),
+            Ok(result) => chat_response(
+                enrich_message_with_extras(result.content, &extras),
+                "openai".to_string(),
                 repairs_executed,
-            },
-            Err(e) => ChatResponse {
-                message: format_technician_response(
+                extras,
+            ),
+            Err(e) => chat_response(
+                format_technician_response(
                     request,
                     scan,
                     &repairs_executed,
+                    &extras,
                     user_first_name,
                     Some(&e),
                 ),
-                source: "cloud_fallback".to_string(),
+                "cloud_fallback".to_string(),
                 repairs_executed,
-            },
+                extras,
+            ),
         }
     } else {
-        ChatResponse {
-            message: format_technician_response(
+        chat_response(
+            format_technician_response(
                 request,
                 scan,
                 &repairs_executed,
+                &extras,
                 user_first_name,
                 None,
             ),
-            source: "local".to_string(),
+            "local".to_string(),
             repairs_executed,
-        }
+            extras,
+        )
     }
 }
 
@@ -432,71 +618,135 @@ fn format_technician_response(
     request: &ChatRequest,
     scan: Option<&SystemScanResult>,
     repairs: &[RepairResult],
+    extras: &ChatExtras,
     user_first_name: Option<&str>,
     api_error: Option<&str>,
 ) -> String {
     let msg_lower = request.message.to_lowercase();
 
-    if msg_lower.contains("password") || msg_lower.contains("credential") {
-        return "I can't handle passwords or credentials — that's a security boundary I never cross. I've escalated this to your organization's official recovery process.".to_string();
-    }
-
-    if msg_lower.contains("virus") || msg_lower.contains("malware") || msg_lower.contains("ransomware") {
-        return "⚠️ **Security alert — I've isolated automated repairs for this case.**\n\nI detected a potential malware/ransomware concern. I've stopped routine fixes and recommend immediate escalation to a cybersecurity professional. Do not enter credentials on this device until it's verified clean.".to_string();
+    if let Some(reason) = is_security_escalation(&request.message) {
+        let case_note = extras
+            .escalation_case_id
+            .as_ref()
+            .map(|id| format!("\n\n**Support case opened:** `{id}` — a technician can follow up in Workspace."))
+            .unwrap_or_default();
+        if msg_lower.contains("password") || msg_lower.contains("credential") {
+            return format!(
+                "I can't handle passwords or credentials — that's a security boundary I never cross. I've escalated this to your organization's official recovery process.{case_note}"
+            );
+        }
+        return format!(
+            "⚠️ **Security alert — I've isolated automated repairs for this case.**\n\nI detected a potential malware/ransomware concern ({reason}). I've stopped routine fixes and opened an escalation for your team. Do not enter credentials on this device until it's verified clean.{case_note}"
+        );
     }
 
     let mut response = match user_first_name {
-        Some(name) => format!("**Hi {name}, autonomous repair complete**\n\n"),
-        None => String::from("**Jonathan — autonomous repair complete**\n\n"),
+        Some(name) => format!("**Hi {name}, here's what I did**\n\n"),
+        None => String::from("**Jonathan — here's what I did**\n\n"),
     };
 
-    if repairs.is_empty() {
-        response.push_str("I analyzed your system but no automated repairs were needed for this request.\n");
+    let mutating: Vec<_> = repairs.iter().filter(|r| r.action_kind == "mutating").collect();
+    let diagnostic: Vec<_> = repairs.iter().filter(|r| r.action_kind == "diagnostic").collect();
+    let advisory: Vec<_> = repairs.iter().filter(|r| r.action_kind == "advisory").collect();
+
+    if mutating.is_empty() && diagnostic.is_empty() && advisory.is_empty() {
+        response.push_str("I analyzed your request but no automated actions were run.\n");
     } else {
-        response.push_str("I've applied the following fixes on your behalf:\n\n");
-        for repair in repairs {
-            let status = if repair.success { "✓" } else { "⚠" };
-            response.push_str(&format!("- {} **{}** — {}\n", status, repair.action_name, repair.message));
-            if let Some(details) = &repair.details {
-                let preview: String = details.lines().take(2).collect::<Vec<_>>().join(" ");
-                if !preview.is_empty() {
-                    response.push_str(&format!("  _{preview}_\n"));
-                }
+        if !mutating.is_empty() {
+            response.push_str("**Repairs applied:**\n");
+            for repair in mutating {
+                append_repair_line(&mut response, repair);
             }
+            response.push('\n');
         }
+        if !diagnostic.is_empty() {
+            response.push_str("**Diagnostics run:**\n");
+            for repair in diagnostic {
+                append_repair_line(&mut response, repair);
+            }
+            response.push('\n');
+        }
+        if !advisory.is_empty() {
+            response.push_str("**Recommendations:**\n");
+            for repair in advisory {
+                append_repair_line(&mut response, repair);
+            }
+            response.push('\n');
+        }
+    }
+
+    if !extras.pending_repairs.is_empty() {
+        response.push_str("**Awaiting your approval** (reply with “yes, run repairs” or confirm in Repair Center):\n");
+        for action in &extras.pending_repairs {
+            response.push_str(&format!("- **{}** — {}\n", action.name, action.purpose));
+        }
+        response.push('\n');
+    }
+
+    if let Some(v) = &extras.verification {
+        let delta = v.health_after - v.health_before;
+        let trend = if v.improved {
+            "improved"
+        } else if delta < 0 {
+            "declined slightly"
+        } else {
+            "unchanged"
+        };
+        response.push_str(&format!(
+            "**Verification scan:** Health {}/100 → {}/100 ({}). Issues: {} → {}.\n",
+            v.health_before, v.health_after, trend, v.issues_before, v.issues_after
+        ));
     }
 
     if let Some(scan) = scan {
         response.push_str(&format!(
-            "\n**System status:** Health score {}/100 on {} {}\n",
+            "\n**Baseline scan:** Health {}/100 on {} {}\n",
             scan.health_score, scan.os.name, scan.os.version
         ));
         if !scan.issues.is_empty() {
-            response.push_str(&format!("**Remaining flags:** {} issue(s) logged for monitoring.\n", scan.issues.len()));
+            response.push_str(&format!("**Flags from last scan:** {} issue(s).\n", scan.issues.len()));
+        }
+    }
+
+    if !extras.kb_suggestions.is_empty() {
+        response.push_str("\n**Related knowledge base articles:**\n");
+        for kb in &extras.kb_suggestions {
+            response.push_str(&format!("- **{}** — {}\n", kb.title, kb.summary));
         }
     }
 
     if msg_lower.contains("hello") || msg_lower.contains("hi") || msg_lower.contains("hey") {
         if let Some(name) = user_first_name {
             response.push_str(&format!(
-                "\nTell me what's wrong, {name} — I'll diagnose and repair it automatically. No manual steps required on your end."
+                "\nDescribe what's wrong, {name} — I'll run safe diagnostics and repairs automatically."
             ));
         } else {
-            response.push_str("\nTell me what's wrong — I'll diagnose and repair it automatically. No manual steps required on your end.");
+            response.push_str("\nDescribe what's wrong — I'll run safe diagnostics and repairs automatically.");
         }
     } else if let Some(name) = user_first_name {
         response.push_str(&format!(
-            "\nThe issue has been handled, {name}. I'll keep monitoring — let me know if you need anything else."
+            "\nLet me know if you need anything else, {name}."
         ));
     } else {
-        response.push_str("\nThe issue has been handled. I'll keep monitoring — let me know if you need anything else.");
+        response.push_str("\nLet me know if you need anything else.");
     }
 
     if let Some(err) = api_error {
-        response.push_str(&format!("\n\n_Note: Cloud AI summary unavailable ({err}). Repairs were still executed locally._"));
+        response.push_str(&format!("\n\n_Note: Cloud AI summary unavailable ({err}). Local results above are still accurate._"));
     }
 
     response
+}
+
+fn append_repair_line(response: &mut String, repair: &RepairResult) {
+    let status = if repair.success { "✓" } else { "⚠" };
+    response.push_str(&format!("- {} **{}** — {}\n", status, repair.action_name, repair.message));
+    if let Some(details) = &repair.details {
+        let preview: String = details.lines().take(2).collect::<Vec<_>>().join(" ");
+        if !preview.is_empty() {
+            response.push_str(&format!("  _{preview}_\n"));
+        }
+    }
 }
 
 #[tauri::command]

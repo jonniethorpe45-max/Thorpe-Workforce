@@ -5,6 +5,7 @@ import type {
   AppInfo,
   ChatRequest,
   ChatResponse,
+  ChatMessage,
   Client,
   DiagnosticReport,
   EnterpriseAiDashboard,
@@ -44,8 +45,11 @@ export const thorpeApi = {
   checkForUpdates: () => invokeOrMock<UpdateInfo>("check_for_updates"),
 
   getProfile: () => invokeOrMock<Profile>("get_profile"),
-  updateProfile: (displayName: string, email: string | null, skillLevel: string) =>
-    invokeOrMock<Profile>("update_profile", { displayName, email, skillLevel }),
+  updateProfile: (displayName: string, email: string | null, skillLevel: string, role?: string) =>
+    invokeOrMock<Profile>("update_profile", { displayName, email, skillLevel, role }),
+
+  getChatHistory: (limit?: number) =>
+    invokeOrMock<ChatMessage[]>("get_chat_history", { limit }),
 
   runSystemScan: () => invokeOrMock<SystemScanResult>("run_system_scan"),
   getLastScan: () => invokeOrMock<SystemScanResult | null>("get_last_scan"),

@@ -89,6 +89,7 @@ export interface RepairAction {
   risk_level: string;
   category: string;
   requires_confirmation: boolean;
+  action_kind: string;
   platform: string[];
 }
 
@@ -99,6 +100,7 @@ export interface RepairResult {
   record_id: string;
   action_id?: string;
   action_name?: string;
+  action_kind?: string;
 }
 
 export interface RepairRecord {
@@ -195,12 +197,38 @@ export interface ChatRequest {
   skill_level: string;
   scan_context?: string;
   history: Array<{ role: string; content: string }>;
+  confirmed_repairs?: string[];
+}
+
+export interface RepairVerification {
+  health_before: number;
+  health_after: number;
+  issues_before: number;
+  issues_after: number;
+  improved: boolean;
+}
+
+export interface KbSuggestion {
+  id: string;
+  title: string;
+  summary: string;
 }
 
 export interface ChatResponse {
   message: string;
   source: string;
   repairs_executed?: RepairResult[];
+  pending_repairs?: RepairAction[];
+  verification?: RepairVerification | null;
+  escalation_case_id?: string | null;
+  kb_suggestions?: KbSuggestion[];
+}
+
+export interface ChatMessage {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
 }
 
 export interface UpdateInfo {

@@ -795,6 +795,35 @@ impl Database {
         Ok(())
     }
 
+    pub fn search_knowledge_for_message(&self, message: &str, limit: i64) -> DbResult<Vec<KnowledgeArticle>> {
+        let articles = self.list_knowledge(None)?;
+        let msg = message.to_lowercase();
+        let terms: Vec<String> = msg
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|t| t.len() >= 4)
+            .map(|t| t.to_string())
+            .collect();
+
+        let mut matches: Vec<(i32, KnowledgeArticle)> = articles
+            .into_iter()
+            .filter_map(|article| {
+                let haystack = format!(
+                    "{} {} {} {}",
+                    article.title, article.symptoms, article.tags, article.category
+                )
+                .to_lowercase();
+                let score = terms.iter().filter(|t| haystack.contains(t.as_str())).count() as i32;
+                if score > 0 {
+                    Some((score, article))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        matches.sort_by(|a, b| b.0.cmp(&a.0));
+        Ok(matches.into_iter().take(limit as usize).map(|(_, a)| a).collect())
+    }
+
     pub fn get_chat_history(&self, limit: i64) -> DbResult<Vec<ChatMessage>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, role, content, created_at FROM chat_history ORDER BY created_at ASC LIMIT ?1"
@@ -1065,8 +1094,29 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub fn update_profile(state: State<AppState>, display_name: String, email: Option<String>, skill_level: String) -> Result<Profile, String> {
-        state.lock_db()?.update_profile(&display_name, email.as_deref(), &skill_level).map_err(|e| e.to_string())
+    pub fn update_profile(
+        state: State<AppState>,
+        display_name: String,
+        email: Option<String>,
+        skill_level: String,
+        role: Option<String>,
+    ) -> Result<Profile, String> {
+        let db = state.lock_db()?;
+        db.update_profile(&display_name, email.as_deref(), &skill_level)
+            .map_err(|e| e.to_string())?;
+        if let Some(r) = role {
+            db.update_profile_role(&r).map_err(|e| e.to_string())
+        } else {
+            db.get_profile().map_err(|e| e.to_string())
+        }
+    }
+
+    #[tauri::command]
+    pub fn get_chat_history(state: State<AppState>, limit: Option<i64>) -> Result<Vec<ChatMessage>, String> {
+        state
+            .lock_db()?
+            .get_chat_history(limit.unwrap_or(100))
+            .map_err(|e| e.to_string())
     }
 
     #[tauri::command]

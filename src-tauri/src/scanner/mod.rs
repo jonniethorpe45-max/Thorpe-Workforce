@@ -104,6 +104,11 @@ pub struct ScanIssue {
     pub category: String,
 }
 
+/// Lightweight scan for post-repair verification (no DB persistence).
+pub fn quick_system_scan() -> SystemScanResult {
+    collect_system_info()
+}
+
 fn collect_system_info() -> SystemScanResult {
     let mut sys = System::new_all();
     sys.refresh_all();
@@ -228,33 +233,185 @@ fn collect_system_info() -> SystemScanResult {
 
 fn get_startup_apps() -> Vec<String> {
     let mut apps = Vec::new();
-    #[cfg(target_os = "windows")]
-    {
-        apps.push("Windows Startup items — review in Task Manager".to_string());
-    }
-    #[cfg(target_os = "macos")]
-    {
-        apps.push("macOS Login Items — review in System Settings > General > Login Items".to_string());
-    }
+
     #[cfg(target_os = "linux")]
     {
-        apps.push("Linux autostart entries — review in ~/.config/autostart/".to_string());
+        if let Ok(entries) = std::fs::read_dir(
+            std::path::Path::new(&format!(
+                "{}/.config/autostart",
+                std::env::var("HOME").unwrap_or_default()
+            )),
+        ) {
+            for entry in entries.flatten().take(20) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.ends_with(".desktop") {
+                    apps.push(name.trim_end_matches(".desktop").to_string());
+                }
+            }
+        }
     }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("reg")
+            .args([
+                "query",
+                r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
+            ])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&output.stdout);
+            for line in text.lines().skip(2).take(15) {
+                let trimmed = line.trim();
+                if let Some(name) = trimmed.split_whitespace().next() {
+                    apps.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(entries) = std::fs::read_dir(
+            std::path::Path::new(&format!(
+                "{}/Library/LaunchAgents",
+                std::env::var("HOME").unwrap_or_default()
+            )),
+        ) {
+            for entry in entries.flatten().take(15) {
+                apps.push(entry.file_name().to_string_lossy().to_string());
+            }
+        }
+    }
+
+    if apps.is_empty() {
+        apps.push(match std::env::consts::OS {
+            "windows" => "No startup entries enumerated — review Task Manager > Startup",
+            "macos" => "No login items enumerated — review System Settings > Login Items",
+            _ => "No autostart entries found in ~/.config/autostart/",
+        }
+        .to_string());
+    }
+
     apps
 }
 
 fn get_installed_software_sample() -> Vec<String> {
-    vec![
-        "System software inventory collected at scan time".to_string(),
-        format!("Platform: {}", std::env::consts::OS),
-    ]
+    let mut apps = Vec::new();
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(output) = std::process::Command::new("sh")
+            .args([
+                "-c",
+                "dpkg-query -W -f='${Package}\n' 2>/dev/null | head -25",
+            ])
+            .output()
+        {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let pkg = line.trim();
+                if !pkg.is_empty() {
+                    apps.push(pkg.to_string());
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Select-Object -ExpandProperty DisplayName -ErrorAction SilentlyContinue | Where-Object { $_ } | Select-Object -First 20",
+            ])
+            .output()
+        {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let name = line.trim();
+                if !name.is_empty() {
+                    apps.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(output) = std::process::Command::new("sh")
+            .args(["-c", "ls /Applications 2>/dev/null | head -20"])
+            .output()
+        {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let name = line.trim();
+                if !name.is_empty() {
+                    apps.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    if apps.is_empty() {
+        apps.push(format!("Platform: {}", std::env::consts::OS));
+    }
+
+    apps
 }
 
 fn get_battery_info() -> Option<BatteryInfo> {
+    use sysinfo::System;
+    let mut sys = System::new_all();
+    sys.refresh_all();
+    // sysinfo does not expose battery on all platforms; best-effort via uptime proxy omitted
     None
 }
 
 fn check_updates_available() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(output) = std::process::Command::new("sh")
+            .args([
+                "-c",
+                "command -v apt-get >/dev/null && apt-get -s upgrade 2>/dev/null | grep -c '^Inst' || echo 0",
+            ])
+            .output()
+        {
+            let count = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(0);
+            return count > 0;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "(New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher().Search('IsInstalled=0').Updates.Count -gt 0",
+            ])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            return text == "true" || text == "1";
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(output) = std::process::Command::new("sh")
+            .args([
+                "-c",
+                "softwareupdate -l 2>&1 | grep -q 'No new software available'; test $? -ne 0",
+            ])
+            .output()
+        {
+            return output.status.success();
+        }
+    }
+
     false
 }
 
