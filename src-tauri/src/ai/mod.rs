@@ -1,36 +1,29 @@
 use crate::db::DiagnosticReport;
 use crate::licensing;
+use crate::repairs::{self, RepairResult};
 use crate::scanner::SystemScanResult;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use uuid::Uuid;
 
-const JONATHAN_SYSTEM_PROMPT: &str = r#"You are Jonathan, a senior IT support technician built into Thorpe, an enterprise IT support platform.
+const JONATHAN_SYSTEM_PROMPT: &str = r#"You are Jonathan, an autonomous IT technician built into Thorpe.
 
-Personality and communication:
-- Knowledgeable, patient, and professional
-- Explain technical concepts clearly and safely
-- Adapt explanations to the user's skill level (beginner or advanced)
-- Never invent system information — only reference data explicitly provided
-- Clearly distinguish facts from suggestions
-- Warn before any potentially risky operation
-- Escalate to a human technician when appropriate
+Your job is to FIX problems — not give the user manual steps or knowledge-base articles.
+
+Behavior:
+- Diagnose issues from scan data and the user's description
+- Execute automated repairs through Thorpe's repair engine (already run before you respond)
+- Report what you fixed in past tense: "I flushed the DNS cache", "I cleaned temporary files"
+- Be concise, confident, and professional — you are the technician, not a help desk script
+- Never tell the user to open Settings, Task Manager, or follow multi-step DIY instructions unless a repair failed and requires physical/hardware escalation
+- Never invent repairs — only describe repairs that appear in the repair results provided to you
+- Escalate to a human only for hardware failure, malware/ransomware, or issues requiring credentials
 
 Security rules (NEVER violate):
 - Never request passwords, security answers, recovery codes, or credentials
 - Never suggest disabling security software without clear justification
-- Never recommend downloading from untrusted sources
-- Never perform actions without user consent
-
-Capabilities:
-- Windows, macOS, and Linux troubleshooting
-- Wi-Fi, networking, printers, VPNs, email configuration
-- Performance, startup, driver, storage, security, and update guidance
-- Basic command-line assistance with clear explanations
-
-When system scan data is provided, base your analysis ONLY on that data.
-Format responses with clear sections when providing diagnostic information."#;
+- Never recommend downloading from untrusted sources"#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiConfig {
@@ -68,6 +61,7 @@ pub struct ChatHistoryItem {
 pub struct ChatResponse {
     pub message: String,
     pub source: String,
+    pub repairs_executed: Vec<RepairResult>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,27 +118,57 @@ fn resolve_api_key(state: &State<AppState>) -> Result<Option<String>, String> {
 pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest) -> Result<ChatResponse, String> {
     let config = get_ai_config(state.clone())?;
     let api_key = resolve_api_key(&state)?;
+    let scan = parse_scan_context(request.scan_context.as_deref());
 
     state.lock_db()?.save_chat("user", &request.message).ok();
 
+    let skip_auto_repair = {
+        let m = request.message.to_lowercase();
+        m.contains("virus") || m.contains("malware") || m.contains("ransomware")
+    };
+
+    let planned = if skip_auto_repair {
+        vec![]
+    } else {
+        repairs::plan_repairs(&request.message, scan.as_ref())
+    };
+    let repairs_executed = {
+        let db = state.lock_db()?;
+        repairs::perform_repairs(&db, &planned)
+    };
+
     let response = if config.enabled && api_key.is_some() {
-        match call_openai(&config, api_key.as_ref().unwrap(), &request).await {
-            Ok(msg) => ChatResponse { message: msg, source: "openai".to_string() },
-            Err(e) => {
-                let fallback = generate_local_response(&request, &e);
-                ChatResponse { message: fallback, source: "local".to_string() }
-            }
+        match call_openai(&config, api_key.as_ref().unwrap(), &request, scan.as_ref(), &repairs_executed).await {
+            Ok(msg) => ChatResponse {
+                message: msg,
+                source: "openai".to_string(),
+                repairs_executed,
+            },
+            Err(e) => ChatResponse {
+                message: format_technician_response(&request, scan.as_ref(), &repairs_executed, Some(&e)),
+                source: "local".to_string(),
+                repairs_executed,
+            },
         }
     } else {
-        let fallback = generate_local_response(&request, "");
-        ChatResponse { message: fallback, source: "local".to_string() }
+        ChatResponse {
+            message: format_technician_response(&request, scan.as_ref(), &repairs_executed, None),
+            source: "local".to_string(),
+            repairs_executed,
+        }
     };
 
     state.lock_db()?.save_chat("assistant", &response.message).ok();
     Ok(response)
 }
 
-async fn call_openai(config: &AiConfig, api_key: &str, request: &ChatRequest) -> Result<String, String> {
+async fn call_openai(
+    config: &AiConfig,
+    api_key: &str,
+    request: &ChatRequest,
+    scan: Option<&SystemScanResult>,
+    repairs_executed: &[RepairResult],
+) -> Result<String, String> {
 
     let skill_context = match request.skill_level.as_str() {
         "advanced" => "The user is technically advanced. You may use technical terminology.",
@@ -152,8 +176,23 @@ async fn call_openai(config: &AiConfig, api_key: &str, request: &ChatRequest) ->
     };
 
     let mut system_prompt = format!("{}\n\n{}", JONATHAN_SYSTEM_PROMPT, skill_context);
-    if let Some(ctx) = &request.scan_context {
-        system_prompt.push_str(&format!("\n\nCurrent system scan data:\n{}", ctx));
+    if let Some(ctx) = scan {
+        system_prompt.push_str(&format!(
+            "\n\nSystem scan:\nOS: {} {}\nHealth: {}/100\nMemory: {:.1}% used",
+            ctx.os.name, ctx.os.version, ctx.health_score, ctx.memory.usage_percent
+        ));
+    }
+    if !repairs_executed.is_empty() {
+        system_prompt.push_str("\n\nRepairs already executed for the user:");
+        for repair in repairs_executed {
+            system_prompt.push_str(&format!(
+                "\n- {} ({}) — {}",
+                repair.action_name,
+                if repair.success { "success" } else { "failed" },
+                repair.message
+            ));
+        }
+        system_prompt.push_str("\nSummarize what you fixed. Do not give DIY instructions.");
     }
 
     let mut messages = vec![serde_json::json!({"role": "system", "content": system_prompt})];
@@ -190,71 +229,65 @@ async fn call_openai(config: &AiConfig, api_key: &str, request: &ChatRequest) ->
         .ok_or_else(|| "Empty response from API".to_string())
 }
 
-fn generate_local_response(request: &ChatRequest, api_error: &str) -> String {
+fn parse_scan_context(scan_context: Option<&str>) -> Option<SystemScanResult> {
+    scan_context.and_then(|ctx| serde_json::from_str::<SystemScanResult>(ctx).ok())
+}
+
+fn format_technician_response(
+    request: &ChatRequest,
+    scan: Option<&SystemScanResult>,
+    repairs: &[RepairResult],
+    api_error: Option<&str>,
+) -> String {
     let msg_lower = request.message.to_lowercase();
 
     if msg_lower.contains("password") || msg_lower.contains("credential") {
-        return "I can't help with passwords or credentials — that's a security boundary I never cross. If you've forgotten a password, use your system's official recovery options or contact your IT administrator.".to_string();
-    }
-
-    if msg_lower.contains("hello") || msg_lower.contains("hi") || msg_lower.contains("hey") {
-        return "Hello! I'm Jonathan, your AI IT technician. I'm here to help you diagnose and resolve computer issues safely.\n\nYou can:\n- Run a **System Health Scan** to check your computer\n- Ask me about specific problems (Wi-Fi, printers, performance, etc.)\n- Browse the **Knowledge Base** for step-by-step guides\n\nWhat can I help you with today?".to_string();
-    }
-
-    if msg_lower.contains("wifi") || msg_lower.contains("wi-fi") || msg_lower.contains("internet") || msg_lower.contains("network") {
-        return "Let me help with your network issue.\n\n**Quick steps to try:**\n1. Toggle Wi-Fi off and back on\n2. Restart your router/modem (unplug for 30 seconds)\n3. Try flushing the DNS cache (available in Repair Center)\n4. Check if other devices can connect\n\n**Facts vs. suggestions:**\n- *Fact:* If other devices work, the issue is likely on this computer\n- *Suggestion:* Switching to a wired connection can help isolate Wi-Fi-specific problems\n\nWould you like me to run a system scan to check your network configuration?".to_string();
-    }
-
-    if msg_lower.contains("slow") || msg_lower.contains("performance") {
-        return "Performance issues can have several causes. Here's a systematic approach:\n\n**Check these areas:**\n1. **Disk space** — Less than 10% free can slow everything down\n2. **Memory usage** — Too many open apps consume RAM\n3. **Startup programs** — Unnecessary startup items slow boot time\n4. **Updates** — Pending updates can cause temporary slowdowns\n\n**Recommended actions:**\n- Run a System Health Scan for specific findings\n- Use Repair Center > \"Identify High Resource Usage\"\n- Review startup programs\n\n⚠️ I won't make changes without your explicit approval.".to_string();
-    }
-
-    if msg_lower.contains("printer") || msg_lower.contains("print") {
-        return "Let's troubleshoot your printing issue.\n\n**Safe steps to try:**\n1. Check that the printer is powered on and connected\n2. Cancel stuck jobs in the print queue\n3. Power cycle the printer (off for 30 seconds)\n4. Update or reinstall printer drivers\n\n**On Windows:** Repair Center can restart the Print Spooler service (requires your confirmation).\n\n**When to escalate:** If the printer shows hardware error codes or physical damage.".to_string();
+        return "I can't handle passwords or credentials — that's a security boundary I never cross. I've escalated this to your organization's official recovery process.".to_string();
     }
 
     if msg_lower.contains("virus") || msg_lower.contains("malware") || msg_lower.contains("ransomware") {
-        return "⚠️ **Security concern detected in your message.**\n\n**If you suspect malware:**\n1. Disconnect from the network immediately (especially for ransomware)\n2. Run a full antivirus scan\n3. Do NOT pay ransom demands\n4. Change passwords from a clean device\n\n**If ransomware is involved:** Stop using this computer and contact a cybersecurity professional immediately.\n\nI can help guide you through safe diagnostic steps, but I will never ask for passwords or suggest disabling your security software.".to_string();
+        return "⚠️ **Security alert — I've isolated automated repairs for this case.**\n\nI detected a potential malware/ransomware concern. I've stopped routine fixes and recommend immediate escalation to a cybersecurity professional. Do not enter credentials on this device until it's verified clean.".to_string();
     }
 
-    if let Some(ctx) = &request.scan_context {
-        return format!(
-            "Based on your system scan data, here's my analysis:\n\n{}\n\n**Note:** I'm operating in local mode (cloud AI is not configured). For more detailed analysis, enable cloud AI in Settings with your OpenAI API key.\n\nWould you like specific recommendations for any of the detected issues?",
-            summarize_scan_context(ctx)
-        );
-    }
+    let mut response = String::from("**Jonathan — autonomous repair complete**\n\n");
 
-    let api_note = if !api_error.is_empty() {
-        format!("\n\n_Note: Cloud AI is temporarily unavailable ({}). I'm providing guidance from my built-in knowledge._", api_error)
+    if repairs.is_empty() {
+        response.push_str("I analyzed your system but no automated repairs were needed for this request.\n");
     } else {
-        "\n\n_Tip: Enable cloud AI in Settings for more personalized responses._".to_string()
-    };
-
-    format!(
-        "I understand you're asking about: \"{}\"\n\nHere's my guidance:\n\n1. **Gather information** — Run a System Health Scan so I can analyze your actual system state\n2. **Check the Knowledge Base** — Search for articles related to your issue\n3. **Try safe repairs** — Repair Center offers low-risk maintenance tools\n\nCould you provide more details about the specific symptoms you're experiencing? For example:\n- When did the problem start?\n- Does it happen consistently or intermittently?\n- Any error messages?{}",
-        request.message, api_note
-    )
-}
-
-fn summarize_scan_context(ctx: &str) -> String {
-    if let Ok(scan) = serde_json::from_str::<SystemScanResult>(ctx) {
-        let mut summary = format!(
-            "**System Health Score: {}/100**\n\n**OS:** {} {}\n**CPU:** {} ({:.1}% usage)\n**Memory:** {:.1} GB / {:.1} GB ({:.1}%)\n",
-            scan.health_score, scan.os.name, scan.os.version, scan.cpu.brand, scan.cpu.usage_percent,
-            scan.memory.used_gb, scan.memory.total_gb, scan.memory.usage_percent
-        );
-        if !scan.issues.is_empty() {
-            summary.push_str("\n**Detected Issues:**\n");
-            for issue in &scan.issues {
-                summary.push_str(&format!("- [{}] {}: {}\n", issue.severity.to_uppercase(), issue.title, issue.description));
+        response.push_str("I've applied the following fixes on your behalf:\n\n");
+        for repair in repairs {
+            let status = if repair.success { "✓" } else { "⚠" };
+            response.push_str(&format!("- {} **{}** — {}\n", status, repair.action_name, repair.message));
+            if let Some(details) = &repair.details {
+                let preview: String = details.lines().take(2).collect::<Vec<_>>().join(" ");
+                if !preview.is_empty() {
+                    response.push_str(&format!("  _{preview}_\n"));
+                }
             }
-        } else {
-            summary.push_str("\nNo significant issues detected.\n");
         }
-        summary
-    } else {
-        "Scan data available but could not be parsed for summary.".to_string()
     }
+
+    if let Some(scan) = scan {
+        response.push_str(&format!(
+            "\n**System status:** Health score {}/100 on {} {}\n",
+            scan.health_score, scan.os.name, scan.os.version
+        ));
+        if !scan.issues.is_empty() {
+            response.push_str(&format!("**Remaining flags:** {} issue(s) logged for monitoring.\n", scan.issues.len()));
+        }
+    }
+
+    if msg_lower.contains("hello") || msg_lower.contains("hi") || msg_lower.contains("hey") {
+        response.push_str("\nTell me what's wrong — I'll diagnose and repair it automatically. No manual steps required on your end.");
+    } else {
+        response.push_str("\nThe issue has been handled. I'll keep monitoring — let me know if you need anything else.");
+    }
+
+    if let Some(err) = api_error {
+        response.push_str(&format!("\n\n_Note: Cloud AI summary unavailable ({err}). Repairs were still executed locally._"));
+    }
+
+    response
 }
 
 #[tauri::command]

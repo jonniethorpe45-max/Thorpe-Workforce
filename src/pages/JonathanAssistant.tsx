@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Send, User, Sparkles, Mic, Info } from "lucide-react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import { JONATHAN_WELCOME } from "../prompts/jonathan";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { SafeMarkdown } from "../components/ui/SafeMarkdown";
-import type { AiConfig } from "../services/types";
+import type { RepairResult } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   source?: string;
+  repairs?: RepairResult[];
 }
 
 export function JonathanAssistant() {
@@ -22,17 +22,11 @@ export function JonathanAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [skillLevel, setSkillLevel] = useState("beginner");
-  const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
-  const { lastScan, license, addNotification } = useAppStore();
+  const { lastScan, addNotification } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Promise.all([thorpeApi.getProfile(), thorpeApi.getAiConfig()])
-      .then(([profile, config]) => {
-        setSkillLevel(profile.skill_level);
-        setAiConfig(config);
-      })
-      .catch(console.error);
+    thorpeApi.getProfile().then((profile) => setSkillLevel(profile.skill_level)).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -58,8 +52,22 @@ export function JonathanAssistant() {
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: response.message, source: response.source },
+        {
+          role: "assistant",
+          content: response.message,
+          source: response.source,
+          repairs: response.repairs_executed,
+        },
       ]);
+
+      if (response.repairs_executed && response.repairs_executed.length > 0) {
+        const fixed = response.repairs_executed.filter((r) => r.success).length;
+        addNotification({
+          type: "success",
+          title: "Jonathan applied repairs",
+          message: `${fixed} automated fix(es) completed on your system.`,
+        });
+      }
     } catch (err) {
       addNotification({
         type: "error",
@@ -82,8 +90,7 @@ export function JonathanAssistant() {
             </p>
             <h1 className="font-display text-xl font-bold text-white">Jonathan</h1>
             <p className="text-sm text-steel">
-              &ldquo;Hi, I&apos;m Jonathan. I&apos;m here to help you understand and fix your
-              technology.&rdquo;
+              Autonomous IT technician — I diagnose and repair issues for you automatically.
             </p>
           </div>
         </div>
@@ -97,28 +104,14 @@ export function JonathanAssistant() {
         </select>
       </div>
 
-      <div className="mb-4 flex items-start gap-3 rounded-xl border border-cyber-teal/20 bg-cyber-teal/5 px-4 py-3 text-sm text-slate-300">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyber-teal" />
-        <div>
-          <p>
-            <span className="font-medium text-white">Jonathan is interactive on the Free plan.</span>{" "}
-            Type a message below and press Enter or the send button. The dashboard welcome banner is
-            informational only — chat happens here.
-          </p>
-          <p className="mt-1 text-steel">
-            {aiConfig?.enabled && aiConfig.api_key_configured
-              ? "Cloud AI is enabled for richer, conversational responses."
-              : "You are in local guidance mode (built-in troubleshooting tips). Run a scan first for personalized answers, or enable cloud AI in Settings."}
-            {license?.tier === "free" && (
-              <>
-                {" "}
-                <Link to="/settings" className="text-thorpe-primary hover:underline">
-                  Settings
-                </Link>
-              </>
-            )}
-          </p>
-        </div>
+      <div className="mb-4 flex items-start gap-3 rounded-xl border border-thorpe-primary/20 bg-thorpe-primary/5 px-4 py-3 text-sm text-slate-300">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-thorpe-primary" />
+        <p>
+          <span className="font-medium text-white">Autonomous repair mode.</span> Describe your
+          issue and I&apos;ll run fixes automatically — no manual steps required. Works on the Free
+          plan.
+          {lastScan ? " Using your latest scan for context." : " Run a scan first for deeper fixes."}
+        </p>
       </div>
 
       <div className="card flex flex-1 flex-col overflow-hidden p-0">
@@ -152,8 +145,23 @@ export function JonathanAssistant() {
                 {msg.source && msg.role === "assistant" && (
                   <p className="mt-2 flex items-center gap-1 text-xs text-steel">
                     <Sparkles className="h-3 w-3 text-cyber-teal" />
-                    {msg.source === "openai" ? "Cloud AI" : "Local guidance"}
+                    {msg.source === "openai" ? "Cloud AI" : "Autonomous repair"}
                   </p>
+                )}
+                {msg.repairs && msg.repairs.length > 0 && (
+                  <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
+                      Repairs executed
+                    </p>
+                    {msg.repairs.map((repair) => (
+                      <p
+                        key={repair.record_id}
+                        className={`text-xs ${repair.success ? "text-success" : "text-warning"}`}
+                      >
+                        {repair.success ? "✓" : "⚠"} {repair.action_name || repair.message}
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.div>

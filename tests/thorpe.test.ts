@@ -4,23 +4,24 @@ import { JONATHAN_WELCOME, JONATHAN_SYSTEM_PROMPT } from "../src/prompts/jonatha
 describe("Jonathan prompts", () => {
   it("has a welcome message", () => {
     expect(JONATHAN_WELCOME).toContain("Jonathan");
-    expect(JONATHAN_WELCOME).toContain("System Health Scan");
+    expect(JONATHAN_WELCOME).toContain("fix issues");
   });
 
-  it("defines security rules in system prompt", () => {
-    expect(JONATHAN_SYSTEM_PROMPT).toContain("Never request passwords");
+  it("defines autonomous repair behavior in system prompt", () => {
+    expect(JONATHAN_SYSTEM_PROMPT).toContain("fix problems directly");
   });
 });
 
 describe("License tiers", () => {
   const tiers = {
-    free: ["jonathan_ai", "basic_scans", "limited_reports"],
+    free: ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"],
     professional: ["repair_center", "pdf_export", "unlimited_reports"],
     enterprise: ["technician_workspace", "multi_device", "team_management"],
   };
 
-  it("free tier includes basic features", () => {
+  it("free tier includes Jonathan autonomous repair", () => {
     expect(tiers.free).toContain("jonathan_ai");
+    expect(tiers.free).toContain("jonathan_auto_repair");
     expect(tiers.free).not.toContain("repair_center");
   });
 
@@ -112,10 +113,11 @@ describe("Mock API", () => {
 
   it("handles chat requests", async () => {
     const { mockInvoke } = await import("../src/services/mock");
-    const response = await mockInvoke<{ message: string; source: string }>("chat_with_jonathan", {
+    const response = await mockInvoke<{ message: string; source: string; repairs_executed?: unknown[] }>("chat_with_jonathan", {
       request: { message: "wifi not working" },
     });
     expect(response.message).toBeTruthy();
     expect(response.source).toBe("local");
+    expect(response.repairs_executed?.length).toBeGreaterThan(0);
   });
 });

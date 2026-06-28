@@ -11,7 +11,7 @@ const PLANS = [
     price: "$0",
     icon: Zap,
     features: [
-      "Jonathan AI (local mode)",
+      "Jonathan AI (autonomous repair)",
       "Basic system scans",
       "Limited diagnostic reports",
       "Knowledge base access",

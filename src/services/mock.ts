@@ -1,5 +1,4 @@
 import type { KnowledgeArticle, SystemScanResult } from "./types";
-import { JONATHAN_WELCOME } from "../prompts/jonathan";
 
 const mockScan: SystemScanResult = {
   id: "mock-scan-1",
@@ -174,12 +173,24 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "chat_with_jonathan": {
       const req = args?.request as { message: string };
       const msg = req?.message?.toLowerCase() || "";
-      let response = JONATHAN_WELCOME;
-      if (msg.includes("wifi") || msg.includes("network")) {
-        response =
-          "Let's troubleshoot your network. Try toggling Wi-Fi, restarting your router, and flushing DNS cache.";
-      }
-      return { message: response, source: "local" } as T;
+      const repairs =
+        msg.includes("wifi") || msg.includes("network")
+          ? [
+              {
+                success: true,
+                message: "DNS cache flushed successfully.",
+                details: null,
+                record_id: "mock-repair-1",
+                action_id: "dns-flush",
+                action_name: "Flush DNS Cache",
+              },
+            ]
+          : [];
+      const response =
+        repairs.length > 0
+          ? "**Jonathan — autonomous repair complete**\n\nI've applied the following fixes on your behalf:\n\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\nThe issue has been handled."
+          : "**Jonathan — autonomous repair complete**\n\nI've run diagnostics and applied automated maintenance on your system.";
+      return { message: response, source: "local", repairs_executed: repairs } as T;
     }
 
     case "get_ai_config":
@@ -206,7 +217,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       return {
         tier: "free",
         tier_display: "Free",
-        features: ["jonathan_ai", "basic_scans", "limited_reports"],
+        features: ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"],
         license_key: null,
         activated_at: null,
         expires_at: null,
@@ -215,7 +226,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
 
     case "check_feature": {
       const feature = args?.feature as string;
-      const freeFeatures = ["jonathan_ai", "basic_scans", "limited_reports"];
+      const freeFeatures = ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"];
       return {
         feature,
         allowed: freeFeatures.includes(feature),

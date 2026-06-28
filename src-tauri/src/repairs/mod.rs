@@ -1,4 +1,7 @@
-use crate::db::RepairRecord;
+mod planner;
+
+pub use planner::plan_repairs;
+use crate::db::{Database, RepairRecord};
 use crate::licensing;
 use crate::AppState;
 use chrono::Utc;
@@ -126,6 +129,8 @@ pub struct RepairResult {
     pub message: String,
     pub details: Option<String>,
     pub record_id: String,
+    pub action_id: String,
+    pub action_name: String,
 }
 
 fn execute_action(action_id: &str) -> (bool, String, Option<String>) {
@@ -358,6 +363,43 @@ fn restart_print_spooler() -> (bool, String, Option<String>) {
     }
 }
 
+pub fn perform_repair(db: &Database, action_id: &str) -> Result<RepairResult, String> {
+    let actions = get_available_actions();
+    let action = actions
+        .iter()
+        .find(|a| a.id == action_id)
+        .ok_or_else(|| format!("Repair action not found: {action_id}"))?;
+
+    let (success, message, details) = execute_action(action_id);
+    let record = RepairRecord {
+        id: Uuid::new_v4().to_string(),
+        action_id: action.id.clone(),
+        action_name: action.name.clone(),
+        status: if success { "completed" } else { "failed" }.to_string(),
+        details: details.clone(),
+        risk_level: action.risk_level.clone(),
+        created_at: Utc::now().to_rfc3339(),
+    };
+    let record_id = record.id.clone();
+    db.save_repair(&record).map_err(|e| e.to_string())?;
+
+    Ok(RepairResult {
+        success,
+        message,
+        details,
+        record_id,
+        action_id: action.id.clone(),
+        action_name: action.name.clone(),
+    })
+}
+
+pub fn perform_repairs(db: &Database, action_ids: &[String]) -> Vec<RepairResult> {
+    action_ids
+        .iter()
+        .filter_map(|id| perform_repair(db, id).ok())
+        .collect()
+}
+
 #[tauri::command]
 pub fn list_repair_actions() -> Result<Vec<RepairAction>, String> {
     Ok(get_available_actions())
@@ -380,33 +422,14 @@ pub fn execute_repair(state: State<AppState>, action_id: String, confirmed: bool
         return Err("This action requires explicit user confirmation.".to_string());
     }
 
-    let (success, message, details) = execute_action(&action_id);
-    let record = RepairRecord {
-        id: Uuid::new_v4().to_string(),
-        action_id: action.id.clone(),
-        action_name: action.name.clone(),
-        status: if success { "completed" } else { "failed" }.to_string(),
-        details: details.clone(),
-        risk_level: action.risk_level.clone(),
-        created_at: Utc::now().to_rfc3339(),
-    };
-    let record_id = record.id.clone();
-    state.lock_db()?.save_repair(&record).map_err(|e| e.to_string())?;
-
-    Ok(RepairResult {
-        success,
-        message,
-        details,
-        record_id,
-    })
+    let db = state.lock_db()?;
+    perform_repair(&db, &action_id)
 }
 
 #[tauri::command]
 pub fn list_repair_history(state: State<AppState>, limit: Option<i64>) -> Result<Vec<RepairRecord>, String> {
     state
-        .db
-        .lock()
-        .unwrap()
+        .lock_db()?
         .list_repairs(limit.unwrap_or(50))
         .map_err(|e| e.to_string())
 }

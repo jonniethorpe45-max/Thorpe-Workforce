@@ -17,14 +17,14 @@
 ## Talking to Jonathan
 
 1. Go to **Jonathan AI**
-2. Describe your issue in plain language
-3. Choose beginner or advanced explanation level
-4. Jonathan will ask follow-up questions and provide step-by-step guidance
+2. Describe your issue in plain language (e.g. "My Wi-Fi isn't working")
+3. Jonathan **automatically diagnoses and runs repairs** — you don't need to follow manual steps
+4. Review the repair summary in the chat
 
 **Tips:**
-- Run a scan first for more accurate advice
+- Run a scan first for more targeted automated fixes
 - Jonathan never asks for passwords
-- Enable cloud AI in Settings for enhanced responses
+- Optional cloud AI in Settings can enhance summaries (repairs run either way)
 
 ## Using Repair Center
 
