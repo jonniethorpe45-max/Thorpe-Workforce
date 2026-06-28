@@ -1,7 +1,12 @@
-mod packs;
+pub mod pack_signing;
+pub mod packs;
 mod planner;
 
-pub use packs::{allowed_tool_ids, ensure_packs_installed, install_pack_from_json};
+pub use pack_signing::{
+    generate_keypair_hex, sign_manifest_ed25519, signing_key_from_seed_hex,
+    ED25519_SIGNATURE_PREFIX, THORPE_PACK_PUBLIC_KEY_HEX,
+};
+pub use packs::{allowed_tool_ids, ensure_packs_installed, install_pack_from_json, RepairPackManifest, RepairPackTool};
 pub use planner::plan_repairs;
 use crate::db::{Database, RepairRecord};
 use crate::licensing;

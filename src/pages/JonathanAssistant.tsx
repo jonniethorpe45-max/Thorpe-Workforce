@@ -17,6 +17,7 @@ interface Message {
   source?: string;
   repairs?: RepairResult[];
   pendingRepairs?: RepairAction[];
+  pendingResolved?: boolean;
   verification?: RepairVerification | null;
   escalationCaseId?: string | null;
   agentPlan?: AgentPlan | null;
@@ -50,6 +51,7 @@ function messageFromHistory(h: { role: string; content: string; metadata_json?: 
       source: meta.source,
       repairs: meta.repairs_executed,
       pendingRepairs: meta.pending_repairs,
+      pendingResolved: (meta.pending_repairs?.length ?? 0) === 0,
       verification: meta.verification,
       escalationCaseId: meta.escalation_case_id,
       kbSuggestions: meta.kb_suggestions,
@@ -68,7 +70,6 @@ export function JonathanAssistant() {
   const [skillLevel, setSkillLevel] = useState("beginner");
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
-  const [pendingApproval, setPendingApproval] = useState<RepairAction[]>([]);
   const { lastScan, addNotification } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +122,7 @@ export function JonathanAssistant() {
             source: response.source,
             repairs: response.repairs_executed,
             pendingRepairs: response.pending_repairs,
+            pendingResolved: (response.pending_repairs?.length ?? 0) === 0,
             verification: response.verification,
             escalationCaseId: response.escalation_case_id,
             agentPlan: response.agent_plan,
@@ -129,8 +131,6 @@ export function JonathanAssistant() {
           },
         ];
       });
-
-      setPendingApproval(response.pending_repairs ?? []);
 
       const mutating = response.repairs_executed?.filter(
         (r) => r.success && r.action_kind === "mutating"
@@ -175,14 +175,19 @@ export function JonathanAssistant() {
     await sendChat(userMessage);
   };
 
-  const approvePendingRepairs = async () => {
-    if (pendingApproval.length === 0 || loading) return;
-    const ids = pendingApproval.map((p) => p.id);
-    const names = pendingApproval.map((p) => p.name);
+  const approveMessageRepairs = async (messageIndex: number, repairs: RepairAction[]) => {
+    if (repairs.length === 0 || loading) return;
+    const ids = repairs.map((p) => p.id);
+    const names = repairs.map((p) => p.name);
     const userMessage = `Approve and run: ${names.join(", ")}`;
+
+    setMessages((prev) =>
+      prev.map((m, idx) =>
+        idx === messageIndex ? { ...m, pendingRepairs: [], pendingResolved: true } : m
+      )
+    );
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     await sendChat(userMessage, ids);
-    setPendingApproval([]);
   };
 
   const cloudAiActive = aiConfig ? isCloudAiActive(aiConfig) : false;
@@ -236,18 +241,6 @@ export function JonathanAssistant() {
           {lastScan ? " Using your latest scan for context." : " Run a scan first for deeper analysis."}
         </p>
       </div>
-
-      {pendingApproval.length > 0 && (
-        <div className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <div className="text-sm text-amber-100">
-            <span className="font-medium">Approval needed:</span>{" "}
-            {pendingApproval.map((p) => p.name).join(", ")}
-          </div>
-          <button onClick={approvePendingRepairs} disabled={loading} className="btn-primary shrink-0">
-            Approve repairs
-          </button>
-        </div>
-      )}
 
       <div className="card flex flex-1 flex-col overflow-hidden p-0">
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -365,6 +358,25 @@ export function JonathanAssistant() {
                       )}
                     </div>
                   )}
+                  {msg.pendingRepairs &&
+                    msg.pendingRepairs.length > 0 &&
+                    !msg.pendingResolved &&
+                    msg.role === "assistant" &&
+                    !isTyping && (
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                        <p className="text-xs text-amber-100">
+                          <span className="font-medium">Approval needed:</span>{" "}
+                          {msg.pendingRepairs.map((p) => p.name).join(", ")}
+                        </p>
+                        <button
+                          onClick={() => approveMessageRepairs(i, msg.pendingRepairs!)}
+                          disabled={loading}
+                          className="btn-primary shrink-0 px-3 py-1 text-xs"
+                        >
+                          Approve
+                        </button>
+                      </div>
+                    )}
                   {msg.repairs && msg.repairs.length > 0 && !isTyping && (
                     <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">

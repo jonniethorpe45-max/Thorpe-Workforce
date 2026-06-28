@@ -50,12 +50,14 @@ function parsePlan(json: string): AgentPlan | null {
   }
 }
 
-function packHasSignature(manifestJson: string): boolean {
+function packSignatureKind(manifestJson: string): "ed25519" | "legacy" | null {
   try {
     const parsed = JSON.parse(manifestJson) as { signature?: string };
-    return Boolean(parsed.signature);
+    if (!parsed.signature) return null;
+    if (parsed.signature.startsWith("ed25519:")) return "ed25519";
+    return "legacy";
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -359,7 +361,8 @@ export function IntelligenceConsole() {
               <Upload className="h-4 w-4" /> Install repair pack
             </h2>
             <p className="text-xs text-steel">
-              Paste a signed pack manifest JSON or load a `.json` file. Unsigned packs are allowed only when
+              Paste a signed pack manifest JSON or load a `.json` file. Ed25519-signed packs from
+              Thorpe OTA are verified against the embedded public key. Unsigned packs are allowed when
               tools map to built-in Thorpe repairs.
             </p>
             <textarea
@@ -393,8 +396,15 @@ export function IntelligenceConsole() {
                   {pack.builtin && (
                     <span className="rounded bg-cyan-500/15 px-2 py-0.5 text-cyan-400">Built-in</span>
                   )}
-                  {!pack.builtin && packHasSignature(pack.manifest_json) && (
-                    <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-400">Signed</span>
+                  {!pack.builtin && packSignatureKind(pack.manifest_json) === "ed25519" && (
+                    <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-400">
+                      Ed25519 signed
+                    </span>
+                  )}
+                  {!pack.builtin && packSignatureKind(pack.manifest_json) === "legacy" && (
+                    <span className="rounded bg-amber-500/15 px-2 py-0.5 text-amber-400">
+                      Legacy HMAC
+                    </span>
                   )}
                   <span
                     className={`rounded px-2 py-0.5 ${pack.enabled ? "bg-emerald-500/15 text-emerald-400" : "bg-gray-500/15 text-gray-400"}`}

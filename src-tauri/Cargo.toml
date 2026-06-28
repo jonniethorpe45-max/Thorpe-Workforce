@@ -37,6 +37,11 @@ hex = "0.4"
 hostname = "0.4"
 rand = "0.8"
 url = "2"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+
+[[bin]]
+name = "thorpe-pack-sign"
+path = "src/bin/thorpe-pack-sign.rs"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winuser"] }

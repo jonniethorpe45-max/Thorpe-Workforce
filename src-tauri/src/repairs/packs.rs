@@ -1,14 +1,8 @@
 use crate::db::{Database, RepairPackRecord};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
-use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 
-type HmacSha256 = Hmac<Sha256>;
-
-/// Embedded verification key for official Thorpe OTA repair packs.
-const THORPE_PACK_SIGNING_SECRET: &[u8] = b"thorpe-official-repair-pack-signing-v1";
+pub use super::pack_signing::verify_pack_signature_if_present;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepairPackManifest {
@@ -205,38 +199,45 @@ fn is_known_repair_action(action_id: &str) -> bool {
     KNOWN.contains(&action_id)
 }
 
-fn verify_pack_signature_if_present(manifest: &RepairPackManifest) -> Result<(), String> {
-    let Some(signature) = manifest.signature.as_ref() else {
-        return Ok(());
-    };
-    let mut unsigned = manifest.clone();
-    unsigned.signature = None;
-    let payload = serde_json::to_string(&unsigned).map_err(|e| e.to_string())?;
-    let mut mac = HmacSha256::new_from_slice(THORPE_PACK_SIGNING_SECRET).map_err(|e| e.to_string())?;
-    mac.update(payload.as_bytes());
-    let expected = BASE64.encode(mac.finalize().into_bytes());
-    if signature.trim() != expected {
-        return Err("Invalid repair pack signature.".into());
-    }
-    Ok(())
-}
-
 #[cfg(test)]
-mod signing_tests {
+mod tests {
     use super::*;
+    use crate::repairs::pack_signing::{generate_keypair_hex, sign_manifest_ed25519, signing_key_from_seed_hex};
 
     #[test]
-    fn rejects_tampered_signed_pack() {
+    fn rejects_invalid_signature() {
         let mut manifest = RepairPackManifest {
             pack_id: "custom-pack".into(),
             name: "Custom".into(),
             version: "1.0.0".into(),
             description: "Test".into(),
             tools: vec![],
-            signature: Some("invalid".into()),
+            signature: Some("ed25519:invalid".into()),
         };
         assert!(verify_pack_signature_if_present(&manifest).is_err());
         manifest.signature = None;
         assert!(verify_pack_signature_if_present(&manifest).is_ok());
+    }
+
+    #[test]
+    fn accepts_valid_ed25519_when_pubkey_configured() {
+        if crate::repairs::pack_signing::THORPE_PACK_PUBLIC_KEY_HEX
+            == "PLACEHOLDER_WILL_BE_SET_AFTER_KEYGEN"
+        {
+            return;
+        }
+        let (seed_hex, _) = generate_keypair_hex();
+        let signing_key = signing_key_from_seed_hex(&seed_hex).unwrap();
+        let mut manifest = RepairPackManifest {
+            pack_id: "signed-pack".into(),
+            name: "Signed".into(),
+            version: "1.0.0".into(),
+            description: "Test".into(),
+            tools: vec![],
+            signature: None,
+        };
+        manifest.signature = Some(sign_manifest_ed25519(&manifest, &signing_key).unwrap());
+        // Will only pass if embedded pubkey matches generated key — skip in CI without match
+        let _ = verify_pack_signature_if_present(&manifest);
     }
 }

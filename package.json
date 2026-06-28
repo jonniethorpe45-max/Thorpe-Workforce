@@ -13,6 +13,7 @@
     "tauri:build": "tauri build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pack-sign": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-pack-sign --",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

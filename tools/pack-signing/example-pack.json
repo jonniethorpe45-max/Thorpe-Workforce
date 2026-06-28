@@ -1,0 +1,18 @@
+{
+  "pack_id": "example-org-pack",
+  "name": "Example Org Pack",
+  "version": "1.0.0",
+  "description": "Example manifest for signing — maps only to whitelisted Thorpe repairs.",
+  "tools": [
+    {
+      "id": "example-dns",
+      "name": "DNS Flush",
+      "description": "Wrapper for Thorpe dns-flush repair",
+      "action_kind": "mutating",
+      "risk_level": "low",
+      "requires_confirmation": true,
+      "platform": ["windows", "macos", "linux"],
+      "maps_to_action": "dns-flush"
+    }
+  ]
+}
