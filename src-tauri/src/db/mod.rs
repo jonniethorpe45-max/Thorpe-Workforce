@@ -159,9 +159,10 @@ impl Database {
             .query_row("SELECT COUNT(*) FROM profiles", [], |r| r.get(0))?;
         if profile_count == 0 {
             let now = Utc::now().to_rfc3339();
+            let display_name = crate::user::default_display_name();
             self.conn.execute(
                 "INSERT INTO profiles (id, display_name, skill_level, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![Uuid::new_v4().to_string(), "User", "beginner", now, now],
+                params![Uuid::new_v4().to_string(), display_name, "beginner", now, now],
             )?;
         }
 
@@ -465,6 +466,26 @@ impl Database {
                 })
             },
         ).map_err(Into::into)
+    }
+
+    /// Backfill the default placeholder name from the OS account on first launch after upgrade.
+    pub fn ensure_profile_display_name_from_os(&self) -> DbResult<()> {
+        let profile = self.get_profile()?;
+        if !profile.display_name.eq_ignore_ascii_case("user") {
+            return Ok(());
+        }
+
+        let display_name = crate::user::default_display_name();
+        if display_name.eq_ignore_ascii_case("user") {
+            return Ok(());
+        }
+
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE profiles SET display_name = ?1, updated_at = ?2 WHERE id = ?3",
+            params![display_name, now, profile.id],
+        )?;
+        Ok(())
     }
 
     pub fn update_profile(&self, display_name: &str, email: Option<&str>, skill_level: &str) -> DbResult<Profile> {
