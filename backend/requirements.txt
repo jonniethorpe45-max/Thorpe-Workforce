@@ -11,6 +11,7 @@ redis
 sqlalchemy
 uvicorn[standard]
 requests
+requests-oauthlib
 httpx
 pytest
 stripe

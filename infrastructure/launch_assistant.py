@@ -6,18 +6,26 @@ Purpose:
 - Track remaining manual launch tasks
 - Validate DNS + backend health for production URLs
 - Validate basic CORS behavior for the frontend origin
+- Bootstrap local macOS setup (clone + install)
 
 Usage examples:
   python infrastructure/launch_assistant.py checklist
   python infrastructure/launch_assistant.py verify --api-url https://api.thorpeworkforce.ai --app-url https://thorpeworkforce.ai
+  python infrastructure/launch_assistant.py bootstrap-mac --repo-url https://github.com/<owner>/<repo>.git --target-dir ~/Developer/Thorpe-Workforce
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import platform
+from pathlib import Path
+import shlex
+import shutil
 import socket
 import ssl
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -45,6 +53,338 @@ def _print_results(results: Iterable[CheckResult]) -> int:
         if not result.ok:
             failures += 1
     return failures
+
+
+def _command_exists(command: str) -> bool:
+    return shutil.which(command) is not None
+
+
+def _format_command(command: list[str]) -> str:
+    return " ".join(shlex.quote(part) for part in command)
+
+
+def _run_command_step(
+    name: str,
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    dry_run: bool = False,
+) -> CheckResult:
+    run_location = str(cwd) if cwd else os.getcwd()
+    display = _format_command(command)
+    if dry_run:
+        return CheckResult(name, True, f"DRY RUN: ({run_location}) {display}")
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as exc:
+        return CheckResult(name, False, f"failed to start command ({exc})")
+    if completed.returncode != 0:
+        stderr = (completed.stderr or completed.stdout or "").strip().replace("\n", " ")
+        return CheckResult(name, False, f"exit={completed.returncode}; cmd={display}; detail={stderr[:220]}")
+    return CheckResult(name, True, f"ok; cmd={display}")
+
+
+def _copy_if_missing(name: str, src: Path, dst: Path, *, dry_run: bool = False) -> CheckResult:
+    if dry_run:
+        return CheckResult(name, True, f"DRY RUN: copy {src} -> {dst}")
+    if dst.exists():
+        return CheckResult(name, True, f"exists: {dst}")
+    if not src.exists():
+        return CheckResult(name, False, f"missing source file: {src}")
+    dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    return CheckResult(name, True, f"copied {src.name} -> {dst.name}")
+
+
+def _ensure_tool(
+    *,
+    step_name: str,
+    command_name: str,
+    brew_package: str,
+    skip_brew: bool,
+    dry_run: bool,
+    is_cask: bool = False,
+) -> CheckResult:
+    if _command_exists(command_name):
+        return CheckResult(step_name, True, f"{command_name} already installed")
+    if skip_brew:
+        return CheckResult(
+            step_name,
+            False,
+            f"{command_name} not found and --skip-brew is enabled",
+        )
+    if not _command_exists("brew"):
+        return CheckResult(
+            step_name,
+            False,
+            "Homebrew not found. Install Homebrew first: https://brew.sh/",
+        )
+    install_cmd = ["brew", "install"]
+    if is_cask:
+        install_cmd.append("--cask")
+    install_cmd.append(brew_package)
+    return _run_command_step(step_name, install_cmd, dry_run=dry_run)
+
+
+def _default_repo_url() -> str:
+    repo_root = Path(__file__).resolve().parents[1]
+    try:
+        completed = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            cwd=str(repo_root),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return ""
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def _clone_or_update_repo(
+    *,
+    repo_url: str,
+    target_dir: Path,
+    branch: str | None,
+    dry_run: bool,
+) -> list[CheckResult]:
+    results: list[CheckResult] = []
+    parent_dir = target_dir.parent
+    if dry_run:
+        results.append(CheckResult("Create target parent", True, f"DRY RUN: mkdir -p {parent_dir}"))
+    else:
+        parent_dir.mkdir(parents=True, exist_ok=True)
+        results.append(CheckResult("Create target parent", True, f"ready: {parent_dir}"))
+
+    if target_dir.exists() and (target_dir / ".git").exists():
+        results.append(_run_command_step("Git fetch", ["git", "fetch", "origin"], cwd=target_dir, dry_run=dry_run))
+        if branch:
+            results.append(
+                _run_command_step("Git checkout branch", ["git", "checkout", branch], cwd=target_dir, dry_run=dry_run)
+            )
+            results.append(
+                _run_command_step(
+                    "Git pull branch",
+                    ["git", "pull", "origin", branch],
+                    cwd=target_dir,
+                    dry_run=dry_run,
+                )
+            )
+        return results
+
+    if target_dir.exists():
+        results.append(
+            CheckResult(
+                "Clone repository",
+                False,
+                f"target directory exists but is not a git repo: {target_dir}",
+            )
+        )
+        return results
+
+    clone_cmd = ["git", "clone"]
+    if branch:
+        clone_cmd.extend(["--branch", branch])
+    clone_cmd.extend([repo_url, str(target_dir)])
+    results.append(_run_command_step("Clone repository", clone_cmd, dry_run=dry_run))
+    return results
+
+
+def run_bootstrap_mac(
+    *,
+    repo_url: str,
+    target_dir: str,
+    branch: str | None,
+    python_bin: str,
+    skip_brew: bool,
+    skip_infra: bool,
+    dry_run: bool,
+) -> int:
+    print("Thorpe Workforce Launch Assistant — macOS bootstrap")
+    print(f"- Repo URL: {repo_url}")
+    print(f"- Target dir: {target_dir}")
+    print(f"- Branch: {branch or '(default)'}")
+    print(f"- Python binary: {python_bin}")
+    print("")
+
+    results: list[CheckResult] = []
+
+    if platform.system() != "Darwin":
+        detail = "non-macOS runtime detected"
+        if dry_run:
+            results.append(CheckResult("macOS runtime check", True, f"{detail}; continuing because --dry-run is enabled"))
+        else:
+            results.append(CheckResult("macOS runtime check", False, f"{detail}; rerun on macOS or use --dry-run"))
+            failures = _print_results(results)
+            print("")
+            return 1 if failures else 0
+    else:
+        results.append(CheckResult("macOS runtime check", True, "Darwin detected"))
+
+    results.append(
+        _ensure_tool(
+            step_name="Install Git",
+            command_name="git",
+            brew_package="git",
+            skip_brew=skip_brew,
+            dry_run=dry_run,
+        )
+    )
+    results.append(
+        _ensure_tool(
+            step_name="Install Python 3",
+            command_name=python_bin,
+            brew_package="python@3.12",
+            skip_brew=skip_brew,
+            dry_run=dry_run,
+        )
+    )
+    results.append(
+        _ensure_tool(
+            step_name="Install Node.js + npm",
+            command_name="npm",
+            brew_package="node",
+            skip_brew=skip_brew,
+            dry_run=dry_run,
+        )
+    )
+    if not skip_infra:
+        results.append(
+            _ensure_tool(
+                step_name="Install Docker Desktop",
+                command_name="docker",
+                brew_package="docker",
+                skip_brew=skip_brew,
+                dry_run=dry_run,
+                is_cask=True,
+            )
+        )
+
+    resolved_target = Path(target_dir).expanduser().resolve()
+    results.extend(_clone_or_update_repo(repo_url=repo_url, target_dir=resolved_target, branch=branch, dry_run=dry_run))
+
+    backend_dir = resolved_target / "backend"
+    frontend_dir = resolved_target / "frontend"
+    if not dry_run:
+        if not backend_dir.exists():
+            results.append(CheckResult("Backend directory check", False, f"missing: {backend_dir}"))
+        else:
+            results.append(CheckResult("Backend directory check", True, str(backend_dir)))
+        if not frontend_dir.exists():
+            results.append(CheckResult("Frontend directory check", False, f"missing: {frontend_dir}"))
+        else:
+            results.append(CheckResult("Frontend directory check", True, str(frontend_dir)))
+    else:
+        results.append(CheckResult("Backend directory check", True, f"DRY RUN: expect {backend_dir}"))
+        results.append(CheckResult("Frontend directory check", True, f"DRY RUN: expect {frontend_dir}"))
+
+    results.append(
+        _run_command_step(
+            "Create backend virtualenv",
+            [python_bin, "-m", "venv", ".venv"],
+            cwd=backend_dir,
+            dry_run=dry_run,
+        )
+    )
+    results.append(
+        _run_command_step(
+            "Upgrade backend pip tooling",
+            [str(backend_dir / ".venv" / "bin" / "python"), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+            cwd=backend_dir,
+            dry_run=dry_run,
+        )
+    )
+    results.append(
+        _run_command_step(
+            "Install backend requirements",
+            [str(backend_dir / ".venv" / "bin" / "python"), "-m", "pip", "install", "-r", "requirements.txt"],
+            cwd=backend_dir,
+            dry_run=dry_run,
+        )
+    )
+    results.append(
+        _copy_if_missing(
+            "Create backend .env",
+            backend_dir / ".env.example",
+            backend_dir / ".env",
+            dry_run=dry_run,
+        )
+    )
+
+    if not skip_infra:
+        results.append(
+            _run_command_step(
+                "Start Docker services",
+                ["docker", "compose", "up", "-d"],
+                cwd=resolved_target,
+                dry_run=dry_run,
+            )
+        )
+        results.append(
+            _run_command_step(
+                "Run backend migrations",
+                [str(backend_dir / ".venv" / "bin" / "python"), "-m", "alembic", "upgrade", "head"],
+                cwd=backend_dir,
+                dry_run=dry_run,
+            )
+        )
+        results.append(
+            _run_command_step(
+                "Seed system data",
+                [str(backend_dir / ".venv" / "bin" / "python"), "scripts/seed_worker_system.py"],
+                cwd=backend_dir,
+                dry_run=dry_run,
+            )
+        )
+        results.append(
+            _run_command_step(
+                "Seed demo data",
+                [str(backend_dir / ".venv" / "bin" / "python"), "scripts/seed_demo.py"],
+                cwd=backend_dir,
+                dry_run=dry_run,
+            )
+        )
+
+    results.append(
+        _run_command_step(
+            "Install frontend dependencies",
+            ["npm", "install"],
+            cwd=frontend_dir,
+            dry_run=dry_run,
+        )
+    )
+    results.append(
+        _copy_if_missing(
+            "Create frontend .env.local",
+            frontend_dir / ".env.example",
+            frontend_dir / ".env.local",
+            dry_run=dry_run,
+        )
+    )
+
+    failures = _print_results(results)
+    print("")
+    if failures:
+        print(f"Bootstrap completed with {failures} failing steps.")
+        print("Action: fix failed steps, then rerun bootstrap-mac.")
+        return 1
+
+    print("Bootstrap completed successfully.")
+    print("")
+    print("Next commands (run in separate terminals):")
+    print(f"1) cd {shlex.quote(str(backend_dir))} && source .venv/bin/activate && uvicorn app.main:app --reload --port 8000")
+    print(
+        f"2) cd {shlex.quote(str(backend_dir))} && source .venv/bin/activate && celery -A app.tasks.celery_app.celery_app worker -l info"
+    )
+    print(f"3) cd {shlex.quote(str(frontend_dir))} && npm run dev")
+    return 0
 
 
 def _http_json(url: str, timeout: int = 10) -> tuple[int, dict | None, str]:
@@ -200,6 +540,19 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--api-url", default=DEFAULT_API_URL)
     verify.add_argument("--app-url", default=DEFAULT_APP_URL)
 
+    bootstrap = sub.add_parser("bootstrap-mac", help="clone and install the app on macOS")
+    bootstrap.add_argument("--repo-url", default=_default_repo_url(), help="git repository URL")
+    bootstrap.add_argument("--target-dir", default="~/Developer/Thorpe-Workforce", help="local directory for the repo")
+    bootstrap.add_argument("--branch", default="", help="optional git branch to checkout/pull")
+    bootstrap.add_argument("--python-bin", default="python3", help="python binary to use (default: python3)")
+    bootstrap.add_argument("--skip-brew", action="store_true", help="skip Homebrew-based dependency installation")
+    bootstrap.add_argument(
+        "--skip-infra",
+        action="store_true",
+        help="skip Docker services, migrations, and seed steps",
+    )
+    bootstrap.add_argument("--dry-run", action="store_true", help="print planned commands without executing")
+
     return parser
 
 
@@ -210,6 +563,20 @@ def main() -> int:
         return print_checklist(args.api_url, args.app_url)
     if args.command == "verify":
         return run_verify(args.api_url, args.app_url)
+    if args.command == "bootstrap-mac":
+        if not str(args.repo_url).strip():
+            print("Missing --repo-url and no git remote.origin.url could be inferred.")
+            return 2
+        branch = args.branch.strip() or None
+        return run_bootstrap_mac(
+            repo_url=args.repo_url.strip(),
+            target_dir=args.target_dir,
+            branch=branch,
+            python_bin=args.python_bin.strip(),
+            skip_brew=bool(args.skip_brew),
+            skip_infra=bool(args.skip_infra),
+            dry_run=bool(args.dry_run),
+        )
     parser.print_help()
     return 2
 
