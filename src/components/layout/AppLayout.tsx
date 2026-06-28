@@ -15,11 +15,13 @@ import {
   Search,
   Laptop,
   Shield,
+  Brain,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppStore } from "../../services/store";
 import { NotificationCenter } from "./NotificationCenter";
 import { useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { thorpeApi } from "../../services/tauri";
 import { ThorpeLogo } from "../brand/ThorpeLogo";
 
@@ -35,6 +37,7 @@ const secondaryNav = [
   { to: "/jonathan", icon: MessageSquare, label: "Jonathan AI" },
   { to: "/workspace", icon: Briefcase, label: "Technician Workspace" },
   { to: "/enterprise/ai", icon: Shield, label: "AI Console", feature: "enterprise_ai_console" },
+  { to: "/intelligence", icon: Brain, label: "Intelligence", feature: "intelligence_console" },
   { to: "/knowledge", icon: BookOpen, label: "Knowledge Base" },
   { to: "/settings", icon: Settings, label: "Settings" },
   { to: "/licensing", icon: CreditCard, label: "Licensing" },
@@ -42,13 +45,28 @@ const secondaryNav = [
 ];
 
 export function AppLayout() {
-  const { sidebarCollapsed, setSidebarCollapsed, searchQuery, setSearchQuery, setLicense, license } =
+  const { sidebarCollapsed, setSidebarCollapsed, searchQuery, setSearchQuery, setLicense, license, addNotification } =
     useAppStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     thorpeApi.getLicenseInfo().then(setLicense).catch(console.error);
   }, [setLicense]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
+    let unlisten: (() => void) | undefined;
+    listen<{ message: string; health_score: number }>("watchdog-alert", (event) => {
+      addNotification({
+        type: "warning",
+        title: "Watchdog alert",
+        message: event.payload.message || `Health score dropped to ${event.payload.health_score}/100`,
+      });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, [addNotification]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

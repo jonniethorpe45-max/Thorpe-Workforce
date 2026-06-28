@@ -89,7 +89,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "get_app_info":
       return {
         name: "Thorpe",
-        version: "1.0.0",
+        version: "1.1.0",
         platform: "linux",
         data_dir: "/tmp/thorpe",
       } as T;
@@ -274,6 +274,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         "technician_workspace",
         "team_management",
         "enterprise_ai_console",
+        "intelligence_console",
         "multi_device",
         "branding",
         "advanced_reporting",
@@ -371,12 +372,123 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
 
     case "check_for_updates":
       return {
-        current_version: "1.0.0",
-        latest_version: "1.0.0",
+        current_version: "1.1.0",
+        latest_version: "1.1.0",
         update_available: false,
         release_notes: "You are running the latest version.",
         download_url: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
       } as T;
+
+    case "list_intel_items":
+      return [
+        {
+          id: "intel-1",
+          source: "thorpe-feed",
+          category: "Windows",
+          title: "Print spooler instability after KB update",
+          summary: "Restart Print Spooler service if jobs stall after recent Windows updates.",
+          url: "https://support.microsoft.com",
+          severity: "medium",
+          published_at: new Date().toISOString(),
+          fetched_at: new Date().toISOString(),
+        },
+      ] as T;
+
+    case "sync_intel_feed":
+      return 1 as T;
+
+    case "list_org_playbooks":
+      return [] as T;
+
+    case "upsert_org_playbook":
+      return {
+        id: "pb-mock",
+        title: (args?.title as string) || "Playbook",
+        category: (args?.category as string) || "General",
+        content: (args?.content as string) || "",
+        tags: "[]",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as T;
+
+    case "list_repair_packs":
+      return [
+        {
+          id: "pack-core",
+          name: "Thorpe Core Repairs",
+          version: "1.0.0",
+          description: "Built-in diagnostic and cleanup tools.",
+          enabled: true,
+          builtin: true,
+          manifest_json: "{}",
+          installed_at: new Date().toISOString(),
+        },
+      ] as T;
+
+    case "install_repair_pack":
+      return {
+        id: "pack-custom",
+        name: "Custom Pack",
+        version: "1.0.0",
+        description: "Installed from manifest.",
+        enabled: true,
+        builtin: false,
+        manifest_json: (args?.manifestJson as string) || "{}",
+        installed_at: new Date().toISOString(),
+      } as T;
+
+    case "list_agent_sessions":
+      return [] as T;
+
+    case "get_watchdog_status":
+      return {
+        config: {
+          enabled: false,
+          interval_minutes: 30,
+          health_threshold: 70,
+          auto_notify: true,
+          auto_plan: true,
+          updated_at: new Date().toISOString(),
+        },
+        recent_events: [],
+      } as T;
+
+    case "update_watchdog_config":
+      return {
+        enabled: args?.enabled as boolean,
+        interval_minutes: args?.intervalMinutes as number,
+        health_threshold: args?.healthThreshold as number,
+        auto_notify: args?.autoNotify as boolean,
+        auto_plan: args?.autoPlan as boolean,
+        updated_at: new Date().toISOString(),
+      } as T;
+
+    case "acknowledge_watchdog_event":
+      return undefined as T;
+
+    case "get_psa_settings":
+      return {
+        enabled: false,
+        webhook_url: null,
+        provider: "generic",
+      } as T;
+
+    case "update_psa_settings":
+      return {
+        enabled: args?.enabled as boolean,
+        webhook_url: (args?.webhookUrl as string) || null,
+        provider: (args?.provider as string) || "generic",
+      } as T;
+
+    case "test_psa_webhook":
+      return {
+        success: true,
+        status_code: 200,
+        message: "Mock PSA webhook delivered.",
+      } as T;
+
+    case "export_agent_session_pdf":
+      return "/tmp/agent-session.pdf" as T;
 
     case "list_clients":
     case "list_cases":

@@ -1,5 +1,7 @@
+mod packs;
 mod planner;
 
+pub use packs::{allowed_tool_ids, ensure_packs_installed, install_pack_from_json};
 pub use planner::plan_repairs;
 use crate::db::{Database, RepairRecord};
 use crate::licensing;

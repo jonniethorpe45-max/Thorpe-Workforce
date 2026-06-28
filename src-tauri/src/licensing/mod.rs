@@ -42,6 +42,7 @@ fn tier_features(tier: &str) -> Vec<String> {
             "advanced_reporting".into(),
             "team_management".into(),
             "enterprise_ai_console".into(),
+            "intelligence_console".into(),
         ],
         "professional" => vec![
             "jonathan_ai".into(),
@@ -72,7 +73,7 @@ fn feature_required_tier(feature: &str) -> &str {
     match feature {
         "jonathan_ai" | "jonathan_auto_repair" | "basic_scans" | "limited_reports" => "free",
         "full_diagnostics" | "repair_center" | "pdf_export" | "unlimited_reports" => "professional",
-        "technician_workspace" | "multi_device" | "branding" | "advanced_reporting" | "team_management" | "enterprise_ai_console" => "enterprise",
+        "technician_workspace" | "multi_device" | "branding" | "advanced_reporting" | "team_management" | "enterprise_ai_console" | "intelligence_console" => "enterprise",
         _ => "enterprise",
     }
 }

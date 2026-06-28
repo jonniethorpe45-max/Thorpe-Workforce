@@ -219,6 +219,96 @@ impl Database {
                 PRIMARY KEY (provider_id, role),
                 FOREIGN KEY (provider_id) REFERENCES ai_providers(id)
             );
+
+            CREATE TABLE IF NOT EXISTS evidence_artifacts (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                collected_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS agent_sessions (
+                id TEXT PRIMARY KEY,
+                case_id TEXT,
+                message TEXT NOT NULL,
+                plan_json TEXT NOT NULL,
+                evidence_json TEXT,
+                status TEXT NOT NULL DEFAULT 'completed',
+                confidence REAL NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS intel_items (
+                id TEXT PRIMARY KEY,
+                source TEXT NOT NULL,
+                category TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                url TEXT,
+                severity TEXT NOT NULL DEFAULT 'info',
+                published_at TEXT NOT NULL,
+                fetched_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS org_playbooks (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL,
+                content TEXT NOT NULL,
+                tags TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS repair_packs (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                version TEXT NOT NULL,
+                description TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                builtin INTEGER NOT NULL DEFAULT 0,
+                manifest_json TEXT NOT NULL,
+                installed_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS repair_pack_policy (
+                pack_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                auto_run INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (pack_id, role)
+            );
+
+            CREATE TABLE IF NOT EXISTS watchdog_config (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                enabled INTEGER NOT NULL DEFAULT 0,
+                interval_minutes INTEGER NOT NULL DEFAULT 60,
+                health_threshold INTEGER NOT NULL DEFAULT 70,
+                auto_notify INTEGER NOT NULL DEFAULT 1,
+                auto_plan INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS watchdog_events (
+                id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                health_score INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                plan_json TEXT,
+                acknowledged INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
+                article_id UNINDEXED,
+                title,
+                symptoms,
+                causes,
+                fixes,
+                tags,
+                tokenize='porter'
+            );
             "#,
         )?;
 
@@ -256,6 +346,33 @@ impl Database {
             )?;
         }
 
+        self.seed_watchdog_config()?;
+        self.rebuild_knowledge_fts()?;
+        Ok(())
+    }
+
+    fn seed_watchdog_config(&self) -> DbResult<()> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM watchdog_config", [], |r| r.get(0))?;
+        if count == 0 {
+            self.conn.execute(
+                "INSERT INTO watchdog_config (id, enabled, interval_minutes, health_threshold, auto_notify, auto_plan, updated_at) VALUES (1, 0, 60, 70, 1, 1, ?1)",
+                params![Utc::now().to_rfc3339()],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn rebuild_knowledge_fts(&self) -> DbResult<()> {
+        self.conn.execute("DELETE FROM knowledge_fts", [])?;
+        let articles = self.list_knowledge(None)?;
+        for article in articles {
+            self.conn.execute(
+                "INSERT INTO knowledge_fts (article_id, title, symptoms, causes, fixes, tags) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![article.id, article.title, article.symptoms, article.causes, article.fixes, article.tags],
+            )?;
+        }
         Ok(())
     }
 
@@ -796,6 +913,33 @@ impl Database {
     }
 
     pub fn search_knowledge_for_message(&self, message: &str, limit: i64) -> DbResult<Vec<KnowledgeArticle>> {
+        let fts_query: String = message
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|t| t.len() >= 3)
+            .collect::<Vec<_>>()
+            .join(" OR ");
+
+        if !fts_query.is_empty() {
+            let mut stmt = self.conn.prepare(
+                "SELECT article_id FROM knowledge_fts WHERE knowledge_fts MATCH ?1 ORDER BY rank LIMIT ?2",
+            )?;
+            let ids: Vec<String> = stmt
+                .query_map(params![fts_query, limit], |row| row.get(0))?
+                .filter_map(|r| r.ok())
+                .collect();
+            if !ids.is_empty() {
+                let mut articles = Vec::new();
+                for id in ids {
+                    if let Ok(article) = self.get_knowledge(&id) {
+                        articles.push(article);
+                    }
+                }
+                if !articles.is_empty() {
+                    return Ok(articles);
+                }
+            }
+        }
+
         let articles = self.list_knowledge(None)?;
         let msg = message.to_lowercase();
         let terms: Vec<String> = msg
@@ -824,6 +968,252 @@ impl Database {
         Ok(matches.into_iter().take(limit as usize).map(|(_, a)| a).collect())
     }
 
+    pub fn save_evidence(&self, session_id: &str, source: &str, kind: &str, payload_json: &str) -> DbResult<String> {
+        let id = Uuid::new_v4().to_string();
+        self.conn.execute(
+            "INSERT INTO evidence_artifacts (id, session_id, source, kind, payload_json, collected_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, session_id, source, kind, payload_json, Utc::now().to_rfc3339()],
+        )?;
+        Ok(id)
+    }
+
+    pub fn list_evidence_for_session(&self, session_id: &str) -> DbResult<Vec<EvidenceArtifact>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, source, kind, payload_json, collected_at FROM evidence_artifacts WHERE session_id = ?1 ORDER BY collected_at",
+        )?;
+        let rows = stmt.query_map(params![session_id], |row| {
+            Ok(EvidenceArtifact {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                source: row.get(2)?,
+                kind: row.get(3)?,
+                payload_json: row.get(4)?,
+                collected_at: row.get(5)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn save_agent_session(&self, session: &AgentSessionRecord) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT INTO agent_sessions (id, case_id, message, plan_json, evidence_json, status, confidence, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                session.id,
+                session.case_id,
+                session.message,
+                session.plan_json,
+                session.evidence_json,
+                session.status,
+                session.confidence,
+                session.created_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_agent_sessions(&self, limit: i64) -> DbResult<Vec<AgentSessionRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, case_id, message, plan_json, evidence_json, status, confidence, created_at FROM agent_sessions ORDER BY created_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(AgentSessionRecord {
+                id: row.get(0)?,
+                case_id: row.get(1)?,
+                message: row.get(2)?,
+                plan_json: row.get(3)?,
+                evidence_json: row.get(4)?,
+                status: row.get(5)?,
+                confidence: row.get(6)?,
+                created_at: row.get(7)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn upsert_intel_item(&self, item: &IntelItem) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO intel_items (id, source, category, title, summary, url, severity, published_at, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                item.id, item.source, item.category, item.title, item.summary,
+                item.url, item.severity, item.published_at, item.fetched_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_intel_items(&self, limit: i64) -> DbResult<Vec<IntelItem>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, source, category, title, summary, url, severity, published_at, fetched_at FROM intel_items ORDER BY published_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(IntelItem {
+                id: row.get(0)?,
+                source: row.get(1)?,
+                category: row.get(2)?,
+                title: row.get(3)?,
+                summary: row.get(4)?,
+                url: row.get(5)?,
+                severity: row.get(6)?,
+                published_at: row.get(7)?,
+                fetched_at: row.get(8)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn search_intel_for_message(&self, message: &str, limit: i64) -> DbResult<Vec<IntelItem>> {
+        let msg = message.to_lowercase();
+        let items = self.list_intel_items(100)?;
+        Ok(items
+            .into_iter()
+            .filter(|i| {
+                let hay = format!("{} {} {}", i.title, i.summary, i.category).to_lowercase();
+                msg.split_whitespace().any(|w| w.len() >= 4 && hay.contains(w))
+            })
+            .take(limit as usize)
+            .collect())
+    }
+
+    pub fn save_org_playbook(&self, playbook: &OrgPlaybook) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO org_playbooks (id, title, category, content, tags, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                playbook.id, playbook.title, playbook.category, playbook.content,
+                playbook.tags, playbook.created_at, playbook.updated_at
+            ],
+        )?;
+        self.rebuild_knowledge_fts_from_playbooks()?;
+        Ok(())
+    }
+
+    fn rebuild_knowledge_fts_from_playbooks(&self) -> DbResult<()> {
+        let playbooks = self.list_org_playbooks()?;
+        for pb in playbooks {
+            self.conn.execute(
+                "INSERT INTO knowledge_fts (article_id, title, symptoms, causes, fixes, tags) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    format!("playbook-{}", pb.id),
+                    pb.title,
+                    pb.content.chars().take(500).collect::<String>(),
+                    pb.category,
+                    "",
+                    pb.tags
+                ],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn list_org_playbooks(&self) -> DbResult<Vec<OrgPlaybook>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, category, content, tags, created_at, updated_at FROM org_playbooks ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(OrgPlaybook {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                category: row.get(2)?,
+                content: row.get(3)?,
+                tags: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn upsert_repair_pack(&self, pack: &RepairPackRecord) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO repair_packs (id, name, version, description, enabled, builtin, manifest_json, installed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                pack.id, pack.name, pack.version, pack.description,
+                pack.enabled as i64, pack.builtin as i64, pack.manifest_json, pack.installed_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_repair_packs(&self) -> DbResult<Vec<RepairPackRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, version, description, enabled, builtin, manifest_json, installed_at FROM repair_packs ORDER BY name",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(RepairPackRecord {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                version: row.get(2)?,
+                description: row.get(3)?,
+                enabled: row.get::<_, i64>(4)? == 1,
+                builtin: row.get::<_, i64>(5)? == 1,
+                manifest_json: row.get(6)?,
+                installed_at: row.get(7)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn get_watchdog_config(&self) -> DbResult<WatchdogConfig> {
+        self.conn.query_row(
+            "SELECT enabled, interval_minutes, health_threshold, auto_notify, auto_plan, updated_at FROM watchdog_config WHERE id = 1",
+            [],
+            |row| {
+                Ok(WatchdogConfig {
+                    enabled: row.get::<_, i64>(0)? == 1,
+                    interval_minutes: row.get(1)?,
+                    health_threshold: row.get(2)?,
+                    auto_notify: row.get::<_, i64>(3)? == 1,
+                    auto_plan: row.get::<_, i64>(4)? == 1,
+                    updated_at: row.get(5)?,
+                })
+            },
+        ).map_err(Into::into)
+    }
+
+    pub fn update_watchdog_config(&self, config: &WatchdogConfig) -> DbResult<WatchdogConfig> {
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE watchdog_config SET enabled = ?1, interval_minutes = ?2, health_threshold = ?3, auto_notify = ?4, auto_plan = ?5, updated_at = ?6 WHERE id = 1",
+            params![
+                config.enabled as i64,
+                config.interval_minutes,
+                config.health_threshold,
+                config.auto_notify as i64,
+                config.auto_plan as i64,
+                now
+            ],
+        )?;
+        self.get_watchdog_config()
+    }
+
+    pub fn save_watchdog_event(&self, event: &WatchdogEvent) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT INTO watchdog_events (id, event_type, health_score, message, plan_json, acknowledged, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                event.id, event.event_type, event.health_score, event.message,
+                event.plan_json, event.acknowledged as i64, event.created_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_watchdog_events(&self, limit: i64) -> DbResult<Vec<WatchdogEvent>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, event_type, health_score, message, plan_json, acknowledged, created_at FROM watchdog_events ORDER BY created_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(WatchdogEvent {
+                id: row.get(0)?,
+                event_type: row.get(1)?,
+                health_score: row.get(2)?,
+                message: row.get(3)?,
+                plan_json: row.get(4)?,
+                acknowledged: row.get::<_, i64>(5)? == 1,
+                created_at: row.get(6)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
     pub fn get_chat_history(&self, limit: i64) -> DbResult<Vec<ChatMessage>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, role, content, created_at FROM chat_history ORDER BY created_at ASC LIMIT ?1"
@@ -848,6 +1238,9 @@ impl Database {
              DELETE FROM repair_history;
              DELETE FROM diagnostic_reports;
              DELETE FROM scan_history;
+             DELETE FROM evidence_artifacts;
+             DELETE FROM agent_sessions;
+             DELETE FROM watchdog_events;
              DELETE FROM settings;"
         )?;
         Ok(())
@@ -878,6 +1271,85 @@ fn map_note_row(row: &rusqlite::Row) -> rusqlite::Result<TechnicianNote> {
         content: row.get(4)?,
         created_at: row.get(5)?,
     })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EvidenceArtifact {
+    pub id: String,
+    pub session_id: String,
+    pub source: String,
+    pub kind: String,
+    pub payload_json: String,
+    pub collected_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentSessionRecord {
+    pub id: String,
+    pub case_id: Option<String>,
+    pub message: String,
+    pub plan_json: String,
+    pub evidence_json: Option<String>,
+    pub status: String,
+    pub confidence: f64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntelItem {
+    pub id: String,
+    pub source: String,
+    pub category: String,
+    pub title: String,
+    pub summary: String,
+    pub url: Option<String>,
+    pub severity: String,
+    pub published_at: String,
+    pub fetched_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrgPlaybook {
+    pub id: String,
+    pub title: String,
+    pub category: String,
+    pub content: String,
+    pub tags: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepairPackRecord {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub enabled: bool,
+    pub builtin: bool,
+    pub manifest_json: String,
+    pub installed_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WatchdogConfig {
+    pub enabled: bool,
+    pub interval_minutes: i64,
+    pub health_threshold: i32,
+    pub auto_notify: bool,
+    pub auto_plan: bool,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WatchdogEvent {
+    pub id: String,
+    pub event_type: String,
+    pub health_score: i32,
+    pub message: String,
+    pub plan_json: Option<String>,
+    pub acknowledged: bool,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1148,12 +1620,16 @@ pub mod commands {
 
     #[tauri::command]
     pub fn create_case(state: State<AppState>, case: CreateCase) -> Result<SupportCase, String> {
-        state.lock_db()?.create_case(&case).map_err(|e| e.to_string())
+        let created = state.lock_db()?.create_case(&case).map_err(|e| e.to_string())?;
+        crate::integrations::psa::spawn_case_event(&state, "case.created", created.clone());
+        Ok(created)
     }
 
     #[tauri::command]
     pub fn update_case(state: State<AppState>, id: String, case: UpdateCase) -> Result<SupportCase, String> {
-        state.lock_db()?.update_case(&id, &case).map_err(|e| e.to_string())
+        let updated = state.lock_db()?.update_case(&id, &case).map_err(|e| e.to_string())?;
+        crate::integrations::psa::spawn_case_event(&state, "case.updated", updated.clone());
+        Ok(updated)
     }
 
     #[tauri::command]

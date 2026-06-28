@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "id": "intel-win11-24h2-vpn",
+      "source": "Thorpe Intel Feed",
+      "category": "Windows",
+      "title": "Windows 11 24H2 VPN regression",
+      "summary": "Some VPN clients fail after 24H2 until adapter power management is disabled.",
+      "url": "https://learn.microsoft.com/windows/release-health/",
+      "severity": "medium",
+      "published_at": "2026-01-15T00:00:00Z"
+    },
+    {
+      "id": "intel-openai-api-deprecation",
+      "source": "Thorpe Intel Feed",
+      "category": "AI",
+      "title": "OpenAI model lifecycle updates",
+      "summary": "Review Enterprise AI Console model selection when providers deprecate endpoints.",
+      "url": "https://platform.openai.com/docs/deprecations",
+      "severity": "info",
+      "published_at": "2026-02-01T00:00:00Z"
+    },
+    {
+      "id": "intel-linux-apt-hang",
+      "source": "Thorpe Intel Feed",
+      "category": "Linux",
+      "title": "APT lock file conflicts",
+      "summary": "Package manager lock errors often resolve after clearing stale dpkg locks and retrying.",
+      "severity": "low",
+      "published_at": "2026-03-01T00:00:00Z"
+    }
+  ]
+}

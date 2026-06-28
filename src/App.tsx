@@ -11,6 +11,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { LicensingPage } from "./pages/LicensingPage";
 import { UpdateManager } from "./pages/UpdateManager";
 import { EnterpriseAiConsole } from "./pages/EnterpriseAiConsole";
+import { IntelligenceConsole } from "./pages/IntelligenceConsole";
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/licensing" element={<LicensingPage />} />
           <Route path="/enterprise/ai" element={<EnterpriseAiConsole />} />
+          <Route path="/intelligence" element={<IntelligenceConsole />} />
           <Route path="/updates" element={<UpdateManager />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

@@ -54,6 +54,21 @@ fn provider_key_path(data_dir: &Path, provider_id: &str) -> PathBuf {
     data_dir.join(PROVIDER_KEYS_DIR).join(format!("{provider_id}.enc"))
 }
 
+pub fn store_psa_secret(data_dir: &Path, secret: &str) -> Result<(), String> {
+    write_encrypted_fallback_at(
+        data_dir.join(".credentials/psa_webhook_secret.enc"),
+        data_dir,
+        secret.trim(),
+    )
+}
+
+pub fn get_psa_secret(data_dir: &Path) -> Result<Option<String>, String> {
+    read_encrypted_fallback_at(
+        data_dir.join(".credentials/psa_webhook_secret.enc"),
+        data_dir,
+    )
+}
+
 pub fn store_api_key(data_dir: &Path, key: &str) -> Result<(), String> {
     if key.trim().is_empty() {
         return delete_api_key(data_dir);

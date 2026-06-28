@@ -212,6 +212,22 @@ export interface KbSuggestion {
   id: string;
   title: string;
   summary: string;
+  source?: string;
+}
+
+export interface AgentPlanStep {
+  tool_id: string;
+  reason: string;
+  risk: string;
+  requires_approval: boolean;
+}
+
+export interface AgentPlan {
+  hypotheses: string[];
+  confidence: number;
+  steps: AgentPlanStep[];
+  citations: string[];
+  escalate_if: string[];
 }
 
 export interface ChatResponse {
@@ -222,6 +238,8 @@ export interface ChatResponse {
   verification?: RepairVerification | null;
   escalation_case_id?: string | null;
   kb_suggestions?: KbSuggestion[];
+  agent_plan?: AgentPlan | null;
+  agent_session_id?: string | null;
 }
 
 export interface ChatMessage {
@@ -331,4 +349,84 @@ export interface ProviderHealthResult {
   status: string;
   message: string;
   checked_at: string;
+}
+
+export interface IntelItem {
+  id: string;
+  source: string;
+  category: string;
+  title: string;
+  summary: string;
+  url: string | null;
+  severity: string;
+  published_at: string;
+  fetched_at: string;
+}
+
+export interface OrgPlaybook {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  tags: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RepairPackRecord {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  enabled: boolean;
+  builtin: boolean;
+  manifest_json: string;
+  installed_at: string;
+}
+
+export interface AgentSessionRecord {
+  id: string;
+  case_id: string | null;
+  message: string;
+  plan_json: string;
+  evidence_json: string | null;
+  status: string;
+  confidence: number;
+  created_at: string;
+}
+
+export interface WatchdogConfig {
+  enabled: boolean;
+  interval_minutes: number;
+  health_threshold: number;
+  auto_notify: boolean;
+  auto_plan: boolean;
+  updated_at: string;
+}
+
+export interface WatchdogEvent {
+  id: string;
+  event_type: string;
+  health_score: number;
+  message: string;
+  plan_json: string | null;
+  acknowledged: boolean;
+  created_at: string;
+}
+
+export interface WatchdogStatus {
+  config: WatchdogConfig;
+  recent_events: WatchdogEvent[];
+}
+
+export interface PsaConfig {
+  enabled: boolean;
+  webhook_url: string | null;
+  provider: string;
+}
+
+export interface PsaDeliveryResult {
+  success: boolean;
+  status_code: number | null;
+  message: string;
 }

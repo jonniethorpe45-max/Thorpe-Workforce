@@ -28,6 +28,14 @@ import type {
   AiOrgPolicy,
   AiProviderRecord,
   AiAuditEntry,
+  AgentSessionRecord,
+  IntelItem,
+  OrgPlaybook,
+  RepairPackRecord,
+  WatchdogStatus,
+  WatchdogConfig,
+  PsaConfig,
+  PsaDeliveryResult,
 } from "./types";
 
 const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -141,4 +149,49 @@ export const thorpeApi = {
     invokeOrMock<ProviderHealthResult>("test_ai_provider_health", { providerId }),
   listAiAuditLog: (limit?: number) =>
     invokeOrMock<AiAuditEntry[]>("list_ai_audit_log", { limit }),
+
+  listAgentSessions: (limit?: number) =>
+    invokeOrMock<AgentSessionRecord[]>("list_agent_sessions", { limit }),
+  syncIntelFeed: () => invokeOrMock<number>("sync_intel_feed"),
+  listIntelItems: (limit?: number) =>
+    invokeOrMock<IntelItem[]>("list_intel_items", { limit }),
+  listRepairPacks: () => invokeOrMock<RepairPackRecord[]>("list_repair_packs"),
+  installRepairPack: (manifestJson: string) =>
+    invokeOrMock<RepairPackRecord>("install_repair_pack", { manifestJson }),
+  upsertOrgPlaybook: (title: string, category: string, content: string, tags: string[]) =>
+    invokeOrMock<OrgPlaybook>("upsert_org_playbook", { title, category, content, tags }),
+  listOrgPlaybooks: () => invokeOrMock<OrgPlaybook[]>("list_org_playbooks"),
+  getWatchdogStatus: () => invokeOrMock<WatchdogStatus>("get_watchdog_status"),
+  updateWatchdogConfig: (
+    enabled: boolean,
+    intervalMinutes: number,
+    healthThreshold: number,
+    autoNotify: boolean,
+    autoPlan: boolean
+  ) =>
+    invokeOrMock<WatchdogConfig>("update_watchdog_config", {
+      enabled,
+      intervalMinutes,
+      healthThreshold,
+      autoNotify,
+      autoPlan,
+    }),
+  acknowledgeWatchdogEvent: (eventId: string) =>
+    invokeOrMock<void>("acknowledge_watchdog_event", { eventId }),
+  getPsaSettings: () => invokeOrMock<PsaConfig>("get_psa_settings"),
+  updatePsaSettings: (
+    enabled: boolean,
+    webhookUrl: string | null,
+    provider: string,
+    secret?: string
+  ) =>
+    invokeOrMock<PsaConfig>("update_psa_settings", {
+      enabled,
+      webhookUrl,
+      provider,
+      secret,
+    }),
+  testPsaWebhook: () => invokeOrMock<PsaDeliveryResult>("test_psa_webhook"),
+  exportAgentSessionPdf: (sessionId: string, outputPath: string) =>
+    invokeOrMock<string>("export_agent_session_pdf", { sessionId, outputPath }),
 };

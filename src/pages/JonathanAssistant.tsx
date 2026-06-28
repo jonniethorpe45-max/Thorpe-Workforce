@@ -9,7 +9,7 @@ import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
-import type { AiConfig, RepairAction, RepairResult, RepairVerification } from "../services/types";
+import type { AiConfig, AgentPlan, RepairAction, RepairResult, RepairVerification } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -19,6 +19,8 @@ interface Message {
   pendingRepairs?: RepairAction[];
   verification?: RepairVerification | null;
   escalationCaseId?: string | null;
+  agentPlan?: AgentPlan | null;
+  agentSessionId?: string | null;
 }
 
 function repairKindLabel(kind?: string): string {
@@ -99,6 +101,8 @@ export function JonathanAssistant() {
             pendingRepairs: response.pending_repairs,
             verification: response.verification,
             escalationCaseId: response.escalation_case_id,
+            agentPlan: response.agent_plan,
+            agentSessionId: response.agent_session_id,
           },
         ];
       });
@@ -278,6 +282,44 @@ export function JonathanAssistant() {
                       </Link>{" "}
                       opened in Workspace.
                     </p>
+                  )}
+                  {msg.agentPlan && msg.role === "assistant" && !isTyping && (
+                    <div className="mt-3 space-y-2 border-t border-navy-border/60 pt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
+                        Incident plan · {(msg.agentPlan.confidence * 100).toFixed(0)}% confidence
+                      </p>
+                      {msg.agentPlan.hypotheses.map((h, idx) => (
+                        <p key={idx} className="text-xs text-slate-300">
+                          • {h}
+                        </p>
+                      ))}
+                      {msg.agentPlan.steps.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          {msg.agentPlan.steps.map((step) => (
+                            <p key={step.tool_id} className="text-xs text-steel">
+                              <span className="text-cyber-teal">{step.tool_id}</span>
+                              {step.requires_approval && (
+                                <span className="ml-1 text-amber-400">(approval required)</span>
+                              )}
+                              — {step.reason}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {msg.agentPlan.citations.length > 0 && (
+                        <p className="text-xs text-steel">
+                          Citations: {msg.agentPlan.citations.join(", ")}
+                        </p>
+                      )}
+                      {msg.agentSessionId && (
+                        <p className="text-xs text-steel">
+                          Session{" "}
+                          <Link to="/intelligence" className="text-thorpe-primary underline">
+                            {msg.agentSessionId.slice(0, 8)}…
+                          </Link>
+                        </p>
+                      )}
+                    </div>
                   )}
                   {msg.repairs && msg.repairs.length > 0 && !isTyping && (
                     <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">

@@ -1,7 +1,8 @@
-use crate::db::{CreateCase, DiagnosticReport};
+use crate::agent::{AgentPlan, RepairVerification};
+use crate::db::DiagnosticReport;
 use crate::licensing;
-use crate::repairs::{self, RepairAction, RepairResult};
-use crate::scanner::{self, SystemScanResult};
+use crate::repairs::{RepairAction, RepairResult};
+use crate::scanner::SystemScanResult;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -58,19 +59,11 @@ pub struct ChatRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RepairVerification {
-    pub health_before: i32,
-    pub health_after: i32,
-    pub issues_before: usize,
-    pub issues_after: usize,
-    pub improved: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KbSuggestion {
     pub id: String,
     pub title: String,
     pub summary: String,
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +75,8 @@ pub struct ChatResponse {
     pub verification: Option<RepairVerification>,
     pub escalation_case_id: Option<String>,
     pub kb_suggestions: Vec<KbSuggestion>,
+    pub agent_plan: Option<AgentPlan>,
+    pub agent_session_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,6 +164,8 @@ struct ChatExtras {
     verification: Option<RepairVerification>,
     escalation_case_id: Option<String>,
     kb_suggestions: Vec<KbSuggestion>,
+    agent_plan: Option<AgentPlan>,
+    agent_session_id: Option<String>,
 }
 
 fn enrich_message_with_extras(mut message: String, extras: &ChatExtras) -> String {
@@ -194,6 +191,16 @@ fn enrich_message_with_extras(mut message: String, extras: &ChatExtras) -> Strin
             v.health_before, v.health_after, v.issues_before, v.issues_after
         ));
     }
+    if let Some(plan) = &extras.agent_plan {
+        if !plan.hypotheses.is_empty() {
+            message.push_str("\n\n**Engineering assessment:** ");
+            message.push_str(&plan.hypotheses.join("; "));
+        }
+        if !plan.citations.is_empty() {
+            message.push_str("\n**Sources:** ");
+            message.push_str(&plan.citations.join("; "));
+        }
+    }
     message
 }
 
@@ -211,121 +218,30 @@ fn chat_response(
         verification: extras.verification,
         escalation_case_id: extras.escalation_case_id,
         kb_suggestions: extras.kb_suggestions,
+        agent_plan: extras.agent_plan,
+        agent_session_id: extras.agent_session_id,
     }
 }
 
-fn is_security_escalation(message: &str) -> Option<&'static str> {
-    let m = message.to_lowercase();
-    if m.contains("virus") || m.contains("malware") || m.contains("ransomware") {
-        return Some("Potential malware or ransomware reported by user");
-    }
-    if m.contains("password") || m.contains("credential") {
-        return Some("User issue involves credentials — security boundary");
-    }
-    None
-}
-
-fn create_escalation_case(db: &crate::db::Database, title: &str, description: &str) -> Option<String> {
-    let case = CreateCase {
-        client_id: None,
-        device_id: None,
-        title: title.to_string(),
-        status: "open".to_string(),
-        priority: "high".to_string(),
-        description: Some(description.to_string()),
-        report_id: None,
-    };
-    db.create_case(&case).ok().map(|c| c.id)
-}
-
-fn kb_suggestions_for(db: &crate::db::Database, message: &str) -> Vec<KbSuggestion> {
-    db.search_knowledge_for_message(message, 2)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|article| KbSuggestion {
-            id: article.id,
-            title: article.title,
-            summary: article.symptoms.chars().take(160).collect(),
-        })
-        .collect()
-}
-
-fn run_repairs_and_verify(
-    state: &State<'_, AppState>,
-    request: &ChatRequest,
-    scan: &Option<SystemScanResult>,
-) -> (Vec<RepairResult>, ChatExtras) {
-    if is_security_escalation(&request.message).is_some() {
-        let escalation_case_id = {
-            let db = state.lock_db().ok();
-            db.and_then(|db| {
-                create_escalation_case(
-                    &db,
-                    "Jonathan security escalation",
-                    &request.message,
-                )
-            })
-        };
-        return (vec![], ChatExtras {
-            pending_repairs: vec![],
-            verification: None,
-            escalation_case_id,
-            kb_suggestions: vec![],
-        });
-    }
-
-    let planned = repairs::plan_repairs(&request.message, scan.as_ref());
-    let confirmed = request.confirmed_repairs.clone().unwrap_or_default();
-    let repair_plan = repairs::plan_chat_repairs(&planned, &confirmed);
-
-    let health_before = scan.as_ref().map(|s| s.health_score).unwrap_or(0);
-    let issues_before = scan.as_ref().map(|s| s.issues.len()).unwrap_or(0);
-
-    let repairs_executed = {
-        let Ok(db) = state.lock_db() else {
-            return (vec![], ChatExtras {
-                pending_repairs: repair_plan.pending_confirmation,
-                verification: None,
-                escalation_case_id: None,
-                kb_suggestions: vec![],
-            });
-        };
-        repairs::perform_repairs_with_failures(&db, &repair_plan.to_run)
-    };
-
-    let verification = if repairs::any_mutating_success(&repairs_executed) {
-        let after = scanner::quick_system_scan();
-        Some(RepairVerification {
-            health_before,
-            health_after: after.health_score,
-            issues_before,
-            issues_after: after.issues.len(),
-            improved: after.health_score > health_before || after.issues.len() < issues_before,
-        })
-    } else {
-        None
-    };
-
-    let needs_kb = repairs_executed.iter().any(|r| !r.success)
-        || repairs_executed.iter().all(|r| r.action_kind == "advisory")
-        || repairs_executed.is_empty();
-    let kb_suggestions = if needs_kb {
-        state
-            .lock_db()
-            .ok()
-            .map(|db| kb_suggestions_for(&db, &request.message))
-            .unwrap_or_default()
-    } else {
-        vec![]
-    };
-
+fn incident_to_extras(incident: crate::agent::IncidentResult) -> (Vec<RepairResult>, ChatExtras) {
     (
-        repairs_executed,
+        incident.repairs_executed,
         ChatExtras {
-            pending_repairs: repair_plan.pending_confirmation,
-            verification,
-            escalation_case_id: None,
-            kb_suggestions,
+            pending_repairs: incident.pending_repairs,
+            verification: incident.verification,
+            escalation_case_id: incident.escalation_case_id,
+            kb_suggestions: incident
+                .kb_suggestions
+                .into_iter()
+                .map(|k| KbSuggestion {
+                    id: k.id,
+                    title: k.title,
+                    summary: k.summary,
+                    source: Some(k.source),
+                })
+                .collect(),
+            agent_plan: incident.agent_session.as_ref().map(|s| s.plan.clone()),
+            agent_session_id: incident.agent_session.as_ref().map(|s| s.session_id.clone()),
         },
     )
 }
@@ -336,7 +252,9 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
 
     state.lock_db()?.save_chat("user", &request.message).ok();
 
-    let (repairs_executed, extras) = run_repairs_and_verify(&state, &request, &scan);
+    let confirmed = request.confirmed_repairs.clone().unwrap_or_default();
+    let incident = crate::agent::orchestrate_incident(&state, &request.message, &scan, &confirmed).await;
+    let (repairs_executed, extras) = incident_to_extras(incident);
 
     let user_first_name = {
         let db = state.lock_db()?;
@@ -612,6 +530,17 @@ fn extract_first_name(display_name: &str) -> Option<String> {
     }
 
     Some(first.to_string())
+}
+
+fn is_security_escalation(message: &str) -> Option<&'static str> {
+    let m = message.to_lowercase();
+    if m.contains("virus") || m.contains("malware") || m.contains("ransomware") {
+        return Some("Potential malware reported");
+    }
+    if m.contains("password") || m.contains("credential") {
+        return Some("Credential boundary");
+    }
+    None
 }
 
 fn format_technician_response(

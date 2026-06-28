@@ -19,6 +19,73 @@ pub fn export_report_pdf(state: State<AppState>, report_id: String, output_path:
     Ok(validated_path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+pub fn export_agent_session_pdf(
+    state: State<AppState>,
+    session_id: String,
+    output_path: String,
+) -> Result<String, String> {
+    let sessions = {
+        let db = state.lock_db()?;
+        licensing::require_feature(&db, "pdf_export")?;
+        db.list_agent_sessions(200).map_err(|e| e.to_string())?
+    };
+    let session = sessions
+        .into_iter()
+        .find(|s| s.id == session_id)
+        .ok_or_else(|| "Agent session not found.".to_string())?;
+    let validated_path = validate_pdf_output_path(&output_path)?;
+    generate_agent_session_pdf(&session, &validated_path)?;
+    Ok(validated_path.to_string_lossy().to_string())
+}
+
+fn generate_agent_session_pdf(session: &crate::db::AgentSessionRecord, path: &Path) -> Result<(), String> {
+    let (doc, page1, layer1) = PdfDocument::new(
+        "Thorpe Agent Session Report",
+        Mm(210.0),
+        Mm(297.0),
+        "Layer 1",
+    );
+    let current_layer = doc.get_page(page1).get_layer(layer1);
+    let font = doc.add_builtin_font(BuiltinFont::Helvetica).map_err(|e| e.to_string())?;
+    let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold).map_err(|e| e.to_string())?;
+    let mut y = 280.0;
+    current_layer.use_text("THORPE AGENT SESSION", 16.0, Mm(20.0), Mm(y), &font_bold);
+    y -= 12.0;
+    current_layer.use_text(&format!("Session: {}", session.id), 9.0, Mm(20.0), Mm(y), &font);
+    y -= 8.0;
+    current_layer.use_text(&format!("Confidence: {:.0}%", session.confidence * 100.0), 11.0, Mm(20.0), Mm(y), &font);
+    y -= 12.0;
+    current_layer.use_text("USER MESSAGE", 12.0, Mm(20.0), Mm(y), &font_bold);
+    y -= 8.0;
+    for line in wrap_text(&session.message, 85) {
+        current_layer.use_text(&line, 10.0, Mm(20.0), Mm(y), &font);
+        y -= 6.0;
+    }
+    y -= 8.0;
+    current_layer.use_text("PLAN", 12.0, Mm(20.0), Mm(y), &font_bold);
+    y -= 8.0;
+    for line in wrap_text(&session.plan_json, 85) {
+        if y < 20.0 { break; }
+        current_layer.use_text(&line, 9.0, Mm(20.0), Mm(y), &font);
+        y -= 5.0;
+    }
+    if let Some(evidence) = &session.evidence_json {
+        y -= 8.0;
+        current_layer.use_text("EVIDENCE", 12.0, Mm(20.0), Mm(y), &font_bold);
+        y -= 8.0;
+        for line in wrap_text(evidence, 85) {
+            if y < 20.0 { break; }
+            current_layer.use_text(&line, 8.0, Mm(20.0), Mm(y), &font);
+            y -= 5.0;
+        }
+    }
+    let file = File::create(path).map_err(|e| format!("Failed to create PDF: {e}"))?;
+    let mut buf_writer = BufWriter::new(file);
+    doc.save(&mut buf_writer).map_err(|e| format!("Failed to save PDF: {e}"))?;
+    Ok(())
+}
+
 pub(crate) fn validate_pdf_output_path(path: &str) -> Result<PathBuf, String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {

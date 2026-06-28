@@ -1,11 +1,16 @@
+pub mod agent;
 pub mod ai;
 pub mod db;
 pub mod enterprise_ai;
+pub mod evidence;
+pub mod integrations;
+pub mod intel;
 pub mod licensing;
 pub mod pdf;
 pub mod repairs;
 pub mod scanner;
 pub mod secrets;
+pub mod watchdog;
 
 use db::Database;
 use std::path::PathBuf;
@@ -43,10 +48,13 @@ pub fn run() {
                 secrets::migrate_api_key_from_db(&data_dir, Some(legacy_key)).ok();
                 let _ = database.delete_setting("ai_api_key");
             }
+            let _ = intel::ensure_intel_seeded(&database);
+            let _ = repairs::ensure_packs_installed(&database);
             app.manage(AppState {
                 db: Mutex::new(database),
                 data_dir,
             });
+            watchdog::start_watchdog(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -67,6 +75,19 @@ pub fn run() {
             enterprise_ai::update_ai_org_policy,
             enterprise_ai::test_ai_provider_health,
             enterprise_ai::list_ai_audit_log,
+            agent::list_agent_sessions,
+            agent::sync_intel_feed,
+            agent::list_intel_items,
+            agent::list_repair_packs,
+            agent::install_repair_pack,
+            agent::upsert_org_playbook,
+            agent::list_org_playbooks,
+            watchdog::get_watchdog_status,
+            watchdog::update_watchdog_config,
+            watchdog::acknowledge_watchdog_event,
+            integrations::psa::get_psa_settings,
+            integrations::psa::update_psa_settings,
+            integrations::psa::test_psa_webhook,
             db::commands::get_settings,
             db::commands::update_settings,
             db::commands::list_reports,
@@ -91,6 +112,7 @@ pub fn run() {
             licensing::activate_license,
             licensing::check_feature,
             pdf::export_report_pdf,
+            pdf::export_agent_session_pdf,
             get_app_info,
             check_for_updates,
         ])

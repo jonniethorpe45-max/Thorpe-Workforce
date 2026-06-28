@@ -1,24 +1,33 @@
 import { useEffect, useState } from "react";
-import { User, Bot, Shield, Trash2 } from "lucide-react";
+import { User, Bot, Shield, Trash2, Webhook, Radar } from "lucide-react";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
-import type { AiConfig, Profile } from "../services/types";
+import type { AiConfig, Profile, PsaConfig, WatchdogConfig } from "../services/types";
 
 export function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [appInfo, setAppInfo] = useState<{ name: string; version: string; platform: string; data_dir: string } | null>(null);
+  const [psaConfig, setPsaConfig] = useState<PsaConfig | null>(null);
+  const [psaSecret, setPsaSecret] = useState("");
+  const [watchdogConfig, setWatchdogConfig] = useState<WatchdogConfig | null>(null);
   const { addNotification } = useAppStore();
 
   useEffect(() => {
-    Promise.all([thorpeApi.getProfile(), thorpeApi.getAiConfig(), thorpeApi.getAppInfo()]).then(
-      ([p, a, info]) => {
-        setProfile(p);
-        setAiConfig(a);
-        setAppInfo(info);
-      }
-    );
+    Promise.all([
+      thorpeApi.getProfile(),
+      thorpeApi.getAiConfig(),
+      thorpeApi.getAppInfo(),
+      thorpeApi.getPsaSettings().catch(() => null),
+      thorpeApi.getWatchdogStatus().catch(() => null),
+    ]).then(([p, a, info, psa, watchdog]) => {
+      setProfile(p);
+      setAiConfig(a);
+      setAppInfo(info);
+      if (psa) setPsaConfig(psa);
+      if (watchdog) setWatchdogConfig(watchdog.config);
+    });
   }, []);
 
   const saveProfile = async () => {
@@ -80,6 +89,53 @@ export function SettingsPage() {
       addNotification({ type: "success", title: "Data Deleted", message: "All user data has been removed." });
     } catch (err) {
       addNotification({ type: "error", title: "Delete Failed", message: String(err) });
+    }
+  };
+
+  const savePsaConfig = async () => {
+    if (!psaConfig) return;
+    try {
+      const updated = await thorpeApi.updatePsaSettings(
+        psaConfig.enabled,
+        psaConfig.webhook_url,
+        psaConfig.provider,
+        psaSecret.trim() || undefined
+      );
+      setPsaConfig(updated);
+      setPsaSecret("");
+      addNotification({ type: "success", title: "PSA Saved", message: "PSA webhook settings updated." });
+    } catch (err) {
+      addNotification({ type: "error", title: "Save Failed", message: String(err) });
+    }
+  };
+
+  const testPsaWebhook = async () => {
+    try {
+      const result = await thorpeApi.testPsaWebhook();
+      addNotification({
+        type: result.success ? "success" : "error",
+        title: result.success ? "Webhook OK" : "Webhook Failed",
+        message: result.message,
+      });
+    } catch (err) {
+      addNotification({ type: "error", title: "Test Failed", message: String(err) });
+    }
+  };
+
+  const saveWatchdogConfig = async () => {
+    if (!watchdogConfig) return;
+    try {
+      const updated = await thorpeApi.updateWatchdogConfig(
+        watchdogConfig.enabled,
+        watchdogConfig.interval_minutes,
+        watchdogConfig.health_threshold,
+        watchdogConfig.auto_notify,
+        watchdogConfig.auto_plan
+      );
+      setWatchdogConfig(updated);
+      addNotification({ type: "success", title: "Watchdog Saved", message: "Proactive monitoring settings updated." });
+    } catch (err) {
+      addNotification({ type: "error", title: "Save Failed", message: String(err) });
     }
   };
 
@@ -207,6 +263,151 @@ export function SettingsPage() {
                   ? "Status: Cloud AI enabled — add and save an API key to activate."
                   : "Status: Local autonomous repair mode (no API key required)."}
             </p>
+          </>
+        )}
+      </section>
+
+      <section className="card space-y-4">
+        <div className="flex items-center gap-2">
+          <Webhook className="h-5 w-5 text-thorpe-400" />
+          <h2 className="font-medium text-white">PSA Integration</h2>
+        </div>
+        <p className="text-sm text-gray-400">
+          Outbound webhooks for case and agent session events (ConnectWise, Halo, generic).
+        </p>
+        {psaConfig && (
+          <>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={psaConfig.enabled}
+                onChange={(e) => setPsaConfig({ ...psaConfig, enabled: e.target.checked })}
+                className="rounded border-surface-border"
+              />
+              Enable PSA webhooks
+            </label>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Webhook URL</label>
+              <input
+                className="input font-mono text-sm"
+                value={psaConfig.webhook_url || ""}
+                onChange={(e) =>
+                  setPsaConfig({ ...psaConfig, webhook_url: e.target.value || null })
+                }
+                placeholder="https://your-psa.example/webhook"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Provider</label>
+              <select
+                className="input"
+                value={psaConfig.provider}
+                onChange={(e) => setPsaConfig({ ...psaConfig, provider: e.target.value })}
+              >
+                <option value="generic">Generic</option>
+                <option value="connectwise">ConnectWise</option>
+                <option value="halo">Halo PSA</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">HMAC Secret (optional)</label>
+              <input
+                className="input font-mono"
+                type="password"
+                value={psaSecret}
+                onChange={(e) => setPsaSecret(e.target.value)}
+                placeholder="Signing secret for X-Thorpe-Signature"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={savePsaConfig} className="btn-primary text-sm">
+                Save PSA
+              </button>
+              <button onClick={testPsaWebhook} className="btn-secondary text-sm">
+                Test webhook
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="card space-y-4">
+        <div className="flex items-center gap-2">
+          <Radar className="h-5 w-5 text-thorpe-400" />
+          <h2 className="font-medium text-white">Proactive Watchdog</h2>
+        </div>
+        <p className="text-sm text-gray-400">
+          Background health monitoring with automatic incident planning when thresholds are breached.
+        </p>
+        {watchdogConfig && (
+          <>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={watchdogConfig.enabled}
+                onChange={(e) => setWatchdogConfig({ ...watchdogConfig, enabled: e.target.checked })}
+                className="rounded border-surface-border"
+              />
+              Enable watchdog
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">Check interval (minutes)</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={5}
+                  value={watchdogConfig.interval_minutes}
+                  onChange={(e) =>
+                    setWatchdogConfig({
+                      ...watchdogConfig,
+                      interval_minutes: parseInt(e.target.value, 10) || 5,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">Health threshold</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={watchdogConfig.health_threshold}
+                  onChange={(e) =>
+                    setWatchdogConfig({
+                      ...watchdogConfig,
+                      health_threshold: parseInt(e.target.value, 10) || 70,
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={watchdogConfig.auto_notify}
+                onChange={(e) =>
+                  setWatchdogConfig({ ...watchdogConfig, auto_notify: e.target.checked })
+                }
+                className="rounded border-surface-border"
+              />
+              Desktop notifications on breach
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={watchdogConfig.auto_plan}
+                onChange={(e) =>
+                  setWatchdogConfig({ ...watchdogConfig, auto_plan: e.target.checked })
+                }
+                className="rounded border-surface-border"
+              />
+              Auto-generate response plan
+            </label>
+            <button onClick={saveWatchdogConfig} className="btn-primary text-sm">
+              Save Watchdog
+            </button>
           </>
         )}
       </section>
