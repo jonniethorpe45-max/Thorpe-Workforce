@@ -9,7 +9,7 @@ import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
-import type { AiConfig, AgentPlan, KbSuggestion, RepairAction, RepairResult, RepairVerification } from "../services/types";
+import type { AiConfig, AgentPlan, AssistantChatMetadata, KbSuggestion, RepairAction, RepairResult, RepairVerification } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -37,6 +37,30 @@ function repairKindLabel(kind?: string): string {
   }
 }
 
+function messageFromHistory(h: { role: string; content: string; metadata_json?: string | null }): Message {
+  const base: Message = {
+    role: h.role as "user" | "assistant",
+    content: h.content,
+  };
+  if (!h.metadata_json) return base;
+  try {
+    const meta = JSON.parse(h.metadata_json) as AssistantChatMetadata;
+    return {
+      ...base,
+      source: meta.source,
+      repairs: meta.repairs_executed,
+      pendingRepairs: meta.pending_repairs,
+      verification: meta.verification,
+      escalationCaseId: meta.escalation_case_id,
+      kbSuggestions: meta.kb_suggestions,
+      agentPlan: meta.agent_plan,
+      agentSessionId: meta.agent_session_id,
+    };
+  } catch {
+    return base;
+  }
+}
+
 export function JonathanAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -58,10 +82,7 @@ export function JonathanAssistant() {
         setSkillLevel(profile.skill_level);
         setAiConfig(config);
         const name = extractFirstName(profile.display_name);
-        const restored: Message[] = history.map((h) => ({
-          role: h.role as "user" | "assistant",
-          content: h.content,
-        }));
+        const restored: Message[] = history.map(messageFromHistory);
         if (restored.length === 0) {
           setMessages([{ role: "assistant", content: buildJonathanWelcome(name) }]);
           setTypingMessageIndex(0);
@@ -334,7 +355,10 @@ export function JonathanAssistant() {
                       {msg.agentSessionId && (
                         <p className="text-xs text-steel">
                           Session{" "}
-                          <Link to="/intelligence" className="text-thorpe-primary underline">
+                          <Link
+                            to={`/intelligence?tab=sessions&session=${msg.agentSessionId}`}
+                            className="text-thorpe-primary underline"
+                          >
                             {msg.agentSessionId.slice(0, 8)}…
                           </Link>
                         </p>

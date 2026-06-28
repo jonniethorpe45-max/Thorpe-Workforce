@@ -246,7 +246,19 @@ export interface ChatMessage {
   id: string;
   role: string;
   content: string;
+  metadata_json?: string | null;
   created_at: string;
+}
+
+export interface AssistantChatMetadata {
+  source?: string;
+  repairs_executed?: RepairResult[];
+  pending_repairs?: RepairAction[];
+  verification?: RepairVerification | null;
+  escalation_case_id?: string | null;
+  kb_suggestions?: KbSuggestion[];
+  agent_plan?: AgentPlan | null;
+  agent_session_id?: string | null;
 }
 
 export interface UpdateInfo {

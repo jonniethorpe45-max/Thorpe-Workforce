@@ -12,6 +12,7 @@ import { LicensingPage } from "./pages/LicensingPage";
 import { UpdateManager } from "./pages/UpdateManager";
 import { EnterpriseAiConsole } from "./pages/EnterpriseAiConsole";
 import { IntelligenceConsole } from "./pages/IntelligenceConsole";
+import { FeatureRoute } from "./components/auth/FeatureRoute";
 
 export default function App() {
   return (
@@ -27,8 +28,30 @@ export default function App() {
           <Route path="/knowledge" element={<KnowledgeBase />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/licensing" element={<LicensingPage />} />
-          <Route path="/enterprise/ai" element={<EnterpriseAiConsole />} />
-          <Route path="/intelligence" element={<IntelligenceConsole />} />
+          <Route
+            path="/enterprise/ai"
+            element={
+              <FeatureRoute
+                feature="enterprise_ai_console"
+                title="Enterprise AI Console"
+                description="Requires an Enterprise license. Manage multi-provider AI keys, budgets, and org policy."
+              >
+                <EnterpriseAiConsole />
+              </FeatureRoute>
+            }
+          />
+          <Route
+            path="/intelligence"
+            element={
+              <FeatureRoute
+                feature="intelligence_console"
+                title="Intelligence Console"
+                description="Requires an Enterprise license. Access threat intel, org playbooks, repair packs, and agent sessions."
+              >
+                <IntelligenceConsole />
+              </FeatureRoute>
+            }
+          />
           <Route path="/updates" element={<UpdateManager />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

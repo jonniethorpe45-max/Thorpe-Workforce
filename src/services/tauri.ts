@@ -191,7 +191,11 @@ export const thorpeApi = {
       provider,
       secret,
     }),
-  testPsaWebhook: () => invokeOrMock<PsaDeliveryResult>("test_psa_webhook"),
+  testPsaWebhook: (webhookUrl?: string, secret?: string) =>
+    invokeOrMock<PsaDeliveryResult>("test_psa_webhook", {
+      webhookUrl,
+      secret,
+    }),
   exportAgentSessionPdf: (sessionId: string, outputPath: string) =>
     invokeOrMock<string>("export_agent_session_pdf", { sessionId, outputPath }),
 };

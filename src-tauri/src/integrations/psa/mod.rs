@@ -106,6 +106,7 @@ pub fn spawn_case_event(state: &State<'_, AppState>, event: &'static str, case: 
                 "case": case,
                 "timestamp": chrono::Utc::now().to_rfc3339(),
             }),
+            None,
         )
         .await;
     });
@@ -125,6 +126,7 @@ pub fn spawn_agent_session(state: &State<'_, AppState>, session: AgentSessionRec
                 "session": session,
                 "timestamp": chrono::Utc::now().to_rfc3339(),
             }),
+            None,
         )
         .await;
     });
@@ -134,6 +136,7 @@ async fn deliver_webhook(
     ctx: &PsaDeliveryContext,
     event: &str,
     payload: serde_json::Value,
+    secret_override: Option<&str>,
 ) -> Result<PsaDeliveryResult, String> {
     let url = ctx
         .config
@@ -150,7 +153,11 @@ async fn deliver_webhook(
         .header("X-Thorpe-Event", event)
         .header("User-Agent", "Thorpe-Desktop/1.1");
 
-    if let Ok(Some(secret)) = secrets::get_psa_secret(&ctx.data_dir) {
+    let secret = secret_override
+        .map(|s| s.to_string())
+        .or_else(|| secrets::get_psa_secret(&ctx.data_dir).ok().flatten());
+
+    if let Some(secret) = secret.filter(|s| !s.is_empty()) {
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|e| e.to_string())?;
         mac.update(body.as_bytes());
         let sig = hex::encode(mac.finalize().into_bytes());
@@ -192,16 +199,30 @@ pub fn update_psa_settings(
 }
 
 #[tauri::command]
-pub async fn test_psa_webhook(state: State<'_, AppState>) -> Result<PsaDeliveryResult, String> {
+pub async fn test_psa_webhook(
+    state: State<'_, AppState>,
+    webhook_url: Option<String>,
+    secret: Option<String>,
+) -> Result<PsaDeliveryResult, String> {
+    let payload = json!({
+        "event": "test.ping",
+        "message": "Thorpe PSA webhook test",
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    });
+
+    if let Some(url) = webhook_url.filter(|u| !u.trim().is_empty()) {
+        crate::net::validate_https_url(url.trim(), true)?;
+        let ctx = PsaDeliveryContext {
+            config: PsaConfig {
+                enabled: true,
+                webhook_url: Some(url.trim().to_string()),
+                provider: "generic".to_string(),
+            },
+            data_dir: state.data_dir.clone(),
+        };
+        return deliver_webhook(&ctx, "test.ping", payload, secret.as_deref()).await;
+    }
+
     let ctx = delivery_context(&state)?.ok_or_else(|| "PSA integration is disabled.".to_string())?;
-    deliver_webhook(
-        &ctx,
-        "test.ping",
-        json!({
-            "event": "test.ping",
-            "message": "Thorpe PSA webhook test",
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-        }),
-    )
-    .await
+    deliver_webhook(&ctx, "test.ping", payload, secret.as_deref()).await
 }

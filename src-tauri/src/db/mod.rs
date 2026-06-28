@@ -313,6 +313,7 @@ impl Database {
         )?;
 
         self.ensure_column("profiles", "role", "TEXT NOT NULL DEFAULT 'admin'")?;
+        self.ensure_column("chat_history", "metadata_json", "TEXT")?;
 
         let profile_count: i64 = self
             .conn
@@ -904,10 +905,16 @@ impl Database {
         Ok(notes)
     }
 
-    pub fn save_chat(&self, role: &str, content: &str) -> DbResult<()> {
+    pub fn save_chat(&self, role: &str, content: &str, metadata_json: Option<&str>) -> DbResult<()> {
         self.conn.execute(
-            "INSERT INTO chat_history (id, role, content, created_at) VALUES (?1, ?2, ?3, ?4)",
-            params![Uuid::new_v4().to_string(), role, content, Utc::now().to_rfc3339()],
+            "INSERT INTO chat_history (id, role, content, metadata_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                Uuid::new_v4().to_string(),
+                role,
+                content,
+                metadata_json,
+                Utc::now().to_rfc3339()
+            ],
         )?;
         Ok(())
     }
@@ -1216,17 +1223,28 @@ impl Database {
 
     pub fn get_chat_history(&self, limit: i64) -> DbResult<Vec<ChatMessage>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, role, content, created_at FROM chat_history ORDER BY created_at ASC LIMIT ?1"
+            "SELECT id, role, content, metadata_json, created_at FROM chat_history ORDER BY created_at ASC LIMIT ?1"
         )?;
         let rows = stmt.query_map(params![limit], |row| {
             Ok(ChatMessage {
                 id: row.get(0)?,
                 role: row.get(1)?,
                 content: row.get(2)?,
-                created_at: row.get(3)?,
+                metadata_json: row.get(3)?,
+                created_at: row.get(4)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn has_recent_unacked_watchdog_event(&self, within_minutes: i64) -> DbResult<bool> {
+        let cutoff = (Utc::now() - chrono::Duration::minutes(within_minutes)).to_rfc3339();
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM watchdog_events WHERE acknowledged = 0 AND created_at > ?1",
+            params![cutoff],
+            |r| r.get(0),
+        )?;
+        Ok(count > 0)
     }
 
     pub fn delete_all_user_data(&self) -> DbResult<()> {
@@ -1498,6 +1516,7 @@ pub struct ChatMessage {
     pub id: String,
     pub role: String,
     pub content: String,
+    pub metadata_json: Option<String>,
     pub created_at: String,
 }
 

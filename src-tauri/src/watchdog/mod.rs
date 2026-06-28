@@ -55,6 +55,16 @@ async fn run_watchdog_tick(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
+    {
+        let db = state.lock_db()?;
+        if db
+            .has_recent_unacked_watchdog_event(config.interval_minutes.max(5))
+            .map_err(|e| e.to_string())?
+        {
+            return Ok(());
+        }
+    }
+
     let plan_json = if config.auto_plan {
         let ctx = PlannerContext {
             message: format!(

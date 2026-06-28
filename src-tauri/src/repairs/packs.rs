@@ -1,6 +1,14 @@
 use crate::db::{Database, RepairPackRecord};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
+
+/// Embedded verification key for official Thorpe OTA repair packs.
+const THORPE_PACK_SIGNING_SECRET: &[u8] = b"thorpe-official-repair-pack-signing-v1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepairPackManifest {
@@ -9,6 +17,8 @@ pub struct RepairPackManifest {
     pub version: String,
     pub description: String,
     pub tools: Vec<RepairPackTool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,6 +41,7 @@ pub fn builtin_packs() -> Vec<RepairPackManifest> {
             version: "1.0.0".into(),
             description: "Built-in safe diagnostics and maintenance tools.".into(),
             tools: vec![],
+            signature: None,
         },
         RepairPackManifest {
             pack_id: "thorpe-network".into(),
@@ -59,6 +70,7 @@ pub fn builtin_packs() -> Vec<RepairPackManifest> {
                     maps_to_action: Some("network-diagnostics".into()),
                 },
             ],
+            signature: None,
         },
         RepairPackManifest {
             pack_id: "thorpe-performance".into(),
@@ -87,6 +99,7 @@ pub fn builtin_packs() -> Vec<RepairPackManifest> {
                     maps_to_action: Some("high-resource-id".into()),
                 },
             ],
+            signature: None,
         },
     ]
 }
@@ -130,6 +143,7 @@ pub fn install_pack_from_json(db: &Database, json: &str) -> Result<RepairPackRec
             }
         }
     }
+    verify_pack_signature_if_present(&manifest)?;
     let now = Utc::now().to_rfc3339();
     let record = RepairPackRecord {
         id: manifest.pack_id.clone(),
@@ -189,4 +203,40 @@ fn is_known_repair_action(action_id: &str) -> bool {
         "software-inventory",
     ];
     KNOWN.contains(&action_id)
+}
+
+fn verify_pack_signature_if_present(manifest: &RepairPackManifest) -> Result<(), String> {
+    let Some(signature) = manifest.signature.as_ref() else {
+        return Ok(());
+    };
+    let mut unsigned = manifest.clone();
+    unsigned.signature = None;
+    let payload = serde_json::to_string(&unsigned).map_err(|e| e.to_string())?;
+    let mut mac = HmacSha256::new_from_slice(THORPE_PACK_SIGNING_SECRET).map_err(|e| e.to_string())?;
+    mac.update(payload.as_bytes());
+    let expected = BASE64.encode(mac.finalize().into_bytes());
+    if signature.trim() != expected {
+        return Err("Invalid repair pack signature.".into());
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod signing_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_tampered_signed_pack() {
+        let mut manifest = RepairPackManifest {
+            pack_id: "custom-pack".into(),
+            name: "Custom".into(),
+            version: "1.0.0".into(),
+            description: "Test".into(),
+            tools: vec![],
+            signature: Some("invalid".into()),
+        };
+        assert!(verify_pack_signature_if_present(&manifest).is_err());
+        manifest.signature = None;
+        assert!(verify_pack_signature_if_present(&manifest).is_ok());
+    }
 }

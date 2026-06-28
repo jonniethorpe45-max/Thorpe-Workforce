@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import {
   Brain,
   BookMarked,
@@ -8,6 +11,8 @@ import {
   Plus,
   Download,
   AlertTriangle,
+  Upload,
+  FileText,
 } from "lucide-react";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
@@ -45,21 +50,36 @@ function parsePlan(json: string): AgentPlan | null {
   }
 }
 
+function packHasSignature(manifestJson: string): boolean {
+  try {
+    const parsed = JSON.parse(manifestJson) as { signature?: string };
+    return Boolean(parsed.signature);
+  } catch {
+    return false;
+  }
+}
+
 export function IntelligenceConsole() {
-  const [featureAllowed, setFeatureAllowed] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>("intel");
+  const [searchParams] = useSearchParams();
+  const highlightSessionId = searchParams.get("session");
+  const initialTab = (searchParams.get("tab") as Tab | null) ?? "intel";
+
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [loading, setLoading] = useState(false);
   const [intelItems, setIntelItems] = useState<IntelItem[]>([]);
   const [playbooks, setPlaybooks] = useState<OrgPlaybook[]>([]);
   const [packs, setPacks] = useState<RepairPackRecord[]>([]);
   const [sessions, setSessions] = useState<AgentSessionRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [packManifestInput, setPackManifestInput] = useState("");
+  const [installingPack, setInstallingPack] = useState(false);
   const [newPlaybook, setNewPlaybook] = useState({
     title: "",
     category: "General",
     content: "",
     tags: "",
   });
+  const sessionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { addNotification } = useAppStore();
 
   const loadAll = async () => {
@@ -83,11 +103,19 @@ export function IntelligenceConsole() {
   };
 
   useEffect(() => {
-    thorpeApi.checkFeature("intelligence_console").then((f) => {
-      setFeatureAllowed(f.allowed);
-      if (f.allowed) loadAll();
-    });
+    loadAll();
   }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab") as Tab | null;
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (highlightSessionId && activeTab === "sessions") {
+      sessionRefs.current[highlightSessionId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightSessionId, activeTab, sessions]);
 
   const syncIntel = async () => {
     setSyncing(true);
@@ -125,22 +153,73 @@ export function IntelligenceConsole() {
     }
   };
 
-  if (featureAllowed === null) {
-    return <div className="animate-pulse text-steel">Checking license…</div>;
-  }
+  const installPack = async (manifestJson: string) => {
+    if (!manifestJson.trim()) return;
+    setInstallingPack(true);
+    try {
+      await thorpeApi.installRepairPack(manifestJson.trim());
+      const pk = await thorpeApi.listRepairPacks();
+      setPacks(pk);
+      setPackManifestInput("");
+      addNotification({ type: "success", title: "Pack installed", message: "Repair pack is now available." });
+    } catch (err) {
+      addNotification({ type: "error", title: "Install Failed", message: String(err) });
+    } finally {
+      setInstallingPack(false);
+    }
+  };
 
-  if (!featureAllowed) {
-    return (
-      <div className="card mx-auto max-w-lg p-8 text-center">
-        <Brain className="mx-auto mb-4 h-12 w-12 text-steel" />
-        <h1 className="text-xl font-bold text-white">Intelligence Console</h1>
-        <p className="mt-2 text-sm text-steel">
-          Requires an Enterprise license. Activate your license on the Licensing page to access
-          threat intel, org playbooks, repair packs, and agent session history.
-        </p>
-      </div>
-    );
-  }
+  const pickPackFile = async () => {
+    const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+    if (!isTauri) return;
+    try {
+      const path = await open({
+        multiple: false,
+        filters: [{ name: "Repair Pack", extensions: ["json"] }],
+      });
+      if (!path || typeof path !== "string") return;
+      const content = await readTextFile(path);
+      setPackManifestInput(content);
+    } catch (err) {
+      addNotification({ type: "error", title: "File Error", message: String(err) });
+    }
+  };
+
+  const exportSessionPdf = async (session: AgentSessionRecord) => {
+    try {
+      const feature = await thorpeApi.checkFeature("pdf_export");
+      if (!feature.allowed) {
+        addNotification({
+          type: "warning",
+          title: "Upgrade Required",
+          message: "PDF export requires a Professional license or higher.",
+        });
+        return;
+      }
+
+      const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+      let outputPath: string | null;
+
+      if (isTauri) {
+        outputPath = await save({
+          defaultPath: `thorpe-agent-session-${session.id.slice(0, 8)}.pdf`,
+          filters: [{ name: "PDF Document", extensions: ["pdf"] }],
+        });
+        if (!outputPath) return;
+      } else {
+        outputPath = `thorpe-agent-session-${session.id.slice(0, 8)}.pdf`;
+      }
+
+      const savedPath = await thorpeApi.exportAgentSessionPdf(session.id, outputPath);
+      addNotification({
+        type: "success",
+        title: "PDF Exported",
+        message: isTauri ? `Saved to ${savedPath}` : "PDF export is available in the desktop app.",
+      });
+    } catch (err) {
+      addNotification({ type: "error", title: "Export Failed", message: String(err) });
+    }
+  };
 
   const tabs: { id: Tab; label: string; icon: typeof Brain }[] = [
     { id: "intel", label: "Threat Intel", icon: AlertTriangle },
@@ -274,26 +353,61 @@ export function IntelligenceConsole() {
       )}
 
       {activeTab === "packs" && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {packs.map((pack) => (
-            <div key={pack.id} className="card p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium text-white">{pack.name}</h3>
-                <span className="text-xs text-steel">v{pack.version}</span>
-              </div>
-              <p className="mt-1 text-sm text-steel">{pack.description}</p>
-              <div className="mt-2 flex gap-2 text-xs">
-                {pack.builtin && (
-                  <span className="rounded bg-cyan-500/15 px-2 py-0.5 text-cyan-400">Built-in</span>
-                )}
-                <span
-                  className={`rounded px-2 py-0.5 ${pack.enabled ? "bg-emerald-500/15 text-emerald-400" : "bg-gray-500/15 text-gray-400"}`}
-                >
-                  {pack.enabled ? "Enabled" : "Disabled"}
-                </span>
-              </div>
+        <div className="space-y-4">
+          <div className="card space-y-3 p-4">
+            <h2 className="flex items-center gap-2 font-medium text-white">
+              <Upload className="h-4 w-4" /> Install repair pack
+            </h2>
+            <p className="text-xs text-steel">
+              Paste a signed pack manifest JSON or load a `.json` file. Unsigned packs are allowed only when
+              tools map to built-in Thorpe repairs.
+            </p>
+            <textarea
+              className="input min-h-[140px] font-mono text-xs"
+              placeholder='{"pack_id":"custom","name":"...","version":"1.0.0","description":"...","tools":[]}'
+              value={packManifestInput}
+              onChange={(e) => setPackManifestInput(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => installPack(packManifestInput)}
+                disabled={installingPack || !packManifestInput.trim()}
+                className="btn-primary text-sm"
+              >
+                Install pack
+              </button>
+              <button onClick={pickPackFile} className="btn-secondary text-sm">
+                Load JSON file
+              </button>
             </div>
-          ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {packs.map((pack) => (
+              <div key={pack.id} className="card p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-white">{pack.name}</h3>
+                  <span className="text-xs text-steel">v{pack.version}</span>
+                </div>
+                <p className="mt-1 text-sm text-steel">{pack.description}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  {pack.builtin && (
+                    <span className="rounded bg-cyan-500/15 px-2 py-0.5 text-cyan-400">Built-in</span>
+                  )}
+                  {!pack.builtin && packHasSignature(pack.manifest_json) && (
+                    <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-400">Signed</span>
+                  )}
+                  <span
+                    className={`rounded px-2 py-0.5 ${pack.enabled ? "bg-emerald-500/15 text-emerald-400" : "bg-gray-500/15 text-gray-400"}`}
+                  >
+                    {pack.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {packs.length === 0 && (
+              <p className="text-sm text-steel">No repair packs installed.</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -301,10 +415,17 @@ export function IntelligenceConsole() {
         <div className="space-y-3">
           {sessions.map((session) => {
             const plan = parsePlan(session.plan_json);
+            const highlighted = highlightSessionId === session.id;
             return (
-              <div key={session.id} className="card p-4">
+              <div
+                key={session.id}
+                ref={(el) => {
+                  sessionRefs.current[session.id] = el;
+                }}
+                className={`card p-4 ${highlighted ? "ring-2 ring-thorpe-primary/50" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs text-steel">{new Date(session.created_at).toLocaleString()}</p>
                     <p className="mt-1 text-sm text-white">{session.message}</p>
                     {plan && (
@@ -320,15 +441,24 @@ export function IntelligenceConsole() {
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs capitalize ${
-                      session.status === "completed"
-                        ? "bg-emerald-500/15 text-emerald-400"
-                        : "bg-amber-500/15 text-amber-400"
-                    }`}
-                  >
-                    {session.status}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs capitalize ${
+                        session.status === "completed"
+                          ? "bg-emerald-500/15 text-emerald-400"
+                          : "bg-amber-500/15 text-amber-400"
+                      }`}
+                    >
+                      {session.status}
+                    </span>
+                    <button
+                      onClick={() => exportSessionPdf(session)}
+                      className="btn-secondary flex items-center gap-1 text-xs"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Export PDF
+                    </button>
+                  </div>
                 </div>
               </div>
             );

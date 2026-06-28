@@ -116,8 +116,12 @@ export function SettingsPage() {
   };
 
   const testPsaWebhook = async () => {
+    if (!psaConfig) return;
     try {
-      const result = await thorpeApi.testPsaWebhook();
+      const result = await thorpeApi.testPsaWebhook(
+        psaConfig.webhook_url?.trim() || undefined,
+        psaSecret.trim() || undefined
+      );
       addNotification({
         type: result.success ? "success" : "error",
         title: result.success ? "Webhook OK" : "Webhook Failed",

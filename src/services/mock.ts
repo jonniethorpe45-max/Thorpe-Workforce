@@ -485,7 +485,9 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       return {
         success: true,
         status_code: 200,
-        message: "Mock PSA webhook delivered.",
+        message: args?.webhookUrl
+          ? `Mock PSA webhook delivered to ${args.webhookUrl}.`
+          : "Mock PSA webhook delivered.",
       } as T;
 
     case "export_agent_session_pdf":

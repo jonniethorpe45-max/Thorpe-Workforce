@@ -250,7 +250,7 @@ fn incident_to_extras(incident: crate::agent::IncidentResult) -> (Vec<RepairResu
 pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest) -> Result<ChatResponse, String> {
     let scan = parse_scan_context(request.scan_context.as_deref());
 
-    state.lock_db()?.save_chat("user", &request.message).ok();
+    state.lock_db()?.save_chat("user", &request.message, None).ok();
 
     let confirmed = request.confirmed_repairs.clone().unwrap_or_default();
     let incident = crate::agent::orchestrate_incident(&state, &request.message, &scan, &confirmed).await;
@@ -344,8 +344,37 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
         ),
     };
 
-    state.lock_db()?.save_chat("assistant", &response.message).ok();
+    state
+        .lock_db()?
+        .save_chat("assistant", &response.message, chat_metadata_json(&response).as_deref())
+        .ok();
     Ok(response)
+}
+
+#[derive(Serialize)]
+struct AssistantChatMetadata<'a> {
+    source: &'a str,
+    repairs_executed: &'a [RepairResult],
+    pending_repairs: &'a [RepairAction],
+    verification: &'a Option<RepairVerification>,
+    escalation_case_id: &'a Option<String>,
+    kb_suggestions: &'a [KbSuggestion],
+    agent_plan: &'a Option<AgentPlan>,
+    agent_session_id: &'a Option<String>,
+}
+
+fn chat_metadata_json(response: &ChatResponse) -> Option<String> {
+    serde_json::to_string(&AssistantChatMetadata {
+        source: &response.source,
+        repairs_executed: &response.repairs_executed,
+        pending_repairs: &response.pending_repairs,
+        verification: &response.verification,
+        escalation_case_id: &response.escalation_case_id,
+        kb_suggestions: &response.kb_suggestions,
+        agent_plan: &response.agent_plan,
+        agent_session_id: &response.agent_session_id,
+    })
+    .ok()
 }
 
 async fn resolve_user_cloud_response(
