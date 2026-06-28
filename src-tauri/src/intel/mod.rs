@@ -78,6 +78,7 @@ pub fn ensure_intel_seeded(db: &Database) -> Result<(), String> {
 
 pub async fn sync_intel_feed(db: &Database, feed_url: Option<&str>) -> Result<i64, String> {
     let url = feed_url.unwrap_or(DEFAULT_FEED_URL).to_string();
+    crate::net::validate_https_url(&url, false)?;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()

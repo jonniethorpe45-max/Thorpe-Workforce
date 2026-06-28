@@ -5,6 +5,7 @@ pub use planner::{plan_with_llm, plan_with_rules, AgentPlan, AgentPlanStep, Plan
 use crate::db::{AgentSessionRecord, CreateCase};
 use crate::evidence::{self, SystemEvidence};
 use crate::integrations::psa;
+use crate::licensing;
 use crate::repairs::{self, RepairAction, RepairResult};
 use crate::scanner::{self, SystemScanResult};
 use crate::AppState;
@@ -352,14 +353,17 @@ fn escalation_on_low_confidence(
         )),
         report_id: None,
     };
-    db.create_case(&case).ok().map(|c| c.id)
+    db.create_case(&case).ok().map(|created| {
+        psa::spawn_case_event(state, "case.escalated", created.clone());
+        created.id
+    })
 }
 
 #[tauri::command]
 pub fn list_agent_sessions(state: State<AppState>, limit: Option<i64>) -> Result<Vec<AgentSessionRecord>, String> {
-    state
-        .lock_db()?
-        .list_agent_sessions(limit.unwrap_or(50))
+    let db = state.lock_db()?;
+    licensing::require_feature(&db, "intelligence_console")?;
+    db.list_agent_sessions(limit.unwrap_or(50))
         .map_err(|e| e.to_string())
 }
 
@@ -367,6 +371,7 @@ pub fn list_agent_sessions(state: State<AppState>, limit: Option<i64>) -> Result
 pub async fn sync_intel_feed(state: State<'_, AppState>) -> Result<i64, String> {
     let url = {
         let db = state.lock_db()?;
+        licensing::require_feature(&db, "intelligence_console")?;
         db.get_setting("intel_feed_url").ok().flatten()
     };
     tokio::task::block_in_place(|| {
@@ -379,14 +384,16 @@ pub async fn sync_intel_feed(state: State<'_, AppState>) -> Result<i64, String> 
 
 #[tauri::command]
 pub fn list_intel_items(state: State<AppState>, limit: Option<i64>) -> Result<Vec<crate::db::IntelItem>, String> {
-  let db = state.lock_db()?;
-  crate::intel::ensure_intel_seeded(&db)?;
-  db.list_intel_items(limit.unwrap_or(50)).map_err(|e| e.to_string())
+    let db = state.lock_db()?;
+    licensing::require_feature(&db, "intelligence_console")?;
+    crate::intel::ensure_intel_seeded(&db)?;
+    db.list_intel_items(limit.unwrap_or(50)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn list_repair_packs(state: State<AppState>) -> Result<Vec<crate::db::RepairPackRecord>, String> {
     let db = state.lock_db()?;
+    licensing::require_feature(&db, "intelligence_console")?;
     crate::repairs::ensure_packs_installed(&db)?;
     db.list_repair_packs().map_err(|e| e.to_string())
 }
@@ -394,6 +401,7 @@ pub fn list_repair_packs(state: State<AppState>) -> Result<Vec<crate::db::Repair
 #[tauri::command]
 pub fn install_repair_pack(state: State<AppState>, manifest_json: String) -> Result<crate::db::RepairPackRecord, String> {
     let db = state.lock_db()?;
+    licensing::require_feature(&db, "intelligence_console")?;
     crate::repairs::install_pack_from_json(&db, &manifest_json)
 }
 
@@ -406,10 +414,13 @@ pub fn upsert_org_playbook(
     tags: Vec<String>,
 ) -> Result<crate::db::OrgPlaybook, String> {
     let db = state.lock_db()?;
+    licensing::require_feature(&db, "intelligence_console")?;
     crate::intel::create_playbook(&db, &title, &category, &content, &tags)
 }
 
 #[tauri::command]
 pub fn list_org_playbooks(state: State<AppState>) -> Result<Vec<crate::db::OrgPlaybook>, String> {
-    state.lock_db()?.list_org_playbooks().map_err(|e| e.to_string())
+    let db = state.lock_db()?;
+    licensing::require_feature(&db, "intelligence_console")?;
+    db.list_org_playbooks().map_err(|e| e.to_string())
 }

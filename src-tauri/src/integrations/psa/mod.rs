@@ -59,8 +59,17 @@ pub fn save_psa_config(
     let db = state.lock_db()?;
     db.set_setting("psa_enabled", if enabled { "true" } else { "false" })
         .map_err(|e| e.to_string())?;
-    if let Some(url) = &webhook_url {
-        db.set_setting("psa_webhook_url", url).map_err(|e| e.to_string())?;
+    match &webhook_url {
+        Some(url) if url.trim().is_empty() => {
+            let _ = db.delete_setting("psa_webhook_url");
+        }
+        Some(url) => {
+            crate::net::validate_https_url(url, true)?;
+            db.set_setting("psa_webhook_url", url.trim()).map_err(|e| e.to_string())?;
+        }
+        None => {
+            let _ = db.delete_setting("psa_webhook_url");
+        }
     }
     db.set_setting("psa_provider", &provider)
         .map_err(|e| e.to_string())?;
@@ -132,6 +141,7 @@ async fn deliver_webhook(
         .as_ref()
         .filter(|u| !u.is_empty())
         .ok_or_else(|| "PSA webhook URL is not configured.".to_string())?;
+    crate::net::validate_https_url(url, true)?;
 
     let body = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
     let mut req = Client::new()

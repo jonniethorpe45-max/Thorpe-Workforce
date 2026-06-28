@@ -5,7 +5,6 @@ import {
   FileSearch,
   Wrench,
   MessageSquare,
-  Briefcase,
   BookOpen,
   Settings,
   CreditCard,
@@ -30,12 +29,11 @@ const primaryNav = [
   { to: "/scanner", icon: Activity, label: "System Health" },
   { to: "/reports", icon: FileSearch, label: "Diagnostics" },
   { to: "/repairs", icon: Wrench, label: "Repair Center" },
-  { to: "/workspace", icon: Laptop, label: "Devices" },
+  { to: "/workspace", icon: Laptop, label: "Technician Workspace" },
 ];
 
 const secondaryNav = [
   { to: "/jonathan", icon: MessageSquare, label: "Jonathan AI" },
-  { to: "/workspace", icon: Briefcase, label: "Technician Workspace" },
   { to: "/enterprise/ai", icon: Shield, label: "AI Console", feature: "enterprise_ai_console" },
   { to: "/intelligence", icon: Brain, label: "Intelligence", feature: "intelligence_console" },
   { to: "/knowledge", icon: BookOpen, label: "Knowledge Base" },
@@ -123,7 +121,7 @@ export function AppLayout() {
             </p>
           )}
           {secondaryNav.map(({ to, icon: Icon, label, feature }) => {
-            if (feature && license && !license.features.includes(feature)) {
+            if (feature && (!license || !license.features.includes(feature))) {
               return null;
             }
             return (

@@ -115,6 +115,21 @@ pub fn ensure_packs_installed(db: &Database) -> Result<(), String> {
 
 pub fn install_pack_from_json(db: &Database, json: &str) -> Result<RepairPackRecord, String> {
     let manifest: RepairPackManifest = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    if manifest.pack_id.trim().is_empty() || manifest.name.trim().is_empty() {
+        return Err("Pack id and name are required.".into());
+    }
+    if builtin_packs().iter().any(|p| p.pack_id == manifest.pack_id) {
+        return Err("Cannot install over a built-in repair pack.".into());
+    }
+    for tool in &manifest.tools {
+        if let Some(ref action) = tool.maps_to_action {
+            if !is_known_repair_action(action) {
+                return Err(format!(
+                    "Repair pack references unknown action '{action}'. Only whitelisted Thorpe repairs are allowed."
+                ));
+            }
+        }
+    }
     let now = Utc::now().to_rfc3339();
     let record = RepairPackRecord {
         id: manifest.pack_id.clone(),
@@ -158,4 +173,20 @@ pub fn allowed_tool_ids(db: &Database) -> Result<Vec<String>, String> {
         ];
     }
     Ok(ids)
+}
+
+fn is_known_repair_action(action_id: &str) -> bool {
+    const KNOWN: &[&str] = &[
+        "temp-cleanup",
+        "dns-flush",
+        "disk-analysis",
+        "startup-review",
+        "high-resource-id",
+        "network-diagnostics",
+        "update-check",
+        "restart-recommend",
+        "print-spooler-restart",
+        "software-inventory",
+    ];
+    KNOWN.contains(&action_id)
 }

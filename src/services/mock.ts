@@ -269,7 +269,10 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
 
     case "check_feature": {
       const feature = args?.feature as string;
-      const freeFeatures = ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"];
+      const license = {
+        tier: "free",
+        features: ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"],
+      };
       const enterpriseFeatures = [
         "technician_workspace",
         "team_management",
@@ -279,15 +282,13 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         "branding",
         "advanced_reporting",
       ];
-      const allowed = freeFeatures.includes(feature) || enterpriseFeatures.includes(feature);
+      const allowed =
+        license.features.includes(feature) ||
+        (license.tier === "enterprise" && enterpriseFeatures.includes(feature));
       return {
         feature,
         allowed,
-        required_tier: freeFeatures.includes(feature)
-          ? "free"
-          : enterpriseFeatures.includes(feature)
-            ? "enterprise"
-            : "professional",
+        required_tier: enterpriseFeatures.includes(feature) ? "enterprise" : "free",
       } as T;
     }
 

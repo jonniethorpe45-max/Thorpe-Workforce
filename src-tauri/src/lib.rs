@@ -1,3 +1,4 @@
+mod net;
 pub mod agent;
 pub mod ai;
 pub mod db;

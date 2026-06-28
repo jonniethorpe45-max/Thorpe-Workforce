@@ -9,7 +9,7 @@ import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
-import type { AiConfig, AgentPlan, RepairAction, RepairResult, RepairVerification } from "../services/types";
+import type { AiConfig, AgentPlan, KbSuggestion, RepairAction, RepairResult, RepairVerification } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -21,6 +21,7 @@ interface Message {
   escalationCaseId?: string | null;
   agentPlan?: AgentPlan | null;
   agentSessionId?: string | null;
+  kbSuggestions?: KbSuggestion[];
 }
 
 function repairKindLabel(kind?: string): string {
@@ -103,6 +104,7 @@ export function JonathanAssistant() {
             escalationCaseId: response.escalation_case_id,
             agentPlan: response.agent_plan,
             agentSessionId: response.agent_session_id,
+            kbSuggestions: response.kb_suggestions,
           },
         ];
       });
@@ -155,10 +157,11 @@ export function JonathanAssistant() {
   const approvePendingRepairs = async () => {
     if (pendingApproval.length === 0 || loading) return;
     const ids = pendingApproval.map((p) => p.id);
-    const userMessage = `Approve and run: ${pendingApproval.map((p) => p.name).join(", ")}`;
+    const names = pendingApproval.map((p) => p.name);
+    const userMessage = `Approve and run: ${names.join(", ")}`;
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    setPendingApproval([]);
     await sendChat(userMessage, ids);
+    setPendingApproval([]);
   };
 
   const cloudAiActive = aiConfig ? isCloudAiActive(aiConfig) : false;
@@ -282,6 +285,23 @@ export function JonathanAssistant() {
                       </Link>{" "}
                       opened in Workspace.
                     </p>
+                  )}
+                  {msg.kbSuggestions && msg.kbSuggestions.length > 0 && !isTyping && (
+                    <div className="mt-3 space-y-1 border-t border-navy-border/60 pt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
+                        Related knowledge
+                      </p>
+                      {msg.kbSuggestions.map((kb) => (
+                        <Link
+                          key={kb.id}
+                          to={`/knowledge`}
+                          className="block text-xs text-thorpe-primary hover:underline"
+                        >
+                          {kb.title}
+                          {kb.source && <span className="text-steel"> · {kb.source}</span>}
+                        </Link>
+                      ))}
+                    </div>
                   )}
                   {msg.agentPlan && msg.role === "assistant" && !isTyping && (
                     <div className="mt-3 space-y-2 border-t border-navy-border/60 pt-2">

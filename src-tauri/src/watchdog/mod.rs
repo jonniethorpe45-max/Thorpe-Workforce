@@ -55,35 +55,44 @@ async fn run_watchdog_tick(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    let ctx = PlannerContext {
-        message: format!(
-            "Proactive watchdog: health score {} below threshold {}",
-            scan.health_score, config.health_threshold
-        ),
-        scan_json: serde_json::to_string(&scan).ok(),
-        evidence_json: None,
-        kb_excerpts: vec![],
-        intel_excerpts: vec![],
-        available_tools: vec![
-            "disk-analysis".into(),
-            "high-resource-id".into(),
-            "temp-cleanup".into(),
-            "network-diagnostics".into(),
-        ],
+    let plan_json = if config.auto_plan {
+        let ctx = PlannerContext {
+            message: format!(
+                "Proactive watchdog: health score {} below threshold {}",
+                scan.health_score, config.health_threshold
+            ),
+            scan_json: serde_json::to_string(&scan).ok(),
+            evidence_json: None,
+            kb_excerpts: vec![],
+            intel_excerpts: vec![],
+            available_tools: vec![
+                "disk-analysis".into(),
+                "high-resource-id".into(),
+                "temp-cleanup".into(),
+                "network-diagnostics".into(),
+            ],
+        };
+        let plan = plan_with_rules(&ctx.message, Some(&scan));
+        Some(serde_json::to_string(&plan).map_err(|e| e.to_string())?)
+    } else {
+        None
     };
-
-    let plan = plan_with_rules(&ctx.message, Some(&scan));
-    let plan_json = serde_json::to_string(&plan).map_err(|e| e.to_string())?;
 
     let event = WatchdogEvent {
         id: Uuid::new_v4().to_string(),
         event_type: "health_threshold_breach".into(),
         health_score: scan.health_score,
         message: format!(
-            "System health dropped to {}/100 (threshold {}). Jonathan prepared a response plan.",
-            scan.health_score, config.health_threshold
+            "System health dropped to {}/100 (threshold {}).{}",
+            scan.health_score,
+            config.health_threshold,
+            if config.auto_plan {
+                " Jonathan prepared a response plan."
+            } else {
+                ""
+            }
         ),
-        plan_json: Some(plan_json),
+        plan_json,
         acknowledged: false,
         created_at: Utc::now().to_rfc3339(),
     };

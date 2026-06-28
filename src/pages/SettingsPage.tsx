@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { User, Bot, Shield, Trash2, Webhook, Radar } from "lucide-react";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
-import type { AiConfig, Profile, PsaConfig, WatchdogConfig } from "../services/types";
+import type { AiConfig, Profile, PsaConfig, WatchdogConfig, WatchdogEvent } from "../services/types";
 
 export function SettingsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -12,6 +12,7 @@ export function SettingsPage() {
   const [psaConfig, setPsaConfig] = useState<PsaConfig | null>(null);
   const [psaSecret, setPsaSecret] = useState("");
   const [watchdogConfig, setWatchdogConfig] = useState<WatchdogConfig | null>(null);
+  const [watchdogEvents, setWatchdogEvents] = useState<WatchdogEvent[]>([]);
   const { addNotification } = useAppStore();
 
   useEffect(() => {
@@ -19,16 +20,21 @@ export function SettingsPage() {
       thorpeApi.getProfile(),
       thorpeApi.getAiConfig(),
       thorpeApi.getAppInfo(),
-      thorpeApi.getPsaSettings().catch(() => null),
-      thorpeApi.getWatchdogStatus().catch(() => null),
-    ]).then(([p, a, info, psa, watchdog]) => {
-      setProfile(p);
-      setAiConfig(a);
-      setAppInfo(info);
-      if (psa) setPsaConfig(psa);
-      if (watchdog) setWatchdogConfig(watchdog.config);
-    });
-  }, []);
+      thorpeApi.getPsaSettings(),
+      thorpeApi.getWatchdogStatus(),
+    ])
+      .then(([p, a, info, psa, watchdog]) => {
+        setProfile(p);
+        setAiConfig(a);
+        setAppInfo(info);
+        setPsaConfig(psa);
+        setWatchdogConfig(watchdog.config);
+        setWatchdogEvents(watchdog.recent_events);
+      })
+      .catch((err) => {
+        addNotification({ type: "error", title: "Settings load failed", message: String(err) });
+      });
+  }, [addNotification]);
 
   const saveProfile = async () => {
     if (!profile) return;
@@ -133,9 +139,22 @@ export function SettingsPage() {
         watchdogConfig.auto_plan
       );
       setWatchdogConfig(updated);
+      const status = await thorpeApi.getWatchdogStatus();
+      setWatchdogEvents(status.recent_events);
       addNotification({ type: "success", title: "Watchdog Saved", message: "Proactive monitoring settings updated." });
     } catch (err) {
       addNotification({ type: "error", title: "Save Failed", message: String(err) });
+    }
+  };
+
+  const acknowledgeWatchdogEvent = async (eventId: string) => {
+    try {
+      await thorpeApi.acknowledgeWatchdogEvent(eventId);
+      setWatchdogEvents((prev) =>
+        prev.map((e) => (e.id === eventId ? { ...e, acknowledged: true } : e))
+      );
+    } catch (err) {
+      addNotification({ type: "error", title: "Acknowledge failed", message: String(err) });
     }
   };
 
@@ -408,6 +427,34 @@ export function SettingsPage() {
             <button onClick={saveWatchdogConfig} className="btn-primary text-sm">
               Save Watchdog
             </button>
+            {watchdogEvents.length > 0 && (
+              <div className="space-y-2 border-t border-surface-border pt-4">
+                <h3 className="text-sm font-medium text-white">Recent alerts</h3>
+                {watchdogEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={`rounded-lg border p-3 text-sm ${
+                      event.acknowledged
+                        ? "border-surface-border text-gray-500"
+                        : "border-amber-500/30 text-amber-100"
+                    }`}
+                  >
+                    <p>{event.message}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {new Date(event.created_at).toLocaleString()} · Health {event.health_score}/100
+                    </p>
+                    {!event.acknowledged && (
+                      <button
+                        onClick={() => acknowledgeWatchdogEvent(event.id)}
+                        className="mt-2 text-xs text-thorpe-400 hover:underline"
+                      >
+                        Acknowledge
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </section>
