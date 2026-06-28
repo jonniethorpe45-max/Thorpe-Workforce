@@ -10,6 +10,7 @@ import { KnowledgeBase } from "./pages/KnowledgeBase";
 import { SettingsPage } from "./pages/SettingsPage";
 import { LicensingPage } from "./pages/LicensingPage";
 import { UpdateManager } from "./pages/UpdateManager";
+import { EnterpriseAiConsole } from "./pages/EnterpriseAiConsole";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/knowledge" element={<KnowledgeBase />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/licensing" element={<LicensingPage />} />
+          <Route path="/enterprise/ai" element={<EnterpriseAiConsole />} />
           <Route path="/updates" element={<UpdateManager />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

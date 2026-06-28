@@ -19,6 +19,10 @@ pub struct Database {
 }
 
 impl Database {
+    pub(crate) fn conn(&self) -> &Connection {
+        &self.conn
+    }
+
     pub fn new(path: &Path) -> DbResult<Self> {
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
@@ -151,8 +155,74 @@ impl Database {
                 content TEXT NOT NULL,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS ai_providers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                provider_type TEXT NOT NULL,
+                base_url TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                health_status TEXT NOT NULL DEFAULT 'unknown',
+                health_message TEXT,
+                last_health_check_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_agents (
+                id TEXT PRIMARY KEY,
+                agent_key TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                provider_id TEXT,
+                model TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                allowed_roles TEXT NOT NULL DEFAULT '["admin","technician","user"]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (provider_id) REFERENCES ai_providers(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_org_policy (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                cloud_ai_enabled INTEGER NOT NULL DEFAULT 1,
+                default_provider_id TEXT,
+                monthly_budget_usd REAL NOT NULL DEFAULT 100.0,
+                monthly_token_limit INTEGER NOT NULL DEFAULT 1000000,
+                enforce_budget INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_usage_log (
+                id TEXT PRIMARY KEY,
+                agent_key TEXT NOT NULL,
+                provider_id TEXT,
+                model TEXT NOT NULL,
+                prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                completion_tokens INTEGER NOT NULL DEFAULT 0,
+                total_tokens INTEGER NOT NULL DEFAULT 0,
+                estimated_cost_usd REAL NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_audit_log (
+                id TEXT PRIMARY KEY,
+                action TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                details TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_provider_role_access (
+                provider_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                allowed INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (provider_id, role),
+                FOREIGN KEY (provider_id) REFERENCES ai_providers(id)
+            );
             "#,
         )?;
+
+        self.ensure_column("profiles", "role", "TEXT NOT NULL DEFAULT 'admin'")?;
 
         let profile_count: i64 = self
             .conn
@@ -160,8 +230,19 @@ impl Database {
         if profile_count == 0 {
             let now = Utc::now().to_rfc3339();
             self.conn.execute(
-                "INSERT INTO profiles (id, display_name, skill_level, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![Uuid::new_v4().to_string(), "User", "beginner", now, now],
+                "INSERT INTO profiles (id, display_name, skill_level, role, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![Uuid::new_v4().to_string(), "User", "beginner", "admin", now, now],
+            )?;
+        }
+
+        let policy_count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM ai_org_policy", [], |r| r.get(0))?;
+        if policy_count == 0 {
+            let now = Utc::now().to_rfc3339();
+            self.conn.execute(
+                "INSERT INTO ai_org_policy (id, cloud_ai_enabled, monthly_budget_usd, monthly_token_limit, enforce_budget, updated_at) VALUES (1, 1, 100.0, 1000000, 1, ?1)",
+                params![now],
             )?;
         }
 
@@ -175,6 +256,24 @@ impl Database {
             )?;
         }
 
+        Ok(())
+    }
+
+    fn ensure_column(&self, table: &str, column: &str, definition: &str) -> DbResult<()> {
+        let mut stmt = self.conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let mut rows = stmt.query([])?;
+        let mut exists = false;
+        while let Some(row) = rows.next()? {
+            let name: String = row.get(1)?;
+            if name == column {
+                exists = true;
+                break;
+            }
+        }
+        if !exists {
+            self.conn
+                .execute(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"), [])?;
+        }
         Ok(())
     }
 
@@ -452,7 +551,7 @@ impl Database {
 
     pub fn get_profile(&self) -> DbResult<Profile> {
         self.conn.query_row(
-            "SELECT id, display_name, email, skill_level, created_at, updated_at FROM profiles LIMIT 1",
+            "SELECT id, display_name, email, skill_level, role, created_at, updated_at FROM profiles LIMIT 1",
             [],
             |row| {
                 Ok(Profile {
@@ -460,11 +559,22 @@ impl Database {
                     display_name: row.get(1)?,
                     email: row.get(2)?,
                     skill_level: row.get(3)?,
-                    created_at: row.get(4)?,
-                    updated_at: row.get(5)?,
+                    role: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
                 })
             },
         ).map_err(Into::into)
+    }
+
+    pub fn update_profile_role(&self, role: &str) -> DbResult<Profile> {
+        let profile = self.get_profile()?;
+        let now = Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE profiles SET role = ?1, updated_at = ?2 WHERE id = ?3",
+            params![role, now, profile.id],
+        )?;
+        self.get_profile()
     }
 
     pub fn update_profile(&self, display_name: &str, email: Option<&str>, skill_level: &str) -> DbResult<Profile> {
@@ -795,6 +905,7 @@ pub struct Profile {
     pub display_name: String,
     pub email: Option<String>,
     pub skill_level: String,
+    pub role: String,
     pub created_at: String,
     pub updated_at: String,
 }

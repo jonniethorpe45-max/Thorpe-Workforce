@@ -100,6 +100,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         display_name: "Alex Johnson",
         email: null,
         skill_level: "beginner",
+        role: "admin",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as T;
@@ -233,12 +234,104 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "check_feature": {
       const feature = args?.feature as string;
       const freeFeatures = ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"];
+      const enterpriseFeatures = [
+        "technician_workspace",
+        "team_management",
+        "enterprise_ai_console",
+        "multi_device",
+        "branding",
+        "advanced_reporting",
+      ];
+      const allowed = freeFeatures.includes(feature) || enterpriseFeatures.includes(feature);
       return {
         feature,
-        allowed: freeFeatures.includes(feature),
-        required_tier: freeFeatures.includes(feature) ? "free" : "professional",
+        allowed,
+        required_tier: freeFeatures.includes(feature)
+          ? "free"
+          : enterpriseFeatures.includes(feature)
+            ? "enterprise"
+            : "professional",
       } as T;
     }
+
+    case "get_enterprise_ai_dashboard":
+      return {
+        providers: [
+          {
+            id: "openai-default",
+            name: "OpenAI",
+            provider_type: "openai",
+            base_url: "https://api.openai.com/v1",
+            enabled: true,
+            api_key_configured: false,
+            health_status: "unknown",
+            health_message: null,
+            last_health_check_at: null,
+            allowed_roles: ["admin", "technician", "user"],
+          },
+          {
+            id: "anthropic-default",
+            name: "Anthropic",
+            provider_type: "anthropic",
+            base_url: "https://api.anthropic.com/v1",
+            enabled: true,
+            api_key_configured: false,
+            health_status: "unknown",
+            health_message: null,
+            last_health_check_at: null,
+            allowed_roles: ["admin", "technician"],
+          },
+        ],
+        agents: [
+          {
+            id: "agent-jonathan",
+            agent_key: "jonathan",
+            name: "Jonathan",
+            provider_id: "openai-default",
+            model: "gpt-4o-mini",
+            enabled: true,
+            allowed_roles: ["admin", "technician", "user"],
+          },
+        ],
+        policy: {
+          cloud_ai_enabled: true,
+          default_provider_id: "openai-default",
+          monthly_budget_usd: 100,
+          monthly_token_limit: 1000000,
+          enforce_budget: true,
+          updated_at: new Date().toISOString(),
+        },
+        usage: {
+          month: new Date().toISOString().slice(0, 7),
+          total_tokens: 12500,
+          prompt_tokens: 8000,
+          completion_tokens: 4500,
+          estimated_cost_usd: 2.45,
+          request_count: 42,
+          budget_used_percent: 2.45,
+          token_limit_used_percent: 1.25,
+        },
+        audit_log: [
+          {
+            id: "audit-1",
+            action: "provider.created",
+            actor: "Alex Johnson",
+            details: "Created provider OpenAI",
+            created_at: new Date().toISOString(),
+          },
+        ],
+        roles: ["admin", "technician", "user"],
+      } as T;
+
+    case "upsert_ai_provider":
+    case "upsert_ai_agent":
+    case "update_ai_org_policy":
+    case "rotate_provider_api_key":
+    case "test_ai_provider_health":
+      return {} as T;
+
+    case "list_ai_audit_log":
+      return [] as T;
 
     case "check_for_updates":
       return {

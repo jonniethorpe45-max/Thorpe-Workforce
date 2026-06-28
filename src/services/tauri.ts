@@ -7,10 +7,12 @@ import type {
   ChatResponse,
   Client,
   DiagnosticReport,
+  EnterpriseAiDashboard,
   FeatureCheck,
   KnowledgeArticle,
   LicenseInfo,
   Profile,
+  ProviderHealthResult,
   RepairAction,
   RepairRecord,
   RepairResult,
@@ -19,6 +21,12 @@ import type {
   SystemScanResult,
   TechnicianNote,
   UpdateInfo,
+  UpsertAiAgentRequest,
+  UpsertAiProviderRequest,
+  UpdateAiOrgPolicyRequest,
+  AiOrgPolicy,
+  AiProviderRecord,
+  AiAuditEntry,
 } from "./types";
 
 const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -112,4 +120,21 @@ export const thorpeApi = {
       request: { license_key: licenseKey, organization },
     }),
   checkFeature: (feature: string) => invokeOrMock<FeatureCheck>("check_feature", { feature }),
+
+  getEnterpriseAiDashboard: () =>
+    invokeOrMock<EnterpriseAiDashboard>("get_enterprise_ai_dashboard"),
+  upsertAiProvider: (request: UpsertAiProviderRequest) =>
+    invokeOrMock<AiProviderRecord>("upsert_ai_provider", { request }),
+  rotateProviderApiKey: (providerId: string, apiKey: string) =>
+    invokeOrMock<void>("rotate_provider_api_key", {
+      request: { provider_id: providerId, api_key: apiKey },
+    }),
+  upsertAiAgent: (request: UpsertAiAgentRequest) =>
+    invokeOrMock("upsert_ai_agent", { request }),
+  updateAiOrgPolicy: (request: UpdateAiOrgPolicyRequest) =>
+    invokeOrMock<AiOrgPolicy>("update_ai_org_policy", { request }),
+  testAiProviderHealth: (providerId: string) =>
+    invokeOrMock<ProviderHealthResult>("test_ai_provider_health", { providerId }),
+  listAiAuditLog: (limit?: number) =>
+    invokeOrMock<AiAuditEntry[]>("list_ai_audit_log", { limit }),
 };

@@ -12,6 +12,7 @@ export interface Profile {
   display_name: string;
   email: string | null;
   skill_level: string;
+  role: string;
   created_at: string;
   updated_at: string;
 }
@@ -208,4 +209,98 @@ export interface UpdateInfo {
   update_available: boolean;
   release_notes: string;
   download_url: string;
+}
+
+export interface AiProviderRecord {
+  id: string;
+  name: string;
+  provider_type: string;
+  base_url: string;
+  enabled: boolean;
+  api_key_configured: boolean;
+  health_status: string;
+  health_message: string | null;
+  last_health_check_at: string | null;
+  allowed_roles: string[];
+}
+
+export interface AiAgentRecord {
+  id: string;
+  agent_key: string;
+  name: string;
+  provider_id: string | null;
+  model: string;
+  enabled: boolean;
+  allowed_roles: string[];
+}
+
+export interface AiOrgPolicy {
+  cloud_ai_enabled: boolean;
+  default_provider_id: string | null;
+  monthly_budget_usd: number;
+  monthly_token_limit: number;
+  enforce_budget: boolean;
+  updated_at: string;
+}
+
+export interface AiUsageSummary {
+  month: string;
+  total_tokens: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  estimated_cost_usd: number;
+  request_count: number;
+  budget_used_percent: number;
+  token_limit_used_percent: number;
+}
+
+export interface AiAuditEntry {
+  id: string;
+  action: string;
+  actor: string;
+  details: string;
+  created_at: string;
+}
+
+export interface EnterpriseAiDashboard {
+  providers: AiProviderRecord[];
+  agents: AiAgentRecord[];
+  policy: AiOrgPolicy;
+  usage: AiUsageSummary;
+  audit_log: AiAuditEntry[];
+  roles: string[];
+}
+
+export interface UpsertAiProviderRequest {
+  id?: string;
+  name: string;
+  provider_type: string;
+  base_url: string;
+  enabled: boolean;
+  api_key?: string;
+  allowed_roles: string[];
+}
+
+export interface UpsertAiAgentRequest {
+  agent_key: string;
+  name: string;
+  provider_id: string | null;
+  model: string;
+  enabled: boolean;
+  allowed_roles: string[];
+}
+
+export interface UpdateAiOrgPolicyRequest {
+  cloud_ai_enabled: boolean;
+  default_provider_id: string | null;
+  monthly_budget_usd: number;
+  monthly_token_limit: number;
+  enforce_budget: boolean;
+}
+
+export interface ProviderHealthResult {
+  provider_id: string;
+  status: string;
+  message: string;
+  checked_at: string;
 }

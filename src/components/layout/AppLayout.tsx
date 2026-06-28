@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Search,
   Laptop,
+  Shield,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useAppStore } from "../../services/store";
@@ -33,6 +34,7 @@ const primaryNav = [
 const secondaryNav = [
   { to: "/jonathan", icon: MessageSquare, label: "Jonathan AI" },
   { to: "/workspace", icon: Briefcase, label: "Technician Workspace" },
+  { to: "/enterprise/ai", icon: Shield, label: "AI Console", feature: "enterprise_ai_console" },
   { to: "/knowledge", icon: BookOpen, label: "Knowledge Base" },
   { to: "/settings", icon: Settings, label: "Settings" },
   { to: "/licensing", icon: CreditCard, label: "Licensing" },
@@ -40,7 +42,7 @@ const secondaryNav = [
 ];
 
 export function AppLayout() {
-  const { sidebarCollapsed, setSidebarCollapsed, searchQuery, setSearchQuery, setLicense } =
+  const { sidebarCollapsed, setSidebarCollapsed, searchQuery, setSearchQuery, setLicense, license } =
     useAppStore();
   const navigate = useNavigate();
 
@@ -102,12 +104,17 @@ export function AppLayout() {
               More
             </p>
           )}
-          {secondaryNav.map(({ to, icon: Icon, label }) => (
+          {secondaryNav.map(({ to, icon: Icon, label, feature }) => {
+            if (feature && license && !license.features.includes(feature)) {
+              return null;
+            }
+            return (
             <NavLink key={to} to={to} className={({ isActive }) => navLinkClass(isActive)}>
               <Icon className="h-5 w-5 shrink-0" strokeWidth={1.75} />
               {!sidebarCollapsed && <span>{label}</span>}
             </NavLink>
-          ))}
+            );
+          })}
         </nav>
 
         <button

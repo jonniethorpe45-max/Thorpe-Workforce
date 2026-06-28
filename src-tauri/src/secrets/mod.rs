@@ -9,6 +9,50 @@ use std::path::{Path, PathBuf};
 const KEYRING_SERVICE: &str = "app.thorpe.desktop";
 const KEYRING_USER: &str = "openai_api_key";
 const ENCRYPTED_KEY_FILE: &str = ".credentials/openai_key.enc";
+const PROVIDER_KEYS_DIR: &str = ".credentials/providers";
+
+pub fn store_provider_api_key(data_dir: &Path, provider_id: &str, key: &str) -> Result<(), String> {
+    if key.trim().is_empty() {
+        return delete_provider_api_key(data_dir, provider_id);
+    }
+
+    let keyring_user = format!("ai_provider_{provider_id}");
+    if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, &keyring_user) {
+        if entry.set_password(key.trim()).is_ok() {
+            let _ = fs::remove_file(provider_key_path(data_dir, provider_id));
+            return Ok(());
+        }
+    }
+
+    write_encrypted_fallback_at(provider_key_path(data_dir, provider_id), data_dir, key.trim())
+}
+
+pub fn get_provider_api_key(data_dir: &Path, provider_id: &str) -> Result<Option<String>, String> {
+    let keyring_user = format!("ai_provider_{provider_id}");
+    if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, &keyring_user) {
+        match entry.get_password() {
+            Ok(key) if !key.is_empty() => return Ok(Some(key)),
+            Ok(_) => return Ok(None),
+            Err(keyring::Error::NoEntry) => {}
+            Err(_) => {}
+        }
+    }
+
+    read_encrypted_fallback_at(provider_key_path(data_dir, provider_id), data_dir)
+}
+
+pub fn delete_provider_api_key(data_dir: &Path, provider_id: &str) -> Result<(), String> {
+    let keyring_user = format!("ai_provider_{provider_id}");
+    if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, &keyring_user) {
+        let _ = entry.delete_credential();
+    }
+    let _ = fs::remove_file(provider_key_path(data_dir, provider_id));
+    Ok(())
+}
+
+fn provider_key_path(data_dir: &Path, provider_id: &str) -> PathBuf {
+    data_dir.join(PROVIDER_KEYS_DIR).join(format!("{provider_id}.enc"))
+}
 
 pub fn store_api_key(data_dir: &Path, key: &str) -> Result<(), String> {
     if key.trim().is_empty() {
@@ -22,7 +66,7 @@ pub fn store_api_key(data_dir: &Path, key: &str) -> Result<(), String> {
         }
     }
 
-    write_encrypted_fallback(data_dir, key)
+    write_encrypted_fallback_at(encrypted_key_path(data_dir), data_dir, key)
 }
 
 pub fn get_api_key(data_dir: &Path) -> Result<Option<String>, String> {
@@ -35,7 +79,7 @@ pub fn get_api_key(data_dir: &Path) -> Result<Option<String>, String> {
         }
     }
 
-    read_encrypted_fallback(data_dir)
+    read_encrypted_fallback_at(encrypted_key_path(data_dir), data_dir)
 }
 
 pub fn delete_api_key(data_dir: &Path) -> Result<(), String> {
@@ -76,7 +120,14 @@ fn derive_fallback_key(data_dir: &Path) -> [u8; 32] {
 }
 
 fn write_encrypted_fallback(data_dir: &Path, key: &str) -> Result<(), String> {
-    let path = encrypted_key_path(data_dir);
+    write_encrypted_fallback_at(encrypted_key_path(data_dir), data_dir, key)
+}
+
+fn read_encrypted_fallback(data_dir: &Path) -> Result<Option<String>, String> {
+    read_encrypted_fallback_at(encrypted_key_path(data_dir), data_dir)
+}
+
+fn write_encrypted_fallback_at(path: PathBuf, data_dir: &Path, key: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create credentials directory: {e}"))?;
     }
@@ -103,8 +154,7 @@ fn write_encrypted_fallback(data_dir: &Path, key: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn read_encrypted_fallback(data_dir: &Path) -> Result<Option<String>, String> {
-    let path = encrypted_key_path(data_dir);
+fn read_encrypted_fallback_at(path: PathBuf, data_dir: &Path) -> Result<Option<String>, String> {
     if !path.exists() {
         return Ok(None);
     }

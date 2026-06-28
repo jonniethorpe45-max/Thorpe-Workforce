@@ -68,6 +68,20 @@ pub struct ChatResponse {
 #[derive(Debug, Deserialize)]
 struct OpenAiResponse {
     choices: Vec<OpenAiChoice>,
+    usage: Option<OpenAiUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiUsage {
+    prompt_tokens: i64,
+    completion_tokens: i64,
+}
+
+#[derive(Debug, Clone)]
+struct LlmCallResult {
+    content: String,
+    prompt_tokens: i64,
+    completion_tokens: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -132,8 +146,6 @@ fn resolve_api_key(state: &State<AppState>) -> Result<Option<String>, String> {
 
 #[tauri::command]
 pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest) -> Result<ChatResponse, String> {
-    let config = get_ai_config(state.clone())?;
-    let api_key = resolve_api_key(&state)?;
     let scan = parse_scan_context(request.scan_context.as_deref());
 
     state.lock_db()?.save_chat("user", &request.message).ok();
@@ -160,25 +172,19 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
             .and_then(|profile| extract_first_name(&profile.display_name))
     };
 
-    let response = if config.enabled && api_key.is_none() {
-        ChatResponse {
-            message: format!(
-                "{}\n\n**Cloud AI is enabled in Settings but no API key is stored on this device.** Open Settings → Jonathan AI (Cloud), enter your OpenAI API key, and save again.",
-                format_technician_response(
-                    &request,
-                    scan.as_ref(),
-                    &repairs_executed,
-                    user_first_name.as_deref(),
-                    None,
-                )
-            ),
-            source: "cloud_unconfigured".to_string(),
-            repairs_executed,
-        }
-    } else if config.enabled && api_key.is_some() {
-        match call_openai(
-            &config,
-            api_key.as_ref().unwrap(),
+    let enterprise_runtime = {
+        let db = state.lock_db()?;
+        crate::enterprise_ai::resolve_runtime(&db, &state.data_dir, "jonathan")
+    };
+
+    let config = get_ai_config(state.clone())?;
+    let api_key = resolve_api_key(&state)?;
+
+    let response = match enterprise_runtime {
+        Ok(Some(runtime)) => match call_openai_compatible(
+            &runtime.base_url,
+            &runtime.model,
+            &runtime.api_key,
             &request,
             scan.as_ref(),
             &repairs_executed,
@@ -186,11 +192,23 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
         )
         .await
         {
-            Ok(msg) => ChatResponse {
-                message: msg,
-                source: "openai".to_string(),
-                repairs_executed,
-            },
+            Ok(result) => {
+                if let Ok(db) = state.lock_db() {
+                    let _ = crate::enterprise_ai::log_ai_usage(
+                        &db,
+                        "jonathan",
+                        Some(&runtime.provider_id),
+                        &runtime.model,
+                        result.prompt_tokens,
+                        result.completion_tokens,
+                    );
+                }
+                ChatResponse {
+                    message: result.content,
+                    source: "enterprise".to_string(),
+                    repairs_executed,
+                }
+            }
             Err(e) => ChatResponse {
                 message: format_technician_response(
                     &request,
@@ -202,33 +220,116 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
                 source: "cloud_fallback".to_string(),
                 repairs_executed,
             },
-        }
-    } else {
-        ChatResponse {
-            message: format_technician_response(
-                &request,
-                scan.as_ref(),
-                &repairs_executed,
-                user_first_name.as_deref(),
-                None,
+        },
+        Ok(None) => resolve_user_cloud_response(
+            &state,
+            &config,
+            api_key.as_deref(),
+            &request,
+            scan.as_ref(),
+            &repairs_executed,
+            user_first_name.as_deref(),
+        )
+        .await,
+        Err(policy_err) => ChatResponse {
+            message: format!(
+                "{}\n\n**Organization policy:** {}",
+                format_technician_response(
+                    &request,
+                    scan.as_ref(),
+                    &repairs_executed,
+                    user_first_name.as_deref(),
+                    None,
+                ),
+                policy_err
             ),
-            source: "local".to_string(),
+            source: "policy_blocked".to_string(),
             repairs_executed,
-        }
+        },
     };
 
     state.lock_db()?.save_chat("assistant", &response.message).ok();
     Ok(response)
 }
 
-async fn call_openai(
+async fn resolve_user_cloud_response(
+    _state: &State<'_, AppState>,
     config: &AiConfig,
+    api_key: Option<&str>,
+    request: &ChatRequest,
+    scan: Option<&SystemScanResult>,
+    repairs_executed: &[RepairResult],
+    user_first_name: Option<&str>,
+) -> ChatResponse {
+    let repairs_executed = repairs_executed.to_vec();
+    if config.enabled && api_key.is_none() {
+        ChatResponse {
+            message: format!(
+                "{}\n\n**Cloud AI is enabled in Settings but no API key is stored on this device.** Open Settings → Jonathan AI (Cloud), enter your OpenAI API key, and save again.",
+                format_technician_response(
+                    request,
+                    scan,
+                    &repairs_executed,
+                    user_first_name,
+                    None,
+                )
+            ),
+            source: "cloud_unconfigured".to_string(),
+            repairs_executed,
+        }
+    } else if config.enabled && api_key.is_some() {
+        match call_openai_compatible(
+            &config.base_url,
+            &config.model,
+            api_key.unwrap(),
+            request,
+            scan,
+            &repairs_executed,
+            user_first_name,
+        )
+        .await
+        {
+            Ok(result) => ChatResponse {
+                message: result.content,
+                source: "openai".to_string(),
+                repairs_executed,
+            },
+            Err(e) => ChatResponse {
+                message: format_technician_response(
+                    request,
+                    scan,
+                    &repairs_executed,
+                    user_first_name,
+                    Some(&e),
+                ),
+                source: "cloud_fallback".to_string(),
+                repairs_executed,
+            },
+        }
+    } else {
+        ChatResponse {
+            message: format_technician_response(
+                request,
+                scan,
+                &repairs_executed,
+                user_first_name,
+                None,
+            ),
+            source: "local".to_string(),
+            repairs_executed,
+        }
+    }
+}
+
+async fn call_openai_compatible(
+    base_url: &str,
+    model: &str,
     api_key: &str,
     request: &ChatRequest,
     scan: Option<&SystemScanResult>,
     repairs_executed: &[RepairResult],
     user_first_name: Option<&str>,
-) -> Result<String, String> {
+) -> Result<LlmCallResult, String> {
 
     let skill_context = match request.skill_level.as_str() {
         "advanced" => "The user is technically advanced. You may use technical terminology.",
@@ -268,11 +369,11 @@ async fn call_openai(
 
     let client = reqwest::Client::new();
     let response = client
-        .post(format!("{}/chat/completions", config.base_url.trim_end_matches('/')))
+        .post(format!("{}/chat/completions", base_url.trim_end_matches('/')))
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({
-            "model": config.model,
+            "model": model,
             "messages": messages,
             "temperature": 0.7,
             "max_tokens": 2000,
@@ -288,10 +389,21 @@ async fn call_openai(
     }
 
     let data: OpenAiResponse = response.json().await.map_err(|e| format!("Failed to parse response: {}", e))?;
-    data.choices
+    let content = data
+        .choices
         .first()
         .map(|c| c.message.content.clone())
-        .ok_or_else(|| "Empty response from API".to_string())
+        .ok_or_else(|| "Empty response from API".to_string())?;
+    let (prompt_tokens, completion_tokens) = data
+        .usage
+        .map(|usage| (usage.prompt_tokens, usage.completion_tokens))
+        .unwrap_or((0, 0));
+
+    Ok(LlmCallResult {
+        content,
+        prompt_tokens,
+        completion_tokens,
+    })
 }
 
 fn parse_scan_context(scan_context: Option<&str>) -> Option<SystemScanResult> {

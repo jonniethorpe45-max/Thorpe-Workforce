@@ -1,5 +1,6 @@
 pub mod ai;
 pub mod db;
+pub mod enterprise_ai;
 pub mod licensing;
 pub mod pdf;
 pub mod repairs;
@@ -59,6 +60,13 @@ pub fn run() {
             ai::generate_diagnostic_report,
             ai::get_ai_config,
             ai::set_ai_config,
+            enterprise_ai::get_enterprise_ai_dashboard,
+            enterprise_ai::upsert_ai_provider,
+            enterprise_ai::rotate_provider_api_key,
+            enterprise_ai::upsert_ai_agent,
+            enterprise_ai::update_ai_org_policy,
+            enterprise_ai::test_ai_provider_health,
+            enterprise_ai::list_ai_audit_log,
             db::commands::get_settings,
             db::commands::update_settings,
             db::commands::list_reports,
