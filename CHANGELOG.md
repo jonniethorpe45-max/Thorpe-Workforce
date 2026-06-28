@@ -2,6 +2,19 @@
 
 All notable changes to Thorpe are documented in this file.
 
+## [1.0.4] - 2026-06-28
+
+### Changed
+
+- **Jonathan AI** now acts as an autonomous IT technician — diagnoses issues and executes repairs automatically instead of providing manual troubleshooting steps
+- Repair planner maps user messages and scan data to appropriate repair actions (Wi-Fi, performance, disk, printer, etc.)
+- Chat responses report completed fixes in past tense with a repairs-executed summary in the UI
+- Free tier includes `jonathan_auto_repair` for autonomous chat repairs
+
+### Fixed
+
+- CI Rust job now builds the frontend before `cargo check` so Tauri context generation succeeds
+
 ## [1.0.0] - 2026-06-27
 
 ### Added
