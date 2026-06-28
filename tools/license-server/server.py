@@ -1,70 +1,67 @@
 #!/usr/bin/env python3
-"""Minimal Thorpe license activation server for production pilots.
-
-Matches the desktop client's `THORPE_LICENSE_API_URL` contract:
-  POST /activate  ->  { tier, expires_at?, organization? }
-
-Run:
-  THORPE_LICENSE_SIGNING_SECRET=your-secret python3 server.py
-  THORPE_LICENSE_API_URL=http://127.0.0.1:8787/activate
-"""
+"""Thorpe license + billing server for desktop activation and Stripe checkout."""
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import os
-import re
+import threading
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
+
+from license_keys import generate_license_key, validate_license_key
+from stripe_checkout import (
+    create_checkout_session,
+    retrieve_checkout_session,
+    stripe_configured,
+    verify_webhook_signature,
+)
 
 HOST = os.environ.get("THORPE_LICENSE_SERVER_HOST", "127.0.0.1")
 PORT = int(os.environ.get("THORPE_LICENSE_SERVER_PORT", "8787"))
-SECRET = os.environ.get("THORPE_LICENSE_SIGNING_SECRET", "thorpe-license-signing-key-v1")
-DEFAULT_TERM_DAYS = int(os.environ.get("THORPE_LICENSE_TERM_DAYS", "365"))
 API_TOKEN = os.environ.get("THORPE_LICENSE_API_TOKEN", "").strip()
-
-KEY_PATTERN = re.compile(r"^(PRO|ENT)-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]{4}$")
-
-
-def license_checksum(body: str) -> str:
-    digest = hmac.new(SECRET.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).digest()
-    return digest[:2].hex().upper()
+DEFAULT_TERM_DAYS = int(os.environ.get("THORPE_LICENSE_TERM_DAYS", "365"))
+SESSION_STORE = Path(os.environ.get("THORPE_LICENSE_SESSION_STORE", "checkout_sessions.json"))
+_store_lock = threading.Lock()
 
 
-def validate_license_key(key: str) -> tuple[str, str]:
-    normalized = key.strip().upper()
-    parts = normalized.split("-")
-    if len(parts) != 5:
-        raise ValueError("Invalid license key format")
-
-    tier_prefix = parts[0]
-    if tier_prefix == "PRO":
-        tier = "professional"
-    elif tier_prefix == "ENT":
-        tier = "enterprise"
-    else:
-        raise ValueError("Invalid license tier prefix")
-
-    body = "-".join(parts[:4])
-    expected = license_checksum(body)
-    if parts[4] != expected:
-        raise ValueError("Invalid license checksum")
-
-    # Block well-known demo keys in production server mode
-    if os.environ.get("THORPE_LICENSE_ALLOW_DEMO", "").lower() not in ("1", "true", "yes"):
-        if normalized in ("PRO-DEMO-1234-KEYS-B65C", "ENT-DEMO-5678-KEYS-F20C"):
-            raise ValueError("Demo license keys are not accepted")
-
-    if not KEY_PATTERN.match(normalized):
-        raise ValueError("Invalid license key characters")
-
-    return tier, normalized
+def _load_sessions() -> dict[str, Any]:
+    if not SESSION_STORE.exists():
+        return {}
+    return json.loads(SESSION_STORE.read_text(encoding="utf-8"))
 
 
-def activation_response(tier: str, organization: str | None) -> dict[str, Any]:
+def _save_sessions(data: dict[str, Any]) -> None:
+    SESSION_STORE.parent.mkdir(parents=True, exist_ok=True)
+    SESSION_STORE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _upsert_session(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    with _store_lock:
+        sessions = _load_sessions()
+        existing = sessions.get(session_id, {})
+        existing.update(payload)
+        sessions[session_id] = existing
+        _save_sessions(sessions)
+        return existing
+
+
+def _get_session(session_id: str) -> dict[str, Any] | None:
+    with _store_lock:
+        return _load_sessions().get(session_id)
+
+
+def _authorize(handler: BaseHTTPRequestHandler) -> bool:
+    if not API_TOKEN:
+        return True
+    auth = handler.headers.get("Authorization", "")
+    return auth == f"Bearer {API_TOKEN}"
+
+
+def _activation_response(tier: str, organization: str | None) -> dict[str, Any]:
     expires_at = (datetime.now(timezone.utc) + timedelta(days=DEFAULT_TERM_DAYS)).isoformat()
     return {
         "tier": tier,
@@ -73,8 +70,25 @@ def activation_response(tier: str, organization: str | None) -> dict[str, Any]:
     }
 
 
+def _fulfill_checkout(session_id: str, tier: str, customer_email: str | None = None) -> dict[str, Any]:
+    existing = _get_session(session_id) or {}
+    if existing.get("license_key"):
+        return existing
+
+    license_key = generate_license_key(tier)
+    payload = {
+        "session_id": session_id,
+        "tier": tier,
+        "status": "complete",
+        "license_key": license_key,
+        "customer_email": customer_email,
+        "fulfilled_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return _upsert_session(session_id, payload)
+
+
 class LicenseHandler(BaseHTTPRequestHandler):
-    server_version = "ThorpeLicenseServer/1.0"
+    server_version = "ThorpeLicenseServer/1.1"
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"[license-server] {self.address_string()} - {fmt % args}")
@@ -87,53 +101,168 @@ class LicenseHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_POST(self) -> None:  # noqa: N802
-        if self.path.rstrip("/") != "/activate":
-            self._send_json(404, {"error": "Not found"})
-            return
-
-        if API_TOKEN:
-            auth = self.headers.get("Authorization", "")
-            if auth != f"Bearer {API_TOKEN}":
-                self._send_json(401, {"error": "Unauthorized"})
-                return
-
+    def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length) if length else b"{}"
+        return json.loads(raw.decode("utf-8"))
+
+    def do_GET(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
+
+        if path == "/health":
+            self._send_json(
+                200,
+                {
+                    "status": "ok",
+                    "stripe_configured": stripe_configured(),
+                },
+            )
+            return
+
+        if path.startswith("/checkout/") and path.endswith("/status"):
+            session_id = path.removeprefix("/checkout/").removesuffix("/status")
+            session = _get_session(session_id)
+            if not session:
+                if stripe_configured():
+                    try:
+                        stripe_session = retrieve_checkout_session(session_id)
+                        if stripe_session.get("payment_status") == "paid":
+                            tier = stripe_session.get("metadata", {}).get("tier", "professional")
+                            session = _fulfill_checkout(
+                                session_id,
+                                tier,
+                                stripe_session.get("customer_details", {}).get("email"),
+                            )
+                    except Exception as exc:  # noqa: BLE001
+                        self._send_json(502, {"error": str(exc)})
+                        return
+                if not session:
+                    self._send_json(404, {"error": "Checkout session not found"})
+                    return
+
+            self._send_json(
+                200,
+                {
+                    "session_id": session_id,
+                    "status": session.get("status", "pending"),
+                    "tier": session.get("tier"),
+                    "license_key": session.get("license_key"),
+                },
+            )
+            return
+
+        self._send_json(404, {"error": "Not found"})
+
+    def do_POST(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
+
+        if path == "/webhooks/stripe":
+            signature = self.headers.get("Stripe-Signature", "")
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = self.rfile.read(length) if length else b"{}"
+            try:
+                event = verify_webhook_signature(payload, signature)
+            except Exception as exc:  # noqa: BLE001
+                self._send_json(400, {"error": str(exc)})
+                return
+
+            if event.get("type") == "checkout.session.completed":
+                session = event.get("data", {}).get("object", {})
+                session_id = session.get("id")
+                tier = session.get("metadata", {}).get("tier", "professional")
+                if session_id:
+                    _fulfill_checkout(
+                        session_id,
+                        tier,
+                        session.get("customer_details", {}).get("email"),
+                    )
+
+            self._send_json(200, {"received": True})
+            return
+
+        if not _authorize(self):
+            self._send_json(401, {"error": "Unauthorized"})
+            return
+
         try:
-            payload = json.loads(raw.decode("utf-8"))
+            body = self._read_json()
         except json.JSONDecodeError:
             self._send_json(400, {"error": "Invalid JSON body"})
             return
 
-        license_key = str(payload.get("license_key", "")).strip()
-        organization = payload.get("organization")
-        if organization is not None:
-            organization = str(organization).strip() or None
-
-        try:
-            tier, _ = validate_license_key(license_key)
-        except ValueError as exc:
-            self._send_json(400, {"error": str(exc)})
+        if path == "/activate":
+            license_key = str(body.get("license_key", "")).strip()
+            organization = body.get("organization")
+            if organization is not None:
+                organization = str(organization).strip() or None
+            try:
+                tier, _ = validate_license_key(license_key)
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+                return
+            self._send_json(200, _activation_response(tier, organization))
             return
 
-        self._send_json(200, activation_response(tier, organization))
+        if path == "/checkout":
+            tier = str(body.get("tier", "professional")).strip().lower()
+            if tier not in ("professional", "enterprise"):
+                self._send_json(400, {"error": "tier must be professional or enterprise"})
+                return
 
-    def do_GET(self) -> None:  # noqa: N802
-        if self.path.rstrip("/") == "/health":
-            self._send_json(200, {"status": "ok"})
+            customer_email = body.get("customer_email")
+            if customer_email is not None:
+                customer_email = str(customer_email).strip() or None
+
+            if not stripe_configured():
+                self._send_json(
+                    503,
+                    {
+                        "error": "Stripe is not configured on this license server",
+                        "stripe_configured": False,
+                    },
+                )
+                return
+
+            try:
+                stripe_session = create_checkout_session(tier, customer_email)
+            except Exception as exc:  # noqa: BLE001
+                self._send_json(502, {"error": str(exc)})
+                return
+
+            session_id = stripe_session["id"]
+            _upsert_session(
+                session_id,
+                {
+                    "session_id": session_id,
+                    "tier": tier,
+                    "status": "pending",
+                    "checkout_url": stripe_session.get("url"),
+                },
+            )
+            self._send_json(
+                200,
+                {
+                    "session_id": session_id,
+                    "checkout_url": stripe_session.get("url"),
+                    "stripe_configured": True,
+                },
+            )
             return
+
         self._send_json(404, {"error": "Not found"})
 
 
 def main() -> None:
-    if SECRET == "thorpe-license-signing-key-v1":
+    if os.environ.get("THORPE_LICENSE_SIGNING_SECRET", "") in ("", "thorpe-license-signing-key-v1"):
         print(
             "[license-server] warning: using default signing secret. "
             "Set THORPE_LICENSE_SIGNING_SECRET in production."
         )
     httpd = HTTPServer((HOST, PORT), LicenseHandler)
-    print(f"[license-server] listening on http://{HOST}:{PORT}/activate")
+    print(f"[license-server] listening on http://{HOST}:{PORT}")
+    print(f"[license-server] stripe configured: {stripe_configured()}")
     httpd.serve_forever()
 
 

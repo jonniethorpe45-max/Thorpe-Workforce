@@ -10,6 +10,9 @@ import type {
   DiagnosticReport,
   EnterpriseAiDashboard,
   FeatureCheck,
+  BillingConfig,
+  CheckoutSession,
+  CheckoutStatus,
   KnowledgeArticle,
   LicenseInfo,
   Profile,
@@ -132,6 +135,13 @@ export const thorpeApi = {
       request: { license_key: licenseKey, organization },
     }),
   checkFeature: (feature: string) => invokeOrMock<FeatureCheck>("check_feature", { feature }),
+
+  getBillingConfig: () => invokeOrMock<BillingConfig>("get_billing_config"),
+  createBillingCheckout: (tier: string, customerEmail?: string) =>
+    invokeOrMock<CheckoutSession>("create_billing_checkout", { tier, customerEmail }),
+  getCheckoutStatus: (sessionId: string) =>
+    invokeOrMock<CheckoutStatus>("get_checkout_status", { sessionId }),
+  openExternalUrl: (url: string) => invokeOrMock<void>("open_external_url", { url }),
 
   getEnterpriseAiDashboard: () =>
     invokeOrMock<EnterpriseAiDashboard>("get_enterprise_ai_dashboard"),

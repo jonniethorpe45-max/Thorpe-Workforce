@@ -11,9 +11,10 @@ Use this checklist before tagging a commercial release (e.g. `v1.1.0`).
 ## Security & licensing
 
 - [ ] Set `THORPE_LICENSE_SIGNING_SECRET` in CI/release environment (never commit)
+- [ ] Deploy `tools/license-server/` (Docker or host) behind HTTPS
+- [ ] Set `THORPE_BILLING_API_URL` and `THORPE_LICENSE_API_URL` on distributed builds
+- [ ] Configure Stripe prices + webhook → `/webhooks/stripe`
 - [ ] Generate production keys with `npm run license-key -- --tier PRO --group1 ...`
-- [ ] Deploy license server (`tools/license-server/`) behind HTTPS for online activation
-- [ ] Set `THORPE_LICENSE_API_URL` on distributed builds when using online activation
 - [ ] Verify demo keys are rejected in release builds (`cargo build --release`)
 
 ## Code signing
@@ -52,5 +53,5 @@ Use this checklist before tagging a commercial release (e.g. `v1.1.0`).
 | Multi-device management | Not shipped — removed from tier marketing |
 | Custom branding | Not shipped |
 | Team management | Not shipped |
-| Stripe billing UI | Placeholder on Licensing page |
-| Tauri WebDriver E2E | Route smoke tests only; full desktop E2E not in CI |
+| Stripe billing UI | Subscribe flow + checkout polling (requires license server + Stripe) |
+| Tauri WebDriver E2E | Route + billing smoke tests; full desktop WebDriver not in CI |

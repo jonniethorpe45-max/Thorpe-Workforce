@@ -176,6 +176,25 @@ export interface FeatureCheck {
   required_tier: string;
 }
 
+export interface BillingConfig {
+  billing_api_url: string | null;
+  stripe_configured: boolean;
+  license_api_url: string | null;
+}
+
+export interface CheckoutSession {
+  session_id: string;
+  checkout_url: string;
+  stripe_configured: boolean;
+}
+
+export interface CheckoutStatus {
+  session_id: string;
+  status: string;
+  tier: string | null;
+  license_key: string | null;
+}
+
 export interface AiConfig {
   provider: string;
   api_key_configured: boolean;

@@ -1,0 +1,40 @@
+name: Thorpe Pre-Release
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "src-tauri/**"
+      - "src/**"
+      - "scripts/check-versions.sh"
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: npm ci
+      - run: bash scripts/check-versions.sh
+      - run: npm run lint
+      - run: npm run test
+      - run: cd src-tauri && cargo test
+      - run: cd tools/license-server && python3 test_server.py
+
+      - name: Release readiness summary
+        run: |
+          {
+            echo "## Pre-release gate"
+            echo ""
+            echo "All version, lint, test, and license-server checks passed."
+            echo "See [GA_CHECKLIST.md](docs/GA_CHECKLIST.md) before tagging."
+          } >> "$GITHUB_STEP_SUMMARY"

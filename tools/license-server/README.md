@@ -1,66 +1,77 @@
-# Thorpe License Activation Server
+# Thorpe License + Billing Server
 
-Lightweight HTTP server for online license activation. The Thorpe desktop app calls this endpoint when `THORPE_LICENSE_API_URL` is set.
+HTTP service for Thorpe Desktop **license activation** and **Stripe subscription checkout**.
 
-## Endpoint
+## Endpoints
 
-`POST /activate`
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | Health + `stripe_configured` flag |
+| `POST` | `/activate` | Validate license key (desktop `THORPE_LICENSE_API_URL`) |
+| `POST` | `/checkout` | Create Stripe Checkout session |
+| `GET` | `/checkout/{id}/status` | Poll for issued license key |
+| `POST` | `/webhooks/stripe` | Stripe webhook (`checkout.session.completed`) |
 
-**Request body:**
+## Desktop environment variables
 
-```json
-{
-  "license_key": "PRO-ACME-2026-A001-XXXX",
-  "organization": "Acme MSP",
-  "app_version": "1.1.0",
-  "platform": "windows"
-}
-```
-
-**Response (200):**
-
-```json
-{
-  "tier": "professional",
-  "expires_at": "2027-06-27T12:00:00+00:00",
-  "organization": "Acme MSP"
-}
-```
-
-`GET /health` returns `{"status":"ok"}`.
-
-## Configuration
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `THORPE_LICENSE_SIGNING_SECRET` | dev default | Must match desktop builds |
-| `THORPE_LICENSE_SERVER_HOST` | `127.0.0.1` | Bind address |
-| `THORPE_LICENSE_SERVER_PORT` | `8787` | Listen port |
-| `THORPE_LICENSE_TERM_DAYS` | `365` | Subscription length |
-| `THORPE_LICENSE_API_TOKEN` | _(unset)_ | Optional `Authorization: Bearer` token |
-| `THORPE_LICENSE_ALLOW_DEMO` | `false` | Accept demo keys (dev only) |
+| Variable | Purpose |
+|----------|---------|
+| `THORPE_LICENSE_API_URL` | `https://host/activate` — online activation |
+| `THORPE_BILLING_API_URL` | `https://host` — Stripe checkout + polling |
+| `THORPE_LICENSE_SIGNING_SECRET` | Must match server secret |
 
 ## Run locally
 
 ```bash
-# Generate a production key (uses same secret as server)
 export THORPE_LICENSE_SIGNING_SECRET="your-production-secret"
 npm run license-key -- --tier PRO --group1 ACME --group2 2026 --group3 A001
 
-# Start server
 cd tools/license-server
-THORPE_LICENSE_SIGNING_SECRET="$THORPE_LICENSE_SIGNING_SECRET" python3 server.py
+python3 server.py
+```
 
-# Point desktop app at server
+Desktop dev:
+
+```bash
+export THORPE_BILLING_API_URL="http://127.0.0.1:8787"
 export THORPE_LICENSE_API_URL="http://127.0.0.1:8787/activate"
 npm run tauri:dev
 ```
 
-## Desktop integration
+## Docker
 
-Set `THORPE_LICENSE_API_URL` at runtime (or in the installer environment) to your hosted `/activate` URL. When set, the desktop app **requires** the server — offline HMAC validation is disabled.
+```bash
+cd tools/license-server
+cp .env.example .env  # edit secrets
+docker compose up --build
+```
 
-For air-gapped pilots, leave `THORPE_LICENSE_API_URL` unset and distribute HMAC-signed keys generated with `npm run license-key`.
+## Stripe setup
+
+1. Create **Professional** and **Enterprise** recurring prices in Stripe
+2. Set environment variables:
+
+```bash
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_PROFESSIONAL=price_...
+STRIPE_PRICE_ENTERPRISE=price_...
+```
+
+3. Configure webhook: `POST https://<host>/webhooks/stripe` → `checkout.session.completed`
+4. Set success URL template (optional):
+
+```bash
+THORPE_CHECKOUT_SUCCESS_URL="https://thorpe.app/licensing?checkout=success&session_id={CHECKOUT_SESSION_ID}"
+```
+
+After payment, the desktop app polls `/checkout/{session_id}/status` and auto-activates the returned license key.
+
+## Security
+
+- Use `THORPE_LICENSE_API_TOKEN` and send `Authorization: Bearer <token>` from trusted clients
+- Never commit `THORPE_LICENSE_SIGNING_SECRET`
+- Do not enable `THORPE_LICENSE_ALLOW_DEMO` in production
 
 ## Tests
 
@@ -68,9 +79,4 @@ For air-gapped pilots, leave `THORPE_LICENSE_API_URL` unset and distribute HMAC-
 cd tools/license-server && python3 test_server.py
 ```
 
-## Production deployment
-
-- Run behind HTTPS (reverse proxy or load balancer)
-- Use a strong `THORPE_LICENSE_SIGNING_SECRET` shared only with your key-generation pipeline
-- Set `THORPE_LICENSE_API_TOKEN` and terminate TLS at the edge
-- Do not enable `THORPE_LICENSE_ALLOW_DEMO` in production
+See [docs/GITHUB_SECRETS.md](../../docs/GITHUB_SECRETS.md) for full secret inventory.

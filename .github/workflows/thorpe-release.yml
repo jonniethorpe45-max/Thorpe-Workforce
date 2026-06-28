@@ -91,14 +91,35 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Verify version alignment
+        run: bash scripts/check-versions.sh
+
       - name: Refine icons from SVG
         run: npx tauri icon public/thorpe-icon.svg
 
       - name: Build frontend
         run: npm run build
 
+      - name: Import Apple certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No APPLE_CERTIFICATE secret — building unsigned macOS bundle"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+
       - name: Build Tauri installers
         env:
+          THORPE_LICENSE_SIGNING_SECRET: ${{ secrets.THORPE_LICENSE_SIGNING_SECRET }}
           # Windows Authenticode (optional — set in repo secrets for signed releases)
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

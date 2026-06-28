@@ -301,6 +301,35 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       } as T;
     }
 
+    case "get_billing_config":
+      return {
+        billing_api_url: null,
+        stripe_configured: false,
+        license_api_url: null,
+      } as T;
+
+    case "create_billing_checkout": {
+      const tier = (args?.tier as string) ?? "professional";
+      return {
+        session_id: "mock-checkout-session",
+        checkout_url: `https://checkout.stripe.com/mock/${tier}`,
+        stripe_configured: true,
+      } as T;
+    }
+
+    case "get_checkout_status": {
+      const sessionId = (args?.sessionId as string) ?? "mock-checkout-session";
+      return {
+        session_id: sessionId,
+        status: "complete",
+        tier: "professional",
+        license_key: "PRO-MOCK-0001-PAID-B65C",
+      } as T;
+    }
+
+    case "open_external_url":
+      return undefined as T;
+
     case "check_feature": {
       const feature = args?.feature as string;
       const license = {

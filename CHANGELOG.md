@@ -15,6 +15,9 @@ All notable changes to Thorpe are documented in this file.
 - Per-message repair approval in Jonathan chat
 - Route smoke tests and `scripts/check-versions.sh` for release validation
 - `docs/GA_CHECKLIST.md` for pre-release verification
+- **Stripe subscription flow** on Licensing page with checkout polling
+- **Billing backend** (`src-tauri/src/billing/`) and license server Stripe endpoints
+- Docker deployment for license server; `docs/GITHUB_SECRETS.md`
 
 ### Changed
 

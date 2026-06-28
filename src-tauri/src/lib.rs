@@ -1,6 +1,7 @@
 mod net;
 mod updates;
 pub mod agent;
+pub mod billing;
 pub mod ai;
 pub mod db;
 pub mod enterprise_ai;
@@ -113,6 +114,10 @@ pub fn run() {
             licensing::get_license_info,
             licensing::activate_license,
             licensing::check_feature,
+            billing::get_billing_config,
+            billing::create_billing_checkout,
+            billing::get_checkout_status,
+            billing::open_external_url,
             pdf::export_report_pdf,
             pdf::export_agent_session_pdf,
             get_app_info,
