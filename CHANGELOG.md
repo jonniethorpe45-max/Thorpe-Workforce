@@ -2,6 +2,15 @@
 
 All notable changes to Thorpe are documented in this file.
 
+## [1.0.8] - 2026-06-28
+
+### Fixed
+
+- Jonathan page now correctly shows **Cloud AI mode** when enabled (banner no longer always says autonomous mode)
+- Cloud AI requires a saved API key when enabling in Settings
+- Clearer chat labels: Cloud AI, Cloud AI (local fallback), or Cloud AI not configured
+- Settings page shows live Cloud AI activation status
+
 ## [1.0.7] - 2026-06-28
 
 ### Added
