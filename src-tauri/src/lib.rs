@@ -5,6 +5,7 @@ pub mod pdf;
 pub mod repairs;
 pub mod scanner;
 pub mod secrets;
+pub mod user;
 
 use db::Database;
 use std::path::PathBuf;
@@ -38,6 +39,7 @@ pub fn run() {
             std::fs::create_dir_all(&data_dir).ok();
             let db_path = data_dir.join("thorpe.db");
             let database = Database::new(&db_path).expect("Failed to initialize database");
+            database.ensure_profile_display_name_from_os().ok();
             if let Ok(Some(legacy_key)) = database.get_setting("ai_api_key") {
                 secrets::migrate_api_key_from_db(&data_dir, Some(legacy_key)).ok();
                 let _ = database.delete_setting("ai_api_key");
