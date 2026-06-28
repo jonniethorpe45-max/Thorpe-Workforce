@@ -96,6 +96,8 @@ export interface RepairResult {
   message: string;
   details: string | null;
   record_id: string;
+  action_id?: string;
+  action_name?: string;
 }
 
 export interface RepairRecord {
@@ -193,6 +195,7 @@ export interface ChatRequest {
 export interface ChatResponse {
   message: string;
   source: string;
+  repairs_executed?: RepairResult[];
 }
 
 export interface UpdateInfo {
