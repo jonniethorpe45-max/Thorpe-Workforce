@@ -1,17 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" fill="none">
   <defs>
-    <linearGradient id="logoShield" x1="28" y1="4" x2="28" y2="52" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3B82F6"/>
-      <stop offset="1" stop-color="#2563EB"/>
+    <linearGradient id="logoShieldRim" x1="32" y1="6" x2="32" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#1E40AF"/>
     </linearGradient>
-    <linearGradient id="logoT" x1="28" y1="16" x2="28" y2="40" gradientUnits="userSpaceOnUse">
+    <linearGradient id="logoShieldFace" x1="32" y1="6" x2="32" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="0.45" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="logoT" x1="32" y1="18" x2="32" y2="46" gradientUnits="userSpaceOnUse">
       <stop stop-color="#F8FAFC"/>
-      <stop offset="0.5" stop-color="#CBD5E1"/>
+      <stop offset="0.35" stop-color="#CBD5E1"/>
+      <stop offset="0.7" stop-color="#94A3B8"/>
       <stop offset="1" stop-color="#64748B"/>
     </linearGradient>
   </defs>
-  <path d="M28 4L48 13V27C48 36.5 39.5 44 28 50C16.5 44 8 36.5 8 27V13L28 4Z" fill="url(#logoShield)"/>
-  <path d="M22.5 16H33.5V19H29V40H27V19H22.5V16Z" fill="url(#logoT)"/>
-  <text x="62" y="30" font-family="Outfit, Inter, sans-serif" font-size="22" font-weight="800" fill="#F8FAFC" letter-spacing="0.12em">THORPE</text>
-  <text x="62" y="46" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#2563EB" letter-spacing="0.22em">YOUR AI IT TECHNICIAN</text>
+  <path d="M32 4L56 14.5V30.5C56 41.8 46.2 50.8 32 58C17.8 50.8 8 41.8 8 30.5V14.5L32 4Z" fill="url(#logoShieldRim)"/>
+  <path d="M32 7.5L52 16.5V30.2C52 39.8 43.4 47.6 32 54.2C20.6 47.6 12 39.8 12 30.2V16.5L32 7.5Z" fill="url(#logoShieldFace)"/>
+  <path d="M25 20H39V24H33.5V44H30.5V24H25V20Z" fill="url(#logoT)"/>
+  <text x="72" y="34" font-family="Sora, Inter, sans-serif" font-size="24" font-weight="700" fill="#F8FAFC" letter-spacing="0.14em">THORPE</text>
+  <text x="72" y="50" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#2563EB" letter-spacing="0.24em">YOUR AI IT TECHNICIAN.</text>
 </svg>

@@ -20,9 +20,9 @@ export default {
           950: "#172554",
         },
         navy: {
-          DEFAULT: "#081320",
-          light: "#0F1D2E",
-          mid: "#152238",
+          DEFAULT: "#0B1220",
+          light: "#111B2E",
+          mid: "#1A2438",
           border: "#1E3A5F",
         },
         steel: "#64748B",
@@ -33,19 +33,19 @@ export default {
         success: "#22C55E",
         warning: "#F59E0B",
         surface: {
-          DEFAULT: "#081320",
-          raised: "#0F1D2E",
-          overlay: "#152238",
+          DEFAULT: "#0B1220",
+          raised: "#111B2E",
+          overlay: "#1A2438",
           border: "#1E3A5F",
         },
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Outfit", "Inter", "system-ui", "sans-serif"],
+        display: ["Sora", "Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       backgroundImage: {
-        "brand-gradient": "linear-gradient(135deg, #081320 0%, #0F1D2E 50%, #081320 100%)",
+        "brand-gradient": "linear-gradient(135deg, #0B1220 0%, #111B2E 50%, #0B1220 100%)",
         "hero-glow":
           "radial-gradient(ellipse 80% 60% at 50% -20%, rgba(37, 99, 235, 0.18), transparent)",
       },

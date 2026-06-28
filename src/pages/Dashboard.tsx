@@ -82,14 +82,14 @@ export function Dashboard() {
             <JonathanAvatar size="lg" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-thorpe-primary">
-                Your AI IT Technician
+                AI Technician
               </p>
               <h1 className="mt-1 font-display text-2xl font-bold text-white sm:text-3xl">
                 Welcome back!
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-steel">
-                I&apos;m <span className="font-semibold text-slate-200">Jonathan</span>, your AI IT
-                Technician. I&apos;m here to help you understand and fix your technology.
+                Hi, I&apos;m <span className="font-display font-bold tracking-[0.06em] text-slate-200">Jonathan</span>.
+                I&apos;m here to help you understand and fix your technology.
               </p>
             </div>
           </div>
