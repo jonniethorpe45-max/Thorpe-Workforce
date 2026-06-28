@@ -23,35 +23,28 @@ export function ThorpeLogo({
 
   if (variant === "stacked") {
     return (
-      <div className={clsx("flex flex-col items-center gap-2", className)}>
-        <img src="/brand/thorpe-shield.svg" alt="Thorpe" className="h-12 w-12" />
-        <div className="text-center">
-          <p className="font-display text-lg font-extrabold tracking-[0.14em] text-white">
-            THORPE
-          </p>
-          {showTagline && (
-            <p className="mt-0.5 text-[10px] font-semibold tracking-[0.2em] text-thorpe-primary">
-              YOUR AI IT TECHNICIAN
-            </p>
-          )}
-        </div>
+      <img
+        src="/brand/thorpe-logo-stacked.svg"
+        alt="Thorpe — Your AI IT Technician"
+        className={clsx("h-[4.5rem] w-auto", className)}
+      />
+    );
+  }
+
+  if (!showTagline) {
+    return (
+      <div className={clsx("flex items-center gap-3", className)}>
+        <img src="/brand/thorpe-shield.svg" alt="Thorpe" className="h-10 w-10 shrink-0" />
+        <p className="font-display text-base font-bold tracking-[0.14em] text-white">THORPE</p>
       </div>
     );
   }
 
   return (
-    <div className={clsx("flex items-center gap-3", className)}>
-      <img src="/brand/thorpe-shield.svg" alt="Thorpe" className="h-10 w-10 shrink-0" />
-      <div className="min-w-0">
-        <p className="font-display text-base font-extrabold tracking-[0.12em] text-white">
-          THORPE
-        </p>
-        {showTagline && (
-          <p className="text-[10px] font-semibold tracking-[0.18em] text-thorpe-primary">
-            YOUR AI IT TECHNICIAN
-          </p>
-        )}
-      </div>
-    </div>
+    <img
+      src="/brand/thorpe-logo-horizontal.svg"
+      alt="Thorpe — Your AI IT Technician"
+      className={clsx("h-10 w-auto max-w-[220px]", className)}
+    />
   );
 }

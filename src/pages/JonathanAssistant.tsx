@@ -97,7 +97,7 @@ export function JonathanAssistant() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-thorpe-primary">
               AI Technician
             </p>
-            <h1 className="font-display text-xl font-bold text-white">Jonathan</h1>
+            <h1 className="font-display text-xl font-bold tracking-[0.08em] text-white">JONATHAN</h1>
             <p className="text-sm text-steel">
               Autonomous IT technician — I diagnose and repair issues for you automatically.
             </p>

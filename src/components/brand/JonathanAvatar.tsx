@@ -21,15 +21,16 @@ export function JonathanAvatar({
   return (
     <div
       className={clsx(
-        "relative shrink-0",
-        showRing && "rounded-2xl bg-gradient-to-br from-thorpe-primary/20 to-cyber-teal/10 p-0.5",
+        "relative shrink-0 rounded-full",
+        showRing &&
+          "bg-gradient-to-br from-thorpe-primary to-cyber-teal p-[2px] shadow-brand",
         className
       )}
     >
       <img
         src="/brand/jonathan-avatar.svg"
         alt="Jonathan, AI Technician"
-        className={clsx("rounded-2xl object-cover", sizes[size])}
+        className={clsx("rounded-full object-cover bg-navy", sizes[size])}
       />
     </div>
   );

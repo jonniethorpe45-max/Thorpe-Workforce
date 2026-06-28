@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" fill="none">
+  <defs>
+    <linearGradient id="stackShieldRim" x1="80" y1="8" x2="80" y2="72" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#1E40AF"/>
+    </linearGradient>
+    <linearGradient id="stackShieldFace" x1="80" y1="8" x2="80" y2="72" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="0.45" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="stackT" x1="80" y1="24" x2="80" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.35" stop-color="#CBD5E1"/>
+      <stop offset="0.7" stop-color="#94A3B8"/>
+      <stop offset="1" stop-color="#64748B"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(48 0)">
+    <path d="M32 4L56 14.5V30.5C56 41.8 46.2 50.8 32 58C17.8 50.8 8 41.8 8 30.5V14.5L32 4Z" fill="url(#stackShieldRim)"/>
+    <path d="M32 7.5L52 16.5V30.2C52 39.8 43.4 47.6 32 54.2C20.6 47.6 12 39.8 12 30.2V16.5L32 7.5Z" fill="url(#stackShieldFace)"/>
+    <path d="M25 20H39V24H33.5V44H30.5V24H25V20Z" fill="url(#stackT)"/>
+  </g>
+  <text x="80" y="88" text-anchor="middle" font-family="Sora, Inter, sans-serif" font-size="20" font-weight="700" fill="#F8FAFC" letter-spacing="0.14em">THORPE</text>
+  <text x="80" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#2563EB" letter-spacing="0.22em">YOUR AI IT TECHNICIAN.</text>
+</svg>

@@ -2,6 +2,15 @@
 
 All notable changes to Thorpe are documented in this file.
 
+## [1.0.6] - 2026-06-28
+
+### Changed
+
+- Updated logo and imagery to match the official Thorpe brand style guide
+- Shield logo with metallic 3D **T**, horizontal/stacked lockups, and rounded-square app icon
+- Jonathan avatar redesigned as circular line-art portrait with glasses and headset
+- Brand palette aligned to Deep Navy (`#0B1220`); display font switched to **Sora**
+
 ## [1.0.5] - 2026-06-28
 
 ### Added
