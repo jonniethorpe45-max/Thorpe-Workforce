@@ -62,13 +62,26 @@ CI builds **Apple Silicon (arm64)** on `macos-latest`. Intel Mac users can often
 
 ## Code signing (optional)
 
-Unsigned builds work for testing. For public distribution:
+Unsigned builds work for testing. For public distribution, configure secrets in **GitHub → Settings → Secrets and variables → Actions**:
 
-- **Windows**: Authenticode certificate
-- **macOS**: Apple Developer ID + notarization (`APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, etc.)
-- **Linux**: Usually not required
+| Secret | Platform | Purpose |
+|--------|----------|---------|
+| `TAURI_SIGNING_PRIVATE_KEY` | Windows | Authenticode signing key (`.pfx` base64 or Tauri key format) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Windows | Key password |
+| `APPLE_CERTIFICATE` | macOS | Developer ID certificate (base64 `.p12`) |
+| `APPLE_CERTIFICATE_PASSWORD` | macOS | Certificate password |
+| `APPLE_SIGNING_IDENTITY` | macOS | e.g. `Developer ID Application: Your Org (TEAMID)` |
+| `APPLE_ID` | macOS | Apple ID for notarization |
+| `APPLE_PASSWORD` | macOS | App-specific password |
+| `APPLE_TEAM_ID` | macOS | Apple Developer Team ID |
 
-Configure signing secrets in GitHub **Settings → Secrets and variables → Actions**, then extend the workflow env vars per [Tauri’s signing docs](https://v2.tauri.app/distribute/sign/).
+The **Thorpe Release** workflow passes these to `tauri build` when present. If secrets are unset, builds complete unsigned (suitable for internal testing).
+
+See [Tauri signing docs](https://v2.tauri.app/distribute/sign/) for key generation and notarization setup.
+
+### License server (production)
+
+For commercial deployments, set `THORPE_LICENSE_API_URL` to your HTTPS license activation endpoint at build or runtime. When set, activation requires the server; offline HMAC validation is used only when the variable is unset (development and air-gapped pilots).
 
 ## Troubleshooting CI builds
 

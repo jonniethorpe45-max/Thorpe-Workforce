@@ -43,7 +43,7 @@ describe("License tiers", () => {
   const tiers = {
     free: ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"],
     professional: ["repair_center", "pdf_export", "unlimited_reports"],
-    enterprise: ["technician_workspace", "multi_device", "team_management"],
+    enterprise: ["technician_workspace", "enterprise_ai_console", "intelligence_console"],
   };
 
   it("free tier includes Jonathan autonomous repair", () => {
@@ -57,8 +57,10 @@ describe("License tiers", () => {
     expect(tiers.professional).toContain("pdf_export");
   });
 
-  it("enterprise tier includes workspace", () => {
+  it("enterprise tier includes workspace and intelligence console", () => {
     expect(tiers.enterprise).toContain("technician_workspace");
+    expect(tiers.enterprise).toContain("intelligence_console");
+    expect(tiers.enterprise).not.toContain("multi_device");
   });
 });
 
@@ -186,5 +188,41 @@ describe("Mock API", () => {
     expect(response.message).toBeTruthy();
     expect(response.source).toBe("local");
     expect(response.repairs_executed?.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Production smoke checks", () => {
+  it("keeps version and download URLs aligned", async () => {
+    const { THORPE_VERSION } = await import("../src/config/version");
+    const { THORPE_DOWNLOADS } = await import("../src/config/downloads");
+    const packageJson = await import("../package.json");
+
+    expect(THORPE_VERSION).toBe(packageJson.default.version);
+    expect(THORPE_DOWNLOADS.windowsExe).toContain(THORPE_VERSION);
+    expect(THORPE_DOWNLOADS.linuxDeb).toContain(THORPE_VERSION);
+  });
+
+  it("mock update check returns structured info", async () => {
+    const { mockInvoke } = await import("../src/services/mock");
+    const info = await mockInvoke<{
+      current_version: string;
+      latest_version: string;
+      update_available: boolean;
+      release_notes: string;
+      download_url: string;
+    }>("check_for_updates");
+
+    expect(info.current_version).toBeTruthy();
+    expect(info.download_url).toContain("github.com");
+  });
+
+  it("mock license activation returns tier features", async () => {
+    const { mockInvoke } = await import("../src/services/mock");
+    const license = await mockInvoke<{ tier: string; features: string[] }>("activate_license", {
+      request: { license_key: "PRO-DEMO-1234-KEYS-B65C" },
+    });
+
+    expect(license.tier).toBe("professional");
+    expect(license.features).toContain("repair_center");
   });
 });

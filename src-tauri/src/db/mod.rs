@@ -721,11 +721,17 @@ impl Database {
         ).map_err(Into::into)
     }
 
-    pub fn activate_license(&self, key: &str, tier: &str, organization: Option<&str>) -> DbResult<LicenseRecord> {
+    pub fn activate_license(
+        &self,
+        key: &str,
+        tier: &str,
+        organization: Option<&str>,
+        expires_at: Option<&str>,
+    ) -> DbResult<LicenseRecord> {
         let now = Utc::now().to_rfc3339();
         self.conn.execute(
-            "UPDATE licensing SET tier = ?1, license_key = ?2, activated_at = ?3, organization = ?4 WHERE id = 1",
-            params![tier, key, now, organization],
+            "UPDATE licensing SET tier = ?1, license_key = ?2, activated_at = ?3, organization = ?4, expires_at = ?5 WHERE id = 1",
+            params![tier, key, now, organization, expires_at],
         )?;
         self.get_license()
     }

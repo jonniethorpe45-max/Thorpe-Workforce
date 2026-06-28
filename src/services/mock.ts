@@ -267,6 +267,40 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         organization: null,
       } as T;
 
+    case "activate_license": {
+      const key = ((args?.request as { license_key?: string })?.license_key ?? "").toUpperCase();
+      const tier = key.startsWith("ENT-") ? "enterprise" : key.startsWith("PRO-") ? "professional" : "free";
+      const professionalFeatures = [
+        "jonathan_ai",
+        "basic_scans",
+        "full_diagnostics",
+        "repair_center",
+        "pdf_export",
+        "unlimited_reports",
+      ];
+      const enterpriseFeatures = [
+        ...professionalFeatures,
+        "technician_workspace",
+        "enterprise_ai_console",
+        "intelligence_console",
+      ];
+      const features =
+        tier === "enterprise"
+          ? enterpriseFeatures
+          : tier === "professional"
+            ? professionalFeatures
+            : ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"];
+      return {
+        tier,
+        tier_display: tier === "enterprise" ? "Enterprise" : tier === "professional" ? "Professional" : "Free",
+        features,
+        license_key: key || null,
+        activated_at: new Date().toISOString(),
+        expires_at: null,
+        organization: null,
+      } as T;
+    }
+
     case "check_feature": {
       const feature = args?.feature as string;
       const license = {
@@ -275,12 +309,8 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       };
       const enterpriseFeatures = [
         "technician_workspace",
-        "team_management",
         "enterprise_ai_console",
         "intelligence_console",
-        "multi_device",
-        "branding",
-        "advanced_reporting",
       ];
       const allowed =
         license.features.includes(feature) ||

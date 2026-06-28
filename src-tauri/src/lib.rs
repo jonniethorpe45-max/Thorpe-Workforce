@@ -1,4 +1,5 @@
 mod net;
+mod updates;
 pub mod agent;
 pub mod ai;
 pub mod db;
@@ -146,23 +147,7 @@ fn get_app_info(app: tauri::AppHandle) -> Result<AppInfo, String> {
     })
 }
 
-#[derive(serde::Serialize)]
-pub struct UpdateInfo {
-    pub current_version: String,
-    pub latest_version: String,
-    pub update_available: bool,
-    pub release_notes: String,
-    pub download_url: String,
-}
-
 #[tauri::command]
-async fn check_for_updates() -> Result<UpdateInfo, String> {
-    let current = env!("CARGO_PKG_VERSION").to_string();
-    Ok(UpdateInfo {
-        current_version: current.clone(),
-        latest_version: current,
-        update_available: false,
-        release_notes: "You are running the latest version of Thorpe.".to_string(),
-        download_url: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest".to_string(),
-    })
+async fn check_for_updates() -> Result<updates::UpdateInfo, String> {
+    updates::check_for_updates(env!("CARGO_PKG_VERSION"), None).await
 }

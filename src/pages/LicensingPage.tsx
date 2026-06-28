@@ -41,10 +41,7 @@ const PLANS = [
       "Everything in Professional",
       "Technician Workspace",
       "Enterprise AI Console",
-      "Multi-device management",
-      "Custom branding",
-      "Advanced reporting",
-      "Team management",
+      "Intelligence Console (Senior Engineer)",
     ],
   },
 ];
@@ -148,7 +145,7 @@ export function LicensingPage() {
       <div className="card space-y-4">
         <h3 className="font-medium text-white">Activate License Key</h3>
         <p className="text-sm text-gray-400">
-          Enter your license key to activate. Demo keys: PRO-DEMO-1234-KEYS-B65C, ENT-DEMO-5678-KEYS-F20C
+          Enter your license key to activate your subscription.
         </p>
         <div className="flex gap-3">
           <input

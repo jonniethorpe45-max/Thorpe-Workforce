@@ -45,7 +45,19 @@ pub fn validate_license_key(key: &str) -> Result<(&'static str, String), String>
         return Err("Invalid license key. The checksum does not match.".to_string());
     }
 
+    if !cfg!(debug_assertions) && is_demo_key(&normalized) {
+        return Err(
+            "Demo license keys are not valid in production builds. Contact sales for a license key."
+                .to_string(),
+        );
+    }
+
     Ok((tier, normalized))
+}
+
+pub fn is_demo_key(key: &str) -> bool {
+    let normalized = key.trim().to_uppercase();
+    normalized == DEMO_PRO_LICENSE || normalized == DEMO_ENT_LICENSE
 }
 
 #[cfg(test)]
