@@ -107,6 +107,33 @@ export function Dashboard() {
         </div>
       </motion.div>
 
+      {license?.tier_display.includes("(expired)") && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+          role="alert"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+            <div>
+              <p className="font-medium text-white">License expired</p>
+              <p className="mt-1 text-sm text-steel">
+                Your {license.tier_display.replace(" (expired)", "")} plan has expired
+                {license.expires_at
+                  ? ` on ${new Date(license.expires_at).toLocaleDateString()}`
+                  : ""}
+                . Renew to restore Professional and Enterprise features.
+              </p>
+            </div>
+          </div>
+          <Link to="/licensing" className="btn-primary shrink-0 text-sm">
+            <CreditCard className="h-4 w-4" />
+            Renew license
+          </Link>
+        </motion.div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <motion.div
           initial={{ opacity: 0, y: 12 }}

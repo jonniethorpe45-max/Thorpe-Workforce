@@ -16,6 +16,15 @@ export function UpdateManager() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checking, setChecking] = useState(false);
 
+  const openUrl = async (url: string) => {
+    try {
+      await thorpeApi.openExternalUrl(url);
+    } catch (err) {
+      console.error(err);
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const checkUpdates = async () => {
     setChecking(true);
     try {
@@ -64,14 +73,13 @@ export function UpdateManager() {
                   Update available: v{updateInfo.latest_version}
                 </p>
                 <p className="text-sm text-gray-300">{updateInfo.release_notes}</p>
-                <a
-                  href={updateInfo.download_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openUrl(updateInfo.download_url)}
                   className="btn-primary inline-flex text-sm"
                 >
                   <Download className="h-4 w-4" /> Download Update
-                </a>
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -86,14 +94,13 @@ export function UpdateManager() {
       <div className="card space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-white">Download Installers</h3>
-          <a
-            href={THORPE_DOWNLOADS.releasesPage}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => openUrl(THORPE_DOWNLOADS.releasesPage)}
             className="inline-flex items-center gap-1 text-sm text-thorpe-400 hover:text-thorpe-300"
           >
             All releases <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          </button>
         </div>
         <p className="text-sm text-gray-400">
           Use the latest public release. If a download says &ldquo;No permissions&rdquo;, make sure you
@@ -101,16 +108,15 @@ export function UpdateManager() {
         </p>
         <div className="grid gap-2">
           {PLATFORM_DOWNLOADS.map((item) => (
-            <a
+            <button
               key={item.label}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-4 py-3 text-sm text-gray-200 transition-colors hover:border-thorpe-500/40 hover:bg-thorpe-600/5"
+              type="button"
+              onClick={() => openUrl(item.href)}
+              className="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-4 py-3 text-left text-sm text-gray-200 transition-colors hover:border-thorpe-500/40 hover:bg-thorpe-600/5"
             >
               <span>{item.label}</span>
               <Download className="h-4 w-4 text-thorpe-400" />
-            </a>
+            </button>
           ))}
         </div>
       </div>

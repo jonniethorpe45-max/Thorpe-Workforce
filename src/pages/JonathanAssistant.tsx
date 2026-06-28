@@ -432,7 +432,12 @@ export function JonathanAssistant() {
               className="input flex-1"
               disabled={loading}
             />
-            <button onClick={sendMessage} disabled={loading || !input.trim()} className="btn-primary">
+            <button
+              onClick={sendMessage}
+              disabled={loading || !input.trim()}
+              className="btn-primary"
+              aria-label="Send message to Jonathan"
+            >
               <Send className="h-4 w-4" />
             </button>
           </div>

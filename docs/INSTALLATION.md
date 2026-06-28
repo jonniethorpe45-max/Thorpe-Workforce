@@ -5,17 +5,19 @@
 **Use the latest published release only:**  
 https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest
 
-Direct download links (v1.0.2+):
+Direct download links (current release **v1.1.0**; `/latest/download/` always serves the newest build):
 
 | Platform | File | Link |
 |----------|------|------|
-| Windows | `.exe` installer | [Thorpe_1.0.0_x64-setup.exe](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_x64-setup.exe) |
-| Windows | `.msi` installer | [Thorpe_1.0.0_x64_en-US.msi](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_x64_en-US.msi) |
-| macOS (Apple Silicon) | `.dmg` | [Thorpe_1.0.0_aarch64.dmg](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_aarch64.dmg) |
-| Linux | `.AppImage` | [Thorpe_1.0.0_amd64.AppImage](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_amd64.AppImage) |
-| Linux | `.deb` | [Thorpe_1.0.0_amd64.deb](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.0.0_amd64.deb) |
+| Windows | `.exe` installer | [Thorpe_1.1.0_x64-setup.exe](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.1.0_x64-setup.exe) |
+| Windows | `.msi` installer | [Thorpe_1.1.0_x64_en-US.msi](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.1.0_x64_en-US.msi) |
+| macOS (Apple Silicon) | `.dmg` | [Thorpe_1.1.0_aarch64.dmg](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.1.0_aarch64.dmg) |
+| Linux | `.AppImage` | [Thorpe_1.1.0_amd64.AppImage](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.1.0_amd64.AppImage) |
+| Linux | `.deb` | [Thorpe_1.1.0_amd64.deb](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download/Thorpe_1.1.0_amd64.deb) |
 
-> **“No permissions” when downloading?** Older draft releases (e.g. v1.0.1) are not publicly downloadable. Use the links above or the **Latest** release page. Inside Thorpe, open **Updates** for the same direct links.
+> **“No permissions” when downloading?** Older draft releases are not publicly downloadable. Use the links above or the **Latest** release page. Inside Thorpe, open **Updates** for the same direct links.
+
+> **Version in filenames:** Installers are named `Thorpe_<version>_<platform>.*`. The desktop app reads the current version from `src/config/downloads.ts` (`THORPE_VERSION`).
 
 ## System Requirements
 
@@ -27,16 +29,16 @@ Direct download links (v1.0.2+):
 
 ## Windows
 
-1. Download `Thorpe_1.0.0_x64-setup.exe` using the link above
+1. Download `Thorpe_1.1.0_x64-setup.exe` using the link above
 2. Run the installer
-3. If Windows SmartScreen appears, choose **More info → Run anyway** (the build is unsigned)
+3. If Windows SmartScreen appears, choose **More info → Run anyway** (unsigned builds only)
 4. Launch Thorpe from the Start Menu
 
 **Alternative:** Use the MSI installer for enterprise deployment via Group Policy.
 
 ## macOS
 
-1. Download `Thorpe_1.0.0_aarch64.dmg`
+1. Download `Thorpe_1.1.0_aarch64.dmg`
 2. Open the DMG file
 3. Drag Thorpe to Applications
 4. Right-click → Open on first launch (if Gatekeeper prompts)
@@ -46,14 +48,14 @@ Direct download links (v1.0.2+):
 ### AppImage (recommended)
 
 ```bash
-chmod +x Thorpe_1.0.0_amd64.AppImage
-./Thorpe_1.0.0_amd64.AppImage
+chmod +x Thorpe_1.1.0_amd64.AppImage
+./Thorpe_1.1.0_amd64.AppImage
 ```
 
 ### Debian/Ubuntu (.deb)
 
 ```bash
-sudo dpkg -i Thorpe_1.0.0_amd64.deb
+sudo dpkg -i Thorpe_1.1.0_amd64.deb
 sudo apt-get install -f  # resolve dependencies if needed
 ```
 
@@ -77,3 +79,7 @@ To enable enhanced AI responses:
 3. Enable cloud AI and enter your API key
 
 Cloud AI is optional. Jonathan provides local guidance without it.
+
+## Optional: Commercial licensing
+
+For paid tiers, set `THORPE_LICENSE_API_URL` and `THORPE_BILLING_API_URL` before distribution. See [PILOT_ONBOARDING.md](./PILOT_ONBOARDING.md).

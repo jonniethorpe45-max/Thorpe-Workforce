@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -26,6 +28,29 @@ API_TOKEN = os.environ.get("THORPE_LICENSE_API_TOKEN", "").strip()
 DEFAULT_TERM_DAYS = int(os.environ.get("THORPE_LICENSE_TERM_DAYS", "365"))
 SESSION_STORE = Path(os.environ.get("THORPE_LICENSE_SESSION_STORE", "checkout_sessions.json"))
 _store_lock = threading.Lock()
+_RATE_LIMIT = int(os.environ.get("THORPE_LICENSE_RATE_LIMIT", "120"))
+_RATE_WINDOW_SEC = int(os.environ.get("THORPE_LICENSE_RATE_WINDOW_SEC", "60"))
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+_rate_lock = threading.Lock()
+
+
+def _client_ip(handler: BaseHTTPRequestHandler) -> str:
+    forwarded = handler.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    return forwarded or handler.client_address[0]
+
+
+def _rate_limit_exceeded(handler: BaseHTTPRequestHandler) -> bool:
+    if _RATE_LIMIT <= 0:
+        return False
+    client = _client_ip(handler)
+    now = time.monotonic()
+    with _rate_lock:
+        bucket = _rate_buckets[client]
+        bucket[:] = [t for t in bucket if now - t < _RATE_WINDOW_SEC]
+        if len(bucket) >= _RATE_LIMIT:
+            return True
+        bucket.append(now)
+        return False
 
 
 def _load_sessions() -> dict[str, Any]:
@@ -107,6 +132,9 @@ class LicenseHandler(BaseHTTPRequestHandler):
         return json.loads(raw.decode("utf-8"))
 
     def do_GET(self) -> None:  # noqa: N802
+        if _rate_limit_exceeded(self):
+            self._send_json(429, {"error": "Rate limit exceeded. Try again shortly."})
+            return
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
 
@@ -155,6 +183,9 @@ class LicenseHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "Not found"})
 
     def do_POST(self) -> None:  # noqa: N802
+        if _rate_limit_exceeded(self):
+            self._send_json(429, {"error": "Rate limit exceeded. Try again shortly."})
+            return
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
 

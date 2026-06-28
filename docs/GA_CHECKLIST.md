@@ -31,15 +31,19 @@ Use this checklist before tagging a commercial release (e.g. `v1.1.0`).
 - [ ] `cd src-tauri && cargo test`
 - [ ] `cd src-tauri && cargo build --release`
 - [ ] `cd tools/license-server && python3 test_server.py`
+- [ ] `bash scripts/verify-release.sh v<version>` (after release is published)
+- [ ] `npm audit --audit-level=high` and `cargo audit` (CI runs these; review advisories)
 - [ ] Manual smoke: Jonathan chat, system scan, repair approval, Intelligence Console (Enterprise)
 
 ## Release
 
-1. Merge PR #22 (Senior Engineer platform) and PR #23 (production readiness)
+1. Merge production-ready PR to `main`
 2. Tag: `git tag v1.1.0 && git push origin v1.1.0`
 3. Verify **Thorpe Release** workflow completes for all three platforms
-4. Publish GitHub Release (remove draft if applicable)
-5. Smoke-test installers from the release page
+4. Run `bash scripts/verify-release.sh v1.1.0`
+5. Publish GitHub Release (remove draft if applicable)
+6. Smoke-test installers from the release page
+7. Share [PILOT_ONBOARDING.md](./PILOT_ONBOARDING.md) with pilot customers
 
 ## Post-release
 
