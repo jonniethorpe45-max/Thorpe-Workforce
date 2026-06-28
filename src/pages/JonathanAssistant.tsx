@@ -3,7 +3,8 @@ import { Send, User, Sparkles, Mic, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
-import { JONATHAN_WELCOME } from "../prompts/jonathan";
+import { buildJonathanWelcome } from "../prompts/jonathan";
+import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import type { RepairResult } from "../services/types";
@@ -16,9 +17,7 @@ interface Message {
 }
 
 export function JonathanAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: JONATHAN_WELCOME },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [skillLevel, setSkillLevel] = useState("beginner");
@@ -31,7 +30,15 @@ export function JonathanAssistant() {
   }, []);
 
   useEffect(() => {
-    thorpeApi.getProfile().then((profile) => setSkillLevel(profile.skill_level)).catch(console.error);
+    thorpeApi
+      .getProfile()
+      .then((profile) => {
+        setSkillLevel(profile.skill_level);
+        const name = extractFirstName(profile.display_name);
+        setMessages([{ role: "assistant", content: buildJonathanWelcome(name) }]);
+        setTypingMessageIndex(0);
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {

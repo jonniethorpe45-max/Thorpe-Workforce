@@ -23,6 +23,7 @@ import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { BrandIcon } from "../components/brand/BrandIcon";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
+import { extractFirstName } from "../lib/userName";
 
 function healthLabel(score: number) {
   if (score >= 90) return { text: "Excellent", color: "text-success" };
@@ -34,6 +35,11 @@ function healthLabel(score: number) {
 export function Dashboard() {
   const { lastScan, setLastScan, license } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [firstName, setFirstName] = useState<string | null>(null);
+
+  useEffect(() => {
+    thorpeApi.getProfile().then((profile) => setFirstName(extractFirstName(profile.display_name))).catch(console.error);
+  }, []);
 
   useEffect(() => {
     thorpeApi
@@ -85,10 +91,11 @@ export function Dashboard() {
                 AI Technician
               </p>
               <h1 className="mt-1 font-display text-2xl font-bold text-white sm:text-3xl">
-                Welcome back!
+                {firstName ? `Welcome back, ${firstName}!` : "Welcome back!"}
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-steel">
-                Hi, I&apos;m <span className="font-display font-bold tracking-[0.06em] text-slate-200">Jonathan</span>.
+                Hi{firstName ? ` ${firstName}` : ""}, I&apos;m{" "}
+                <span className="font-display font-bold tracking-[0.06em] text-slate-200">Jonathan</span>.
                 I&apos;m here to help you understand and fix your technology.
               </p>
             </div>

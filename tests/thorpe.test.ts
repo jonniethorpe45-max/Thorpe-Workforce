@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { JONATHAN_WELCOME, JONATHAN_SYSTEM_PROMPT } from "../src/prompts/jonathan";
+import { JONATHAN_WELCOME, JONATHAN_SYSTEM_PROMPT, buildJonathanWelcome } from "../src/prompts/jonathan";
+import { extractFirstName } from "../src/lib/userName";
 
 describe("Jonathan prompts", () => {
   it("has a welcome message", () => {
@@ -9,6 +10,22 @@ describe("Jonathan prompts", () => {
 
   it("defines autonomous repair behavior in system prompt", () => {
     expect(JONATHAN_SYSTEM_PROMPT).toContain("fix problems directly");
+    expect(JONATHAN_SYSTEM_PROMPT).toContain("first name");
+  });
+
+  it("personalizes welcome message with first name", () => {
+    expect(buildJonathanWelcome("Jordan")).toContain("Hello, **Jordan**!");
+    expect(JONATHAN_WELCOME).toContain("Hello!");
+  });
+});
+
+describe("User name helpers", () => {
+  it("extracts first name from display name", () => {
+    expect(extractFirstName("Jordan Smith")).toBe("Jordan");
+  });
+
+  it("skips generic placeholder names", () => {
+    expect(extractFirstName("User")).toBeNull();
   });
 });
 
