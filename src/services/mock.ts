@@ -1,4 +1,5 @@
 import type { KnowledgeArticle, SystemScanResult } from "./types";
+import { extractFirstName } from "../lib/userName";
 
 const mockScan: SystemScanResult = {
   id: "mock-scan-1",
@@ -96,7 +97,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "get_profile":
       return {
         id: "mock-profile",
-        display_name: "User",
+        display_name: "Alex Johnson",
         email: null,
         skill_level: "beginner",
         created_at: new Date().toISOString(),
@@ -173,6 +174,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "chat_with_jonathan": {
       const req = args?.request as { message: string };
       const msg = req?.message?.toLowerCase() || "";
+      const firstName = extractFirstName("Alex Johnson");
       const repairs =
         msg.includes("wifi") || msg.includes("network")
           ? [
@@ -186,10 +188,14 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
               },
             ]
           : [];
+      const greeting = firstName ? `**Hi ${firstName}, autonomous repair complete**` : "**Jonathan — autonomous repair complete**";
+      const closing = firstName
+        ? `The issue has been handled, ${firstName}.`
+        : "The issue has been handled.";
       const response =
         repairs.length > 0
-          ? "**Jonathan — autonomous repair complete**\n\nI've applied the following fixes on your behalf:\n\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\nThe issue has been handled."
-          : "**Jonathan — autonomous repair complete**\n\nI've run diagnostics and applied automated maintenance on your system.";
+          ? `${greeting}\n\nI've applied the following fixes on your behalf:\n\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n${closing}`
+          : `${greeting}\n\nI've run diagnostics and applied automated maintenance on your system.`;
       return { message: response, source: "local", repairs_executed: repairs } as T;
     }
 

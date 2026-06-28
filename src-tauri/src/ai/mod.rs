@@ -18,6 +18,7 @@ Behavior:
 - Be concise, confident, and professional — you are the technician, not a help desk script
 - Never tell the user to open Settings, Task Manager, or follow multi-step DIY instructions unless a repair failed and requires physical/hardware escalation
 - Never invent repairs — only describe repairs that appear in the repair results provided to you
+- When you know the user's first name, address them naturally by first name in greetings and closings
 - Escalate to a human only for hardware failure, malware/ransomware, or issues requiring credentials
 
 Security rules (NEVER violate):
@@ -137,22 +138,50 @@ pub async fn chat_with_jonathan(state: State<'_, AppState>, request: ChatRequest
         repairs::perform_repairs(&db, &planned)
     };
 
+    let user_first_name = {
+        let db = state.lock_db()?;
+        db.get_profile()
+            .ok()
+            .and_then(|profile| extract_first_name(&profile.display_name))
+    };
+
     let response = if config.enabled && api_key.is_some() {
-        match call_openai(&config, api_key.as_ref().unwrap(), &request, scan.as_ref(), &repairs_executed).await {
+        match call_openai(
+            &config,
+            api_key.as_ref().unwrap(),
+            &request,
+            scan.as_ref(),
+            &repairs_executed,
+            user_first_name.as_deref(),
+        )
+        .await
+        {
             Ok(msg) => ChatResponse {
                 message: msg,
                 source: "openai".to_string(),
                 repairs_executed,
             },
             Err(e) => ChatResponse {
-                message: format_technician_response(&request, scan.as_ref(), &repairs_executed, Some(&e)),
+                message: format_technician_response(
+                    &request,
+                    scan.as_ref(),
+                    &repairs_executed,
+                    user_first_name.as_deref(),
+                    Some(&e),
+                ),
                 source: "local".to_string(),
                 repairs_executed,
             },
         }
     } else {
         ChatResponse {
-            message: format_technician_response(&request, scan.as_ref(), &repairs_executed, None),
+            message: format_technician_response(
+                &request,
+                scan.as_ref(),
+                &repairs_executed,
+                user_first_name.as_deref(),
+                None,
+            ),
             source: "local".to_string(),
             repairs_executed,
         }
@@ -168,6 +197,7 @@ async fn call_openai(
     request: &ChatRequest,
     scan: Option<&SystemScanResult>,
     repairs_executed: &[RepairResult],
+    user_first_name: Option<&str>,
 ) -> Result<String, String> {
 
     let skill_context = match request.skill_level.as_str() {
@@ -176,6 +206,11 @@ async fn call_openai(
     };
 
     let mut system_prompt = format!("{}\n\n{}", JONATHAN_SYSTEM_PROMPT, skill_context);
+    if let Some(name) = user_first_name {
+        system_prompt.push_str(&format!(
+            "\n\nThe user's first name is {name}. Address them by first name naturally when greeting or closing."
+        ));
+    }
     if let Some(ctx) = scan {
         system_prompt.push_str(&format!(
             "\n\nSystem scan:\nOS: {} {}\nHealth: {}/100\nMemory: {:.1}% used",
@@ -233,10 +268,29 @@ fn parse_scan_context(scan_context: Option<&str>) -> Option<SystemScanResult> {
     scan_context.and_then(|ctx| serde_json::from_str::<SystemScanResult>(ctx).ok())
 }
 
+fn extract_first_name(display_name: &str) -> Option<String> {
+    let trimmed = display_name.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let first = trimmed.split_whitespace().next()?;
+    if first.eq_ignore_ascii_case("user")
+        || first.eq_ignore_ascii_case("guest")
+        || first.eq_ignore_ascii_case("admin")
+        || first.eq_ignore_ascii_case("administrator")
+    {
+        return None;
+    }
+
+    Some(first.to_string())
+}
+
 fn format_technician_response(
     request: &ChatRequest,
     scan: Option<&SystemScanResult>,
     repairs: &[RepairResult],
+    user_first_name: Option<&str>,
     api_error: Option<&str>,
 ) -> String {
     let msg_lower = request.message.to_lowercase();
@@ -249,7 +303,10 @@ fn format_technician_response(
         return "⚠️ **Security alert — I've isolated automated repairs for this case.**\n\nI detected a potential malware/ransomware concern. I've stopped routine fixes and recommend immediate escalation to a cybersecurity professional. Do not enter credentials on this device until it's verified clean.".to_string();
     }
 
-    let mut response = String::from("**Jonathan — autonomous repair complete**\n\n");
+    let mut response = match user_first_name {
+        Some(name) => format!("**Hi {name}, autonomous repair complete**\n\n"),
+        None => String::from("**Jonathan — autonomous repair complete**\n\n"),
+    };
 
     if repairs.is_empty() {
         response.push_str("I analyzed your system but no automated repairs were needed for this request.\n");
@@ -278,7 +335,17 @@ fn format_technician_response(
     }
 
     if msg_lower.contains("hello") || msg_lower.contains("hi") || msg_lower.contains("hey") {
-        response.push_str("\nTell me what's wrong — I'll diagnose and repair it automatically. No manual steps required on your end.");
+        if let Some(name) = user_first_name {
+            response.push_str(&format!(
+                "\nTell me what's wrong, {name} — I'll diagnose and repair it automatically. No manual steps required on your end."
+            ));
+        } else {
+            response.push_str("\nTell me what's wrong — I'll diagnose and repair it automatically. No manual steps required on your end.");
+        }
+    } else if let Some(name) = user_first_name {
+        response.push_str(&format!(
+            "\nThe issue has been handled, {name}. I'll keep monitoring — let me know if you need anything else."
+        ));
     } else {
         response.push_str("\nThe issue has been handled. I'll keep monitoring — let me know if you need anything else.");
     }
@@ -406,4 +473,20 @@ fn generate_recommendations(scan: &SystemScanResult) -> Vec<serde_json::Value> {
     }
 
     recs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_first_name;
+
+    #[test]
+    fn extracts_first_name_from_display_name() {
+        assert_eq!(extract_first_name("Jordan Smith"), Some("Jordan".to_string()));
+    }
+
+    #[test]
+    fn skips_generic_placeholder_names() {
+        assert_eq!(extract_first_name("User"), None);
+        assert_eq!(extract_first_name("guest"), None);
+    }
 }
