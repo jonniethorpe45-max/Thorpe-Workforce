@@ -31,8 +31,12 @@ export function NotificationCenter() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-2 w-80 animate-slide-in rounded-xl border border-surface-border bg-surface-raised shadow-xl">
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-label="Notifications"
+            className="fixed right-6 top-16 z-[110] w-80 animate-slide-in rounded-xl border border-surface-border bg-surface-raised shadow-2xl"
+          >
             <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
               <h3 className="font-semibold text-white">Notifications</h3>
               <div className="flex gap-1">
