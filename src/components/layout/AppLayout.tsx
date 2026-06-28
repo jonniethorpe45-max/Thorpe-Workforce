@@ -122,7 +122,7 @@ export function AppLayout() {
       <div className="relative flex flex-1 flex-col overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-hero-glow" />
 
-        <header className="relative z-10 flex h-16 items-center justify-between border-b border-navy-border/80 bg-navy/80 px-6 backdrop-blur-md">
+        <header className="relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-navy-border/80 bg-navy/80 px-6 backdrop-blur-md">
           <form onSubmit={handleSearch} className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-steel" />
             <input
@@ -136,7 +136,7 @@ export function AppLayout() {
           <NotificationCenter />
         </header>
 
-        <main className="relative z-10 flex-1 overflow-y-auto p-6">
+        <main className="relative z-0 flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>
