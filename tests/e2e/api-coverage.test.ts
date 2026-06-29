@@ -189,6 +189,10 @@ describe("E2E API coverage", () => {
     const updates = await thorpeApi.checkForUpdates();
     expect(updates.current_version).toBeTruthy();
 
+    const downloads = await thorpeApi.getReleaseDownloads();
+    expect(downloads.release_version).toBeTruthy();
+    expect(downloads.windows_exe).toContain("Thorpe_");
+
     await thorpeApi.deleteAllUserData();
   });
 });

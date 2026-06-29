@@ -1,25 +1,52 @@
 import { useEffect, useState } from "react";
 import { Download, CheckCircle, RefreshCw, ExternalLink } from "lucide-react";
-import { THORPE_DOWNLOADS } from "../config/downloads";
+import { THORPE_RELEASES_PAGE } from "../config/downloads";
 import { thorpeApi } from "../services/tauri";
-import type { UpdateInfo } from "../services/types";
+import type { ReleaseDownloads, UpdateInfo } from "../services/types";
 
-const PLATFORM_DOWNLOADS = [
-  { label: "Windows (.exe)", href: THORPE_DOWNLOADS.windowsExe },
-  { label: "Windows (.msi)", href: THORPE_DOWNLOADS.windowsMsi },
-  { label: "macOS Apple Silicon (.dmg)", href: THORPE_DOWNLOADS.macosDmg },
-  { label: "Linux (.AppImage)", href: THORPE_DOWNLOADS.linuxAppImage },
-  { label: "Linux (.deb)", href: THORPE_DOWNLOADS.linuxDeb },
-];
+type PlatformDownload = { label: string; href: string };
+
+function buildPlatformDownloads(downloads: ReleaseDownloads | null): PlatformDownload[] {
+  if (!downloads) return [];
+
+  const entries: Array<[string, string | null]> = [
+    ["Windows (.exe)", downloads.windows_exe],
+    ["Windows (.msi)", downloads.windows_msi],
+    ["macOS Apple Silicon (.dmg)", downloads.macos_dmg],
+    ["Linux (.AppImage)", downloads.linux_appimage],
+    ["Linux (.deb)", downloads.linux_deb],
+  ];
+
+  return entries
+    .filter((entry): entry is [string, string] => Boolean(entry[1]))
+    .map(([label, href]) => ({ label, href }));
+}
 
 export function UpdateManager() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [downloads, setDownloads] = useState<ReleaseDownloads | null>(null);
   const [checking, setChecking] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const openUrl = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const loadDownloads = async () => {
+    try {
+      const links = await thorpeApi.getReleaseDownloads();
+      setDownloads(links);
+      setDownloadError(null);
+    } catch (err) {
+      console.error(err);
+      setDownloadError("Could not load installer links. Use the releases page below.");
+    }
+  };
 
   const checkUpdates = async () => {
     setChecking(true);
     try {
-      const info = await thorpeApi.checkForUpdates();
+      const [info] = await Promise.all([thorpeApi.checkForUpdates(), loadDownloads()]);
       setUpdateInfo(info);
     } catch (err) {
       console.error(err);
@@ -31,6 +58,8 @@ export function UpdateManager() {
   useEffect(() => {
     checkUpdates();
   }, []);
+
+  const platformDownloads = buildPlatformDownloads(downloads);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
@@ -47,6 +76,7 @@ export function UpdateManager() {
               <p className="font-medium text-white">Thorpe Desktop</p>
               <p className="text-sm text-gray-400">
                 Version {updateInfo?.current_version ?? "..."}
+                {downloads?.release_version ? ` · Latest release v${downloads.release_version}` : ""}
               </p>
             </div>
           </div>
@@ -64,14 +94,13 @@ export function UpdateManager() {
                   Update available: v{updateInfo.latest_version}
                 </p>
                 <p className="text-sm text-gray-300">{updateInfo.release_notes}</p>
-                <a
-                  href={updateInfo.download_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openUrl(updateInfo.download_url)}
                   className="btn-primary inline-flex text-sm"
                 >
                   <Download className="h-4 w-4" /> Download Update
-                </a>
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -86,32 +115,43 @@ export function UpdateManager() {
       <div className="card space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-medium text-white">Download Installers</h3>
-          <a
-            href={THORPE_DOWNLOADS.releasesPage}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => openUrl(downloads?.releases_page ?? THORPE_RELEASES_PAGE)}
             className="inline-flex items-center gap-1 text-sm text-thorpe-400 hover:text-thorpe-300"
           >
             All releases <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          </button>
         </div>
         <p className="text-sm text-gray-400">
-          Use the latest public release. If a download says &ldquo;No permissions&rdquo;, make sure you
-          are on the published release (not a draft) or use the direct links below.
+          Links are loaded from the published GitHub release
+          {downloads?.release_version ? ` (v${downloads.release_version})` : ""}. If a download says
+          &ldquo;No permissions&rdquo;, the filename may not match the latest release — refresh this page or use
+          the releases page.
         </p>
+        {downloadError && <p className="text-sm text-warning">{downloadError}</p>}
         <div className="grid gap-2">
-          {PLATFORM_DOWNLOADS.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-4 py-3 text-sm text-gray-200 transition-colors hover:border-thorpe-500/40 hover:bg-thorpe-600/5"
+          {platformDownloads.length > 0 ? (
+            platformDownloads.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => openUrl(item.href)}
+                className="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-4 py-3 text-left text-sm text-gray-200 transition-colors hover:border-thorpe-500/40 hover:bg-thorpe-600/5"
+              >
+                <span>{item.label}</span>
+                <Download className="h-4 w-4 text-thorpe-400" />
+              </button>
+            ))
+          ) : (
+            <button
+              type="button"
+              onClick={() => openUrl(THORPE_RELEASES_PAGE)}
+              className="btn-secondary text-sm"
             >
-              <span>{item.label}</span>
-              <Download className="h-4 w-4 text-thorpe-400" />
-            </a>
-          ))}
+              Open GitHub Releases
+            </button>
+          )}
         </div>
       </div>
 
