@@ -35,7 +35,9 @@ This package is a **technical invention disclosure** prepared from the Thorpe De
 | 08 | [08-ATTORNEY-TRANSMITTAL-LETTER.md](./08-ATTORNEY-TRANSMITTAL-LETTER.md) | Cover letter template (fill in and send) |
 | 09 | [09-FIGURE-SCREENSHOT-GUIDE.md](./09-FIGURE-SCREENSHOT-GUIDE.md) | Figure numbering, screenshots, diagram conversion |
 | 10 | [10-PROBLEMS-SOLVED-FOR-COUNSEL.md](./10-PROBLEMS-SOLVED-FOR-COUNSEL.md) | Problems solved — patent counsel brief |
-| — | [dist/Thorpe-Desktop-Problems-Solved-For-Counsel.pdf](./dist/Thorpe-Desktop-Problems-Solved-For-Counsel.pdf) | **Direct download:** problems solved (counsel) |
+| 11 | [11-SOLUTION-OFFERED-FOR-COUNSEL.md](./11-SOLUTION-OFFERED-FOR-COUNSEL.md) | **Solution offered** — how Thorpe Desktop works |
+| — | [dist/Thorpe-Desktop-Problems-Solved-For-Counsel.pdf](./dist/Thorpe-Desktop-Problems-Solved-For-Counsel.pdf) | Direct download: problems brief |
+| — | [dist/Thorpe-Desktop-Solution-Offered-For-Counsel.pdf](./dist/Thorpe-Desktop-Solution-Offered-For-Counsel.pdf) | **Direct download: solution brief** |
 | — | [dist/Thorpe-Desktop-Patent-Package.pdf](./dist/Thorpe-Desktop-Patent-Package.pdf) | Combined full patent package PDF |
 | — | [screenshots/](./screenshots/) | UI captures for specification figures |
 

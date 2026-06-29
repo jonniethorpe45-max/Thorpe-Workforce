@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Thorpe Desktop Solution Offered For Counsel</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; max-width: 8.5in; margin: 0 auto; padding: 0.75in; color: #111; line-height: 1.45; font-size: 11pt; }
+    h1 { font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 6px; }
+    h2 { font-size: 14pt; margin-top: 1.2em; page-break-after: avoid; }
+    h3 { font-size: 12pt; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 10pt; }
+    th, td { border: 1px solid #999; padding: 6px 8px; vertical-align: top; text-align: left; }
+    th { background: #f0f0f0; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; font-size: 9pt; white-space: pre-wrap; }
+    code { font-family: Consolas, monospace; font-size: 9.5pt; }
+    ul { margin: 8px 0; }
+    @media print { body { padding: 0.5in; } }
+  </style>
+</head>
+<body><h1>Thorpe Desktop — The Solution Offered</h1>
+<p><strong>Prepared for:</strong> Patent counsel  <br/><strong>Product:</strong> Thorpe Desktop  <br/><strong>Core invention:</strong> Jonathan — autonomous AI technician with local repair orchestration  <br/><strong>Date:</strong> June 27, 2026  <br/><strong>Software version:</strong> 1.1.0  <br/><strong>Companion document:</strong> <code>10-PROBLEMS-SOLVED-FOR-COUNSEL.md</code></p>
+<p>---</p>
+<h2>Executive summary</h2>
+<p>Thorpe Desktop's solution is <strong>Jonathan</strong>, an embedded AI technician that operates as a <strong>local-first incident orchestration system</strong> on the end-user device. Jonathan does not merely generate advice—it <strong>plans, executes, verifies, and then narrates</strong> IT repairs through a governed pipeline that runs entirely on Windows, macOS, or Linux.</p>
+<p>The architectural principle that defines the invention: <strong>execute-then-narrate</strong>. All diagnostics and approved repairs complete <strong>before</strong> any AI-generated explanation reaches the user. The narrative layer—whether local template or cloud LLM—is constrained to describe only repairs that were actually performed and recorded.</p>
+<p>---</p>
+<h2>What Thorpe Desktop is</h2>
+<p>Thorpe Desktop is a cross-platform desktop application built with <strong>Tauri</strong> (Rust backend + React frontend). It provides:</p>
+<ul><li><strong>Jonathan Assistant</strong> — conversational IT support with autonomous local repair</li>
+<li><strong>System Scanner</strong> — health scoring and issue detection</li>
+<li><strong>Repair Center</strong> — explicit user-initiated maintenance with consent</li>
+<li><strong>Proactive Watchdog</strong> — background CPU, memory, and disk monitoring with handoff to Jonathan</li>
+<li><strong>Offline connectivity diagnostics</strong> — layered network troubleshooting without cloud</li>
+<li><strong>Enterprise controls</strong> — signed repair packs, licensing, AI policy, audit trails</li>
+</ul>
+Jonathan is the unifying agent that ties these subsystems into a single incident pipeline.
+<p>---</p>
+<h2>The solution architecture</h2>
+<h3>High-level pipeline</h3>
+<pre><code>User message (or Watchdog alert)
+    → Evidence collection
+    → Security escalation gate
+    → Optional offline connectivity suite
+    → Repair planning (LLM JSON or rules)
+    → Signed repair-pack allowlist filter
+    → Confirmation gate (mutating vs. diagnostic)
+    → Local OS repair execution
+    → Post-mutating verification scan
+    → Session persistence + optional PSA webhook
+    → Narrative generation (local or cloud)
+    → Structured chat response</code></pre>
+<h3>Layered system design</h3>
+<table><tr><td>Layer</td><td>Role</td><td>Key modules</td></tr>
+</table>
+<table><tr><td><strong>Presentation</strong></td><td>Chat UI, approvals, notifications</td><td><code>JonathanAssistant.tsx</code>, <code>AppLayout.tsx</code></td></tr>
+<tr><td><strong>API</strong></td><td>Tauri commands bridge UI to Rust</td><td><code>chat_with_jonathan</code>, <code>execute_repair</code></td></tr>
+<tr><td><strong>Orchestration</strong></td><td>Incident pipeline owns execution order</td><td><code>orchestrate_incident</code> (<code>agent/mod.rs</code>)</td></tr>
+<tr><td><strong>Planning</strong></td><td>LLM JSON plan with rule fallback</td><td><code>build_plan</code>, <code>plan_with_llm</code>, <code>plan_with_rules</code></td></tr>
+<tr><td><strong>Repair engine</strong></td><td>OS command execution + history</td><td><code>repairs/mod.rs</code>, <code>perform_repair</code></td></tr>
+<tr><td><strong>Narrative</strong></td><td>Post-execution explanation only</td><td><code>format_technician_response</code>, cloud LLM</td></tr>
+<tr><td><strong>Persistence</strong></td><td>SQLite audit trail</td><td>chat history, agent sessions, evidence artifacts</td></tr>
+<tr><td><strong>OS</strong></td><td>Platform commands</td><td>PowerShell, shell, ping, DNS</td></tr>
+</table>
+<strong>Critical invariant:</strong> Cloud LLM failure does not prevent repairs from having already executed locally.
+<p>---</p>
+<h2>How the solution works — step by step</h2>
+<h3>Step 1 — User initiates an incident</h3>
+<p>The user describes a problem in natural language (e.g., "Wi-Fi isn't working", "my computer is slow") or clicks <strong>Send to Jonathan</strong> from a Watchdog alert. The frontend calls <code>chat_with_jonathan</code> with the message, optional scan context, chat history, and any user-approved repair IDs.</p>
+<h3>Step 2 — Evidence collection</h3>
+<p><code>orchestrate_incident</code> collects local system evidence: event log excerpts, service summary, network summary, and scan snapshot. Evidence is persisted as artifacts linked to the session for audit and planner context.</p>
+<h3>Step 3 — Security gate</h3>
+<p>If the message contains malware, credential, or other high-risk keywords, the system creates a PSA escalation case and <strong>does not execute repairs</strong>. This prevents unsafe autonomous action on security-sensitive incidents.</p>
+<h3>Step 4 — Offline connectivity suite (when applicable)</h3>
+<p>For network-related issues, Jonathan runs a layered connectivity diagnostic <strong>before planning</strong>:</p>
+<p>1. Network adapter status  <br/>2. Default gateway reachability  <br/>3. DNS resolution  <br/>4. Internet reachability</p>
+<p>A local playbook evaluates results and produces <code>overall_status</code>, recommended repair actions, and a human-readable summary—all <strong>without cloud connectivity</strong>. Results are saved and embedded in the chat response. Duplicate connectivity diagnostics are suppressed in the subsequent repair plan.</p>
+<h3>Step 5 — Repair planning</h3>
+<p>Jonathan builds an <code>AgentPlan</code> using a <strong>dual planner</strong>:</p>
+<ul><li><strong>LLM planner</strong> (when enterprise or user cloud runtime available): JSON-structured plan with hypotheses, confidence, tool steps, risk levels, and approval requirements  </li>
+<li><strong>Rule planner</strong> (fallback): keyword and scan-signal mapping to repair tool IDs  </li>
+</ul>
+If the LLM is unavailable or returns empty steps, rules take over. Planning never blocks execution.
+<h3>Step 6 — Signed repair-pack allowlist</h3>
+<p>Planned tool IDs are intersected with <code>allowed_tool_ids</code> from enabled <strong>cryptographically signed repair packs</strong> (Ed25519). The planner cannot invoke OS tools outside the allowlist. Built-in packs ship with the app; custom packs are installable via signed manifests.</p>
+<h3>Step 7 — Confirmation gate</h3>
+<p>Repair actions are classified:</p>
+<table><tr><td>Kind</td><td>Behavior</td><td>Examples</td></tr>
+</table>
+<table><tr><td><strong>Diagnostic</strong></td><td>Auto-execute</td><td>connectivity suite, disk analysis, resource ID</td></tr>
+<tr><td><strong>Mutating</strong></td><td>Require user approval</td><td>DNS flush, temp cleanup, spooler restart</td></tr>
+<tr><td><strong>Advisory</strong></td><td>Informational only</td><td>startup review, update check, restart recommend</td></tr>
+</table>
+Safe diagnostics run immediately. Mutating repairs appear as <strong>pending approval</strong> until the user clicks Approve.
+<h3>Step 8 — Local repair execution</h3>
+<p><code>perform_repairs_with_failures</code> executes each approved action via platform-specific commands. Every result—success or failure—is recorded in <code>repair_history</code> with action kind, message, and details.</p>
+<h3>Step 9 — Post-mutating verification</h3>
+<p>When any mutating repair succeeds, Jonathan runs <code>quick_system_scan()</code> and produces structured <code>RepairVerification</code>:</p>
+<ul><li>Health score before and after  </li>
+<li>Issue count before and after  </li>
+<li><code>improved</code> flag when health increased or issues decreased  </li>
+</ul>
+Verification is surfaced in the UI and appended to both local and cloud narratives.
+<h3>Step 10 — Narrative generation (execute-then-narrate)</h3>
+<p><strong>Only after</strong> steps 1–9 complete, Jonathan generates the user-facing reply:</p>
+<ul><li><strong>Local mode</strong> (<code>format_technician_response</code>): deterministic markdown—no network required  </li>
+<li><strong>Cloud mode</strong> (<code>call_openai_compatible</code>): conversational LLM with system prompt stating repairs <strong>already ran</strong>; LLM must use past tense and must not invent actions  </li>
+<li><strong>Enterprise mode</strong>: governed by org policy, budget, role, and provider configuration  </li>
+</ul>
+<h3>Step 11 — Structured response</h3>
+<p>The user receives a single <code>ChatResponse</code> containing:</p>
+<ul><li>Narrative text  </li>
+<li>Repairs executed (grouped by kind)  </li>
+<li>Pending repairs awaiting approval  </li>
+<li>Verification metrics  </li>
+<li>Connectivity report (if applicable)  </li>
+<li>Agent plan and knowledge suggestions  </li>
+<li>Optional escalation case ID  </li>
+</ul>
+All metadata is persisted in <code>metadata_json</code> for session restore.
+<p>---</p>
+<h2>Solution components in detail</h2>
+<h3>A. Execute-then-narrate autonomous agent (Patent A)</h3>
+<p><strong>What it solves:</strong> Chatbots that describe fixes they never performed.</p>
+<p><strong>How Thorpe solves it:</strong> <code>chat_with_jonathan</code> calls <code>orchestrate_incident()</code> <strong>before</strong> any narrative generation. The LLM is a narrator constrained by executed repair records, not an unconstrained actor.</p>
+<p><strong>Code anchor:</strong> <code>src-tauri/src/agent/mod.rs</code> — <code>orchestrate_incident</code></p>
+<p>---</p>
+<h3>B. Signed repair-pack gating (Patent B)</h3>
+<p><strong>What it solves:</strong> Uncontrolled AI invocation of arbitrary OS commands.</p>
+<p><strong>How Thorpe solves it:</strong> Repair packs contain signed manifests listing permitted tools. <code>filter_allowed_tools</code> intersects planner output with the allowlist before any command runs. Built-in packs (<code>thorpe-core</code>, <code>thorpe-network</code>, <code>thorpe-performance</code>) ship with the application; operators can add custom signed packs.</p>
+<p><strong>Code anchor:</strong> <code>src-tauri/src/repairs/pack_signing.rs</code>, <code>filter_allowed_tools</code></p>
+<p>---</p>
+<h3>C. Offline connectivity fusion (Patent C)</h3>
+<p><strong>What it solves:</strong> Cloud-dependent network troubleshooting when the network itself is the problem.</p>
+<p><strong>How Thorpe solves it:</strong> Keyword-triggered pre-run of layered local checks, local playbook decision tree, persistence as session evidence, deduplication in repair plan, and embedding in chat response—all offline-capable.</p>
+<p><strong>Code anchor:</strong> <code>src-tauri/src/connectivity/mod.rs</code></p>
+<p>---</p>
+<h3>D. Proactive Watchdog handoff (Patent D)</h3>
+<p><strong>What it solves:</strong> Reactive-only support; monitoring siloed from repair.</p>
+<p><strong>How Thorpe solves it:</strong> Background loop (default 15-minute interval) monitors CPU, memory, disk, and health score. Per-metric alerts dedupe within the interval. User clicks <strong>Send to Jonathan</strong>; a synthetic prompt feeds the <strong>same</strong> <code>orchestrate_incident</code> pipeline as user chat, with optional pre-loaded rule plan.</p>
+<p><strong>Code anchor:</strong> <code>src-tauri/src/watchdog/mod.rs</code>, <code>src/lib/watchdog.ts</code></p>
+<p>---</p>
+<h3>E. Dual LLM with independent fallbacks (Patent E)</h3>
+<p><strong>What it solves:</strong> Single-point-of-failure when one LLM handles both planning and narration.</p>
+<p><strong>How Thorpe solves it:</strong> Separate planner LLM (JSON, temperature 0.2) and narrator LLM (conversational, temperature 0.7), each with rule-based or local-template fallbacks. Planner failure does not block repairs; narrator failure does not undo executed repairs.</p>
+<p><strong>Code anchor:</strong> <code>src-tauri/src/agent/planner.rs</code>, <code>src-tauri/src/ai/mod.rs</code></p>
+<p>---</p>
+<h2>User experience of the solution</h2>
+<h3>For the end user</h3>
+<p>1. Open Jonathan and describe the problem in plain language.  <br/>2. Jonathan runs diagnostics automatically and shows what it found.  <br/>3. For system-changing fixes, Jonathan asks <strong>Approve</strong> before acting.  <br/>4. After repairs, Jonathan shows whether health improved.  <br/>5. Everything works offline for core diagnostics and local explanations.</p>
+<h3>For IT / MSP (optional)</h3>
+<ul><li>PSA webhook escalation for security or low-confidence cases  </li>
+<li>Enterprise AI console with role, budget, and provider policy  </li>
+<li>Intelligence console with org playbooks, repair pack management, session audit  </li>
+<li>PDF export of incident sessions  </li>
+</ul>
+<h3>For counsel — reduction to practice</h3>
+<table><tr><td>Claim</td><td>Shipped evidence</td></tr>
+</table>
+<table><tr><td>Local execution</td><td>Rust repair engine runs OS commands on device</td></tr>
+<tr><td>Execute-then-narrate</td><td><code>orchestrate_incident</code> precedes narrative in <code>chat_with_jonathan</code></td></tr>
+<tr><td>Verification</td><td><code>RepairVerification</code> struct with before/after health</td></tr>
+<tr><td>Signed packs</td><td>Ed25519 verification on <code>install_repair_pack</code></td></tr>
+<tr><td>Offline connectivity</td><td><code>run_connectivity_suite</code> + playbook without network</td></tr>
+<tr><td>Watchdog handoff</td><td><code>WatchdogHandoff</code> → synthetic prompt → same pipeline</td></tr>
+<tr><td>Platforms</td><td>Windows, macOS, Linux (Tauri)</td></tr>
+<tr><td>Tests</td><td>70+ frontend, 40+ Rust unit tests</td></tr>
+</table>
+---
+<h2>Solution vs. prior art (summary)</h2>
+<table><tr><td>Prior art category</td><td>Their approach</td><td>Thorpe solution</td></tr>
+</table>
+<table><tr><td>IT chatbots</td><td>Manual step recommendations</td><td>Local OS repair execution</td></tr>
+<tr><td>RMM/MSP tools</td><td>Central-managed scripts</td><td>User-initiated NL on device</td></tr>
+<tr><td>OS troubleshooters</td><td>Fixed decision trees</td><td>LLM + rules hybrid planner</td></tr>
+<tr><td>LLM tool agents</td><td>Cloud interleaved plan/act</td><td>Deterministic Rust engine; execute-then-narrate</td></tr>
+<tr><td>Utility apps</td><td>Single-purpose (DNS flush, etc.)</td><td>Unified incident session with evidence + verification</td></tr>
+</table>
+---
+<h2>Recommended patent claims from this solution</h2>
+<p>1. <strong>Method</strong> for receiving NL support request, planning repairs locally, filtering against signed allowlist, executing diagnostics automatically, deferring mutating repairs, verifying with follow-up scan, and generating narrative only after execution.  <br/>2. <strong>System</strong> comprising planner, repair engine, allowlist module, verification module, and narrator constrained to executed repairs.  <br/>3. <strong>Method</strong> for offline connectivity pre-run fused into agent incident with deduplication.  <br/>4. <strong>Method</strong> for proactive monitor alert handoff into same orchestration pipeline as user chat.</p>
+<p>Full claim seeds: <code>04-CLAIM-SEEDS-FOR-ATTORNEY.md</code></p>
+<p>---</p>
+<h2>One-sentence solution statement</h2>
+<p><strong>Thorpe Desktop offers a governed, local-first AI technician that plans and executes IT repairs on the client device, verifies outcomes with a follow-up health scan, and only then explains what it did—ensuring the AI cannot claim fixes it did not perform.</strong></p>
+<p>---</p>
+<h2>Related documents</h2>
+<table><tr><td>Document</td><td>Content</td></tr>
+</table>
+<table><tr><td><code>01-INVENTION-DISCLOSURE-JONATHAN.md</code></td><td>Full technical disclosure</td></tr>
+<tr><td><code>03-SYSTEM-ARCHITECTURE-AND-FLOWS.md</code></td><td>Architecture diagrams</td></tr>
+<tr><td><code>04-CLAIM-SEEDS-FOR-ATTORNEY.md</code></td><td>Seed claims</td></tr>
+<tr><td><code>10-PROBLEMS-SOLVED-FOR-COUNSEL.md</code></td><td>Problems brief (companion)</td></tr>
+</table>
+<strong>Applicant / assignee:</strong> _[Complete Document 06 before filing]_</body>
+</html>
