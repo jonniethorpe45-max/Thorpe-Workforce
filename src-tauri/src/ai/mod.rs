@@ -77,6 +77,7 @@ pub struct ChatResponse {
     pub kb_suggestions: Vec<KbSuggestion>,
     pub agent_plan: Option<AgentPlan>,
     pub agent_session_id: Option<String>,
+    pub connectivity_report: Option<crate::connectivity::ConnectivityReport>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,6 +167,7 @@ struct ChatExtras {
     kb_suggestions: Vec<KbSuggestion>,
     agent_plan: Option<AgentPlan>,
     agent_session_id: Option<String>,
+    connectivity_report: Option<crate::connectivity::ConnectivityReport>,
 }
 
 fn enrich_message_with_extras(mut message: String, extras: &ChatExtras) -> String {
@@ -201,6 +203,20 @@ fn enrich_message_with_extras(mut message: String, extras: &ChatExtras) -> Strin
             message.push_str(&plan.citations.join("; "));
         }
     }
+    if let Some(report) = &extras.connectivity_report {
+        message.push_str("\n\n**Offline connectivity check** (no internet required):\n");
+        message.push_str(&format!("Status: **{}**\n", report.overall_status));
+        message.push_str(&report.playbook_summary);
+        for check in &report.checks {
+            let icon = match check.status.as_str() {
+                "pass" => "✓",
+                "fail" => "✗",
+                "warn" => "!",
+                _ => "–",
+            };
+            message.push_str(&format!("\n- {icon} **{}** — {}", check.name, check.detail));
+        }
+    }
     message
 }
 
@@ -220,6 +236,7 @@ fn chat_response(
         kb_suggestions: extras.kb_suggestions,
         agent_plan: extras.agent_plan,
         agent_session_id: extras.agent_session_id,
+        connectivity_report: extras.connectivity_report,
     }
 }
 
@@ -242,6 +259,7 @@ fn incident_to_extras(incident: crate::agent::IncidentResult) -> (Vec<RepairResu
                 .collect(),
             agent_plan: incident.agent_session.as_ref().map(|s| s.plan.clone()),
             agent_session_id: incident.agent_session.as_ref().map(|s| s.session_id.clone()),
+            connectivity_report: incident.connectivity_report,
         },
     )
 }
@@ -361,6 +379,7 @@ struct AssistantChatMetadata<'a> {
     kb_suggestions: &'a [KbSuggestion],
     agent_plan: &'a Option<AgentPlan>,
     agent_session_id: &'a Option<String>,
+    connectivity_report: &'a Option<crate::connectivity::ConnectivityReport>,
 }
 
 fn chat_metadata_json(response: &ChatResponse) -> Option<String> {
@@ -373,6 +392,7 @@ fn chat_metadata_json(response: &ChatResponse) -> Option<String> {
         kb_suggestions: &response.kb_suggestions,
         agent_plan: &response.agent_plan,
         agent_session_id: &response.agent_session_id,
+        connectivity_report: &response.connectivity_report,
     })
     .ok()
 }
@@ -670,6 +690,21 @@ fn format_technician_response(
         response.push_str("\n**Related knowledge base articles:**\n");
         for kb in &extras.kb_suggestions {
             response.push_str(&format!("- **{}** — {}\n", kb.title, kb.summary));
+        }
+    }
+
+    if let Some(report) = &extras.connectivity_report {
+        response.push_str("\n**Offline connectivity check** (runs locally — no internet required):\n");
+        response.push_str(&format!("- Overall: **{}**\n", report.overall_status));
+        response.push_str(&format!("- {}\n", report.playbook_summary));
+        for check in &report.checks {
+            let icon = match check.status.as_str() {
+                "pass" => "✓",
+                "fail" => "✗",
+                "warn" => "!",
+                _ => "–",
+            };
+            response.push_str(&format!("- {icon} **{}** — {}\n", check.name, check.detail));
         }
     }
 

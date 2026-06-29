@@ -46,6 +46,22 @@ describe("E2E user flows", () => {
     );
   });
 
+  it("jonathan: wifi issue runs offline connectivity diagnostics", async () => {
+    renderApp("/jonathan");
+    await waitForAppReady();
+
+    const input = screen.getByPlaceholderText(/describe your it issue/i);
+    fireEvent.change(input, { target: { value: "wifi not working no internet" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Offline Connectivity Suite/i)).toBeTruthy();
+      },
+      { timeout: 20000 }
+    );
+  });
+
   it("jonathan: sends message and receives repair response", async () => {
     renderApp("/jonathan");
     await waitForAppReady();

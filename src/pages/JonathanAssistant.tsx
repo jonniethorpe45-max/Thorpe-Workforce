@@ -9,7 +9,7 @@ import { extractFirstName } from "../lib/userName";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
-import type { AiConfig, AgentPlan, AssistantChatMetadata, KbSuggestion, RepairAction, RepairResult, RepairVerification } from "../services/types";
+import type { AiConfig, AgentPlan, AssistantChatMetadata, ConnectivityReport, KbSuggestion, RepairAction, RepairResult, RepairVerification } from "../services/types";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,6 +23,7 @@ interface Message {
   agentPlan?: AgentPlan | null;
   agentSessionId?: string | null;
   kbSuggestions?: KbSuggestion[];
+  connectivityReport?: ConnectivityReport | null;
 }
 
 function repairKindLabel(kind?: string): string {
@@ -57,6 +58,7 @@ function messageFromHistory(h: { role: string; content: string; metadata_json?: 
       kbSuggestions: meta.kb_suggestions,
       agentPlan: meta.agent_plan,
       agentSessionId: meta.agent_session_id,
+      connectivityReport: meta.connectivity_report,
     };
   } catch {
     return base;
@@ -128,6 +130,7 @@ export function JonathanAssistant() {
             agentPlan: response.agent_plan,
             agentSessionId: response.agent_session_id,
             kbSuggestions: response.kb_suggestions,
+            connectivityReport: response.connectivity_report,
           },
         ];
       });
@@ -315,6 +318,32 @@ export function JonathanAssistant() {
                           {kb.source && <span className="text-steel"> · {kb.source}</span>}
                         </Link>
                       ))}
+                    </div>
+                  )}
+                  {msg.connectivityReport && msg.role === "assistant" && !isTyping && (
+                    <div className="mt-3 space-y-2 border-t border-navy-border/60 pt-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-steel">
+                        Offline connectivity · {msg.connectivityReport.overall_status}
+                      </p>
+                      <p className="text-xs text-slate-300">{msg.connectivityReport.playbook_summary}</p>
+                      <div className="space-y-1">
+                        {msg.connectivityReport.checks.map((check) => (
+                          <p key={check.name} className="text-xs text-steel">
+                            <span
+                              className={
+                                check.status === "pass"
+                                  ? "text-emerald-400"
+                                  : check.status === "fail"
+                                    ? "text-warning"
+                                    : "text-slate-400"
+                              }
+                            >
+                              {check.status === "pass" ? "✓" : check.status === "fail" ? "✗" : "!"}
+                            </span>{" "}
+                            <span className="text-slate-300">{check.name}</span> — {check.detail}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {msg.agentPlan && msg.role === "assistant" && !isTyping && (
