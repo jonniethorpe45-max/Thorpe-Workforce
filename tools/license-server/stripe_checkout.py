@@ -22,7 +22,9 @@ CHECKOUT_CANCEL_URL = os.environ.get("THORPE_CHECKOUT_CANCEL_URL", "https://thor
 
 
 def stripe_configured() -> bool:
-    return bool(STRIPE_SECRET_KEY and STRIPE_PRICE_PROFESSIONAL)
+    return bool(
+        STRIPE_SECRET_KEY and STRIPE_PRICE_PROFESSIONAL and STRIPE_PRICE_ENTERPRISE
+    )
 
 
 def _stripe_request(method: str, path: str, data: dict[str, str] | None = None) -> dict[str, Any]:

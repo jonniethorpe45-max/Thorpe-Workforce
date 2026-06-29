@@ -26,11 +26,15 @@ check "Cargo.toml" "$CARGO_VERSION"
 check "tauri.conf.json" "$TAURI_VERSION"
 check "src/config/version.ts" "$TS_VERSION"
 
-if ! grep -q "THORPE_VERSION" src/config/downloads.ts; then
-  echo "version mismatch: downloads.ts must import THORPE_VERSION" >&2
-  fail=1
+if ! grep -q "THORPE_RELEASES_PAGE\|getReleaseDownloads\|get_release_downloads" src/config/downloads.ts src/services/tauri.ts 2>/dev/null; then
+  if ! grep -q "THORPE_VERSION" src/config/downloads.ts; then
+    echo "version mismatch: downloads.ts must expose release download resolution" >&2
+    fail=1
+  else
+    echo "ok: downloads.ts uses THORPE_VERSION"
+  fi
 else
-  echo "ok: downloads.ts uses THORPE_VERSION"
+  echo "ok: release downloads resolved via GitHub API"
 fi
 
 if [[ "$fail" -ne 0 ]]; then

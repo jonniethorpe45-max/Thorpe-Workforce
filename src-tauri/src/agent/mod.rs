@@ -47,6 +47,7 @@ pub struct IncidentResult {
     pub escalation_case_id: Option<String>,
     pub kb_suggestions: Vec<KbSuggestion>,
     pub agent_session: Option<AgentSessionSummary>,
+    pub connectivity_report: Option<crate::connectivity::ConnectivityReport>,
 }
 
 pub async fn orchestrate_incident(
@@ -99,8 +100,36 @@ pub async fn orchestrate_incident(
             escalation_case_id,
             kb_suggestions: vec![],
             agent_session: None,
+            connectivity_report: None,
         };
     }
+
+    let connectivity_report = if crate::connectivity::is_connectivity_issue(message) {
+        let report = crate::connectivity::run_connectivity_suite();
+        if let Ok(db) = state.lock_db() {
+            let record = crate::db::ConnectivityDiagnosticRecord {
+                id: Uuid::new_v4().to_string(),
+                session_id: Some(session_id.clone()),
+                user_message: Some(message.chars().take(500).collect()),
+                overall_status: report.overall_status.clone(),
+                playbook_summary: report.playbook_summary.clone(),
+                results_json: serde_json::to_string(&report.checks).unwrap_or_else(|_| "[]".into()),
+                recommended_actions_json: serde_json::to_string(&report.recommended_actions)
+                    .unwrap_or_else(|_| "[]".into()),
+                created_at: Utc::now().to_rfc3339(),
+            };
+            let _ = db.save_connectivity_diagnostic(&record);
+            let _ = db.save_evidence(
+                &session_id,
+                "connectivity",
+                "offline_connectivity_suite",
+                &serde_json::to_string(&report).unwrap_or_default(),
+            );
+        }
+        Some(report)
+    } else {
+        None
+    };
 
     let plan = build_plan(state, message, scan, &evidence).await;
     let tool_ids: Vec<String> = plan
@@ -109,7 +138,10 @@ pub async fn orchestrate_incident(
         .map(|s| s.tool_id.clone())
         .collect();
 
-    let filtered = filter_allowed_tools(state, &tool_ids);
+    let mut filtered = filter_allowed_tools(state, &tool_ids);
+    if connectivity_report.is_some() {
+        filtered.retain(|id| id != "connectivity-suite");
+    }
     let repair_plan = repairs::plan_chat_repairs(&filtered, confirmed_repairs);
 
     let health_before = scan.as_ref().map(|s| s.health_score).unwrap_or(0);
@@ -148,6 +180,7 @@ pub async fn orchestrate_incident(
         escalation_case_id: None,
         kb_suggestions,
         agent_session,
+        connectivity_report,
     }
 }
 

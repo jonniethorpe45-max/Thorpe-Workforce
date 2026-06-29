@@ -42,8 +42,7 @@ export function SettingsPage() {
       const updated = await thorpeApi.updateProfile(
         profile.display_name,
         profile.email,
-        profile.skill_level,
-        profile.role
+        profile.skill_level
       );
       setProfile(updated);
       addNotification({ type: "success", title: "Profile Saved", message: "Your profile has been updated." });
@@ -202,18 +201,6 @@ export function SettingsPage() {
               >
                 <option value="beginner">Beginner</option>
                 <option value="advanced">Advanced</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-400">User Role (Enterprise AI access)</label>
-              <select
-                className="input"
-                value={profile.role}
-                onChange={(e) => setProfile({ ...profile, role: e.target.value })}
-              >
-                <option value="admin">Admin</option>
-                <option value="technician">Technician</option>
-                <option value="user">User</option>
               </select>
             </div>
             <button onClick={saveProfile} className="btn-primary text-sm">Save Profile</button>

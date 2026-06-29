@@ -17,9 +17,11 @@ pub fn plan_repairs(message: &str, scan: Option<&SystemScanResult>) -> Vec<Strin
         || msg.contains("network")
         || msg.contains("dns")
         || msg.contains("connect")
+        || msg.contains("offline")
+        || msg.contains("online")
     {
+        push_unique(&mut actions, "connectivity-suite");
         push_unique(&mut actions, "dns-flush");
-        push_unique(&mut actions, "network-diagnostics");
     }
 
     if msg.contains("slow")
@@ -66,8 +68,8 @@ pub fn plan_repairs(message: &str, scan: Option<&SystemScanResult>) -> Vec<Strin
                     push_unique(&mut actions, "temp-cleanup");
                 }
                 "network" => {
+                    push_unique(&mut actions, "connectivity-suite");
                     push_unique(&mut actions, "dns-flush");
-                    push_unique(&mut actions, "network-diagnostics");
                 }
                 _ => {}
             }
@@ -86,7 +88,7 @@ pub fn plan_repairs(message: &str, scan: Option<&SystemScanResult>) -> Vec<Strin
         || msg.contains("problem")
         || msg.contains("broken")
     {
-        push_unique(&mut actions, "network-diagnostics");
+        push_unique(&mut actions, "connectivity-suite");
         push_unique(&mut actions, "high-resource-id");
         push_unique(&mut actions, "disk-analysis");
         push_unique(&mut actions, "update-check");
@@ -149,7 +151,7 @@ mod tests {
     fn plans_network_repairs_for_wifi_issue() {
         let planned = plan_repairs("My wifi is not working", None);
         assert!(planned.contains(&"dns-flush".to_string()));
-        assert!(planned.contains(&"network-diagnostics".to_string()));
+        assert!(planned.contains(&"connectivity-suite".to_string()));
     }
 
     #[test]

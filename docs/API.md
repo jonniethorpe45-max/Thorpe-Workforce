@@ -8,13 +8,16 @@ All commands are invoked from the frontend via `@tauri-apps/api/core` `invoke()`
 |---------|------|---------|-------------|
 | `get_app_info` | — | `AppInfo` | Application name, version, platform |
 | `check_for_updates` | — | `UpdateInfo` | Check for available updates |
+| `get_release_downloads` | — | `ReleaseDownloads` | Published installer URLs from GitHub Releases |
+| `run_connectivity_diagnostics` | `user_message?`, `session_id?` | `ConnectivityReport` | Offline layered network diagnostics |
+| `list_connectivity_diagnostics` | `limit?` | `ConnectivityDiagnosticRecord[]` | Connectivity diagnostic history |
 
 ## Profile & Settings
 
 | Command | Args | Returns | Description |
 |---------|------|---------|-------------|
 | `get_profile` | — | `Profile` | Get user profile |
-| `update_profile` | `displayName`, `email?`, `skillLevel` | `Profile` | Update profile |
+| `update_profile` | `displayName`, `email?`, `skillLevel` | `Profile` | Update profile (role is read-only) |
 | `get_settings` | — | `[key, value][]` | Get all settings |
 | `update_settings` | `key`, `value` | — | Set a setting |
 | `delete_all_user_data` | — | — | Delete all user data |

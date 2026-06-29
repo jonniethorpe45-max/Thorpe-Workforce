@@ -12,6 +12,7 @@ import {
   XCircle,
   AlertCircle,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import type {
@@ -206,9 +207,9 @@ export function EnterpriseAiConsole() {
           Securely manage API keys, models, budgets, and access controls for your organization&apos;s AI
           providers. Requires an Enterprise license.
         </p>
-        <a href="/licensing" className="btn-primary">
+        <Link to="/licensing" className="btn-primary">
           View Licensing
-        </a>
+        </Link>
       </div>
     );
   }

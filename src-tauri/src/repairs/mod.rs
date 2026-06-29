@@ -33,7 +33,9 @@ pub struct RepairAction {
 pub fn action_kind(action_id: &str) -> &'static str {
     match action_id {
         "temp-cleanup" | "dns-flush" | "print-spooler-restart" => "mutating",
-        "disk-analysis" | "high-resource-id" | "network-diagnostics" => "diagnostic",
+        "disk-analysis" | "high-resource-id" | "network-diagnostics" | "connectivity-suite" => {
+            "diagnostic"
+        }
         _ => "advisory",
     }
 }
@@ -107,6 +109,18 @@ fn get_available_actions() -> Vec<RepairAction> {
             platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
         },
         RepairAction {
+            id: "connectivity-suite".to_string(),
+            name: "Offline Connectivity Suite".to_string(),
+            description: "Layered offline diagnostics: adapter, gateway, DNS, and internet reachability with a local playbook."
+                .to_string(),
+            purpose: "Diagnose Wi-Fi and internet issues without cloud AI or external services.".to_string(),
+            risk_level: "low".to_string(),
+            category: "network".to_string(),
+            requires_confirmation: false,
+            action_kind: "diagnostic".to_string(),
+            platform: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
+        },
+        RepairAction {
             id: "update-check".to_string(),
             name: "Check for Updates".to_string(),
             description: "Check if system updates are available.".to_string(),
@@ -172,7 +186,7 @@ fn execute_action(action_id: &str) -> (bool, String, Option<String>) {
         "disk-analysis" => analyze_disk(),
         "startup-review" => review_startup(),
         "high-resource-id" => identify_high_resource(),
-        "network-diagnostics" => network_diagnostics(),
+        "network-diagnostics" | "connectivity-suite" => connectivity_diagnostics(),
         "update-check" => check_updates(),
         "restart-recommend" => restart_recommendation(),
         #[cfg(target_os = "windows")]
@@ -310,29 +324,16 @@ fn identify_high_resource() -> (bool, String, Option<String>) {
     (true, "High resource usage analysis complete.".to_string(), Some(report))
 }
 
-fn network_diagnostics() -> (bool, String, Option<String>) {
-    let mut results = Vec::new();
-
-    let ping = Command::new("ping")
-        .args(if cfg!(target_os = "windows") {
-            vec!["-n", "3", "1.1.1.1"]
-        } else {
-            vec!["-c", "3", "1.1.1.1"]
-        })
-        .output();
-
-    match ping {
-        Ok(output) => {
-            let success = output.status.success();
-            results.push(format!(
-                "Ping to 1.1.1.1: {}",
-                if success { "Success" } else { "Failed" }
-            ));
-        }
-        Err(_) => results.push("Ping test: Unable to run (ping may not be available)".to_string()),
-    }
-
-    (true, "Network diagnostics complete.".to_string(), Some(results.join("\n")))
+fn connectivity_diagnostics() -> (bool, String, Option<String>) {
+    let report = crate::connectivity::run_connectivity_suite();
+    let text = crate::connectivity::format_report_text(&report);
+    let success = report.overall_status != "offline";
+    let message = if success {
+        "Offline connectivity diagnostics complete.".to_string()
+    } else {
+        "Connectivity issues detected — see details.".to_string()
+    };
+    (true, message, Some(text))
 }
 
 fn check_updates() -> (bool, String, Option<String>) {

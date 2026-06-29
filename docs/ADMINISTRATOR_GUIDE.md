@@ -38,11 +38,15 @@ Users activate in **Licensing & Subscription**.
 | `jonathan_ai` | Free |
 | `basic_scans` | Free |
 | `limited_reports` | Free |
-| `full_diagnostics` | Professional |
+| `full_diagnostics` | Professional (scanner depth) |
 | `repair_center` | Professional |
 | `pdf_export` | Professional |
+| `unlimited_reports` | Professional |
 | `technician_workspace` | Enterprise |
-| `multi_device` | Enterprise |
+| `enterprise_ai_console` | Enterprise |
+| `intelligence_console` | Enterprise |
+
+> **Note:** `multi_device` is not shipped in v1.x and is not enforced.
 
 ## Data Management
 
