@@ -6,13 +6,12 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { promisify } from "node:util";
+import { findChrome, toFileUrl } from "./patent-utils.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const PATENTS = join(ROOT, "docs/patents");
 const DIST = join(PATENTS, "dist");
-const CHROME = process.env.CHROME_PATH ?? "/usr/local/bin/google-chrome";
 
 const ORDER = [
   "00-PATENT-PACKAGE-INDEX.md",
@@ -95,10 +94,10 @@ async function embedScreenshots(html) {
   return html + gallery;
 }
 
-async function chromePdf(htmlPath, pdfPath) {
+async function chromePdf(chromePath, htmlPath, pdfPath) {
   return new Promise((resolve, reject) => {
     const proc = spawn(
-      CHROME,
+      chromePath,
       [
         "--headless=new",
         "--disable-gpu",
@@ -164,7 +163,8 @@ ${await embedScreenshots(body)}
   console.log(`Wrote ${htmlPath}`);
 
   try {
-    await chromePdf(`file://${htmlPath}`, pdfPath);
+    const chromePath = await findChrome();
+    await chromePdf(chromePath, toFileUrl(htmlPath), pdfPath);
     console.log(`Wrote ${pdfPath}`);
   } catch (err) {
     console.warn("PDF generation skipped:", err.message);

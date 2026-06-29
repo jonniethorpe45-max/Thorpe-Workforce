@@ -100,7 +100,31 @@ Or directly:
 bash scripts/build-patent-package.sh
 ```
 
-**Requirements:** Node.js, `npm run build` dependencies, Google Chrome at `/usr/local/bin/google-chrome` (or set `CHROME_PATH`). The script builds the frontend, starts a Vite preview server, captures six UI screenshots with Puppeteer, and exports `docs/patents/dist/Thorpe-Desktop-Patent-Package.html` plus PDF when Chrome print-to-PDF succeeds.
+**Requirements:** Node.js 18+, `npm install` dependencies, Google Chrome or Microsoft Edge installed.
+
+**Windows (Command Prompt or PowerShell):**
+
+```cmd
+cd path\to\Thorpe-Workforce
+npm install
+npm run patent:package
+```
+
+If Chrome is in a non-standard location, set the browser path first:
+
+```cmd
+set CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+npm run patent:package
+```
+
+**macOS / Linux:**
+
+```bash
+npm run patent:package
+# optional: CHROME_PATH=/path/to/chrome npm run patent:package
+```
+
+The script builds the frontend, starts a Vite preview server, captures six UI screenshots with Puppeteer, and exports `docs/patents/dist/Thorpe-Desktop-Patent-Package.html` plus PDF when Chrome print-to-PDF succeeds.
 
 **Outputs:**
 

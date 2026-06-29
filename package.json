@@ -18,7 +18,7 @@
     "pack-sign": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-pack-sign --",
     "license-key": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-license-key --",
     "lint": "tsc --noEmit",
-    "patent:package": "bash scripts/build-patent-package.sh"
+    "patent:package": "node scripts/build-patent-package.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",

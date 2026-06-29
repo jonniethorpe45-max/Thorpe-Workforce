@@ -7,12 +7,12 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { findChrome } from "./patent-utils.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const OUT_DIR = join(ROOT, "docs/patents/screenshots");
 const BASE_URL = process.env.PATENT_PREVIEW_URL ?? "http://127.0.0.1:4173";
-const CHROME = process.env.CHROME_PATH ?? "/usr/local/bin/google-chrome";
 
 const CAPTURES = [
   { file: "01-dashboard.png", path: "/", waitFor: /welcome back/i },
@@ -84,8 +84,9 @@ const CAPTURES = [
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
+  const chromePath = await findChrome();
   const browser = await puppeteer.launch({
-    executablePath: CHROME,
+    executablePath: chromePath,
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     defaultViewport: { width: 1280, height: 800 },
