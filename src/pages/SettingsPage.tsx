@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { User, Bot, Shield, Trash2, Webhook, Radar } from "lucide-react";
+import { User, Bot, Shield, Trash2, Webhook, Radar, MessageSquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
+import { handoffFromWatchdogEvent, parseWatchdogIssues, watchdogEventLabel } from "../lib/watchdog";
 import type { AiConfig, Profile, PsaConfig, WatchdogConfig, WatchdogEvent } from "../services/types";
 
 export function SettingsPage() {
@@ -13,7 +15,8 @@ export function SettingsPage() {
   const [psaSecret, setPsaSecret] = useState("");
   const [watchdogConfig, setWatchdogConfig] = useState<WatchdogConfig | null>(null);
   const [watchdogEvents, setWatchdogEvents] = useState<WatchdogEvent[]>([]);
-  const { addNotification } = useAppStore();
+  const { addNotification, setWatchdogHandoff } = useAppStore();
+  const navigate = useNavigate();
 
   useEffect(() => {
     Promise.all([
@@ -159,6 +162,11 @@ export function SettingsPage() {
     } catch (err) {
       addNotification({ type: "error", title: "Acknowledge failed", message: String(err) });
     }
+  };
+
+  const sendWatchdogToJonathan = (event: (typeof watchdogEvents)[number]) => {
+    setWatchdogHandoff(handoffFromWatchdogEvent(event));
+    navigate("/jonathan");
   };
 
   return (
@@ -347,7 +355,8 @@ export function SettingsPage() {
           <h2 className="font-medium text-white">Proactive Watchdog</h2>
         </div>
         <p className="text-sm text-gray-400">
-          Background health monitoring with automatic incident planning when thresholds are breached.
+          Background monitoring for CPU spikes, memory pressure, low disk space, and overall health.
+          Alerts can be sent to Jonathan with a pre-built repair plan.
         </p>
         {watchdogConfig && (
           <>
@@ -421,7 +430,9 @@ export function SettingsPage() {
             {watchdogEvents.length > 0 && (
               <div className="space-y-2 border-t border-surface-border pt-4">
                 <h3 className="text-sm font-medium text-white">Recent alerts</h3>
-                {watchdogEvents.map((event) => (
+                {watchdogEvents.map((event) => {
+                  const issues = parseWatchdogIssues(event.issues_json);
+                  return (
                   <div
                     key={event.id}
                     className={`rounded-lg border p-3 text-sm ${
@@ -430,20 +441,45 @@ export function SettingsPage() {
                         : "border-amber-500/30 text-amber-100"
                     }`}
                   >
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                        {watchdogEventLabel(event.event_type)}
+                      </span>
+                      <span className="text-xs text-gray-500">Health {event.health_score}/100</span>
+                    </div>
                     <p>{event.message}</p>
+                    {issues.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-xs text-gray-400">
+                        {issues.slice(0, 3).map((issue) => (
+                          <li key={issue.id}>• {issue.title}</li>
+                        ))}
+                      </ul>
+                    )}
                     <p className="mt-1 text-xs text-gray-500">
-                      {new Date(event.created_at).toLocaleString()} · Health {event.health_score}/100
+                      {new Date(event.created_at).toLocaleString()}
                     </p>
                     {!event.acknowledged && (
-                      <button
-                        onClick={() => acknowledgeWatchdogEvent(event.id)}
-                        className="mt-2 text-xs text-thorpe-400 hover:underline"
-                      >
-                        Acknowledge
-                      </button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => sendWatchdogToJonathan(event)}
+                          className="btn-primary inline-flex items-center gap-1 px-3 py-1 text-xs"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Send to Jonathan
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => acknowledgeWatchdogEvent(event.id)}
+                          className="btn-secondary px-3 py-1 text-xs"
+                        >
+                          Acknowledge
+                        </button>
+                      </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>

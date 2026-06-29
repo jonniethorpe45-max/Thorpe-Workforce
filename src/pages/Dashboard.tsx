@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   MessageSquare,
   CreditCard,
+  Radar,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HealthScoreRing } from "../components/ui/HealthScoreRing";
@@ -36,9 +37,23 @@ export function Dashboard() {
   const { lastScan, setLastScan, license } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState<string | null>(null);
+  const [watchdogEnabled, setWatchdogEnabled] = useState<boolean | null>(null);
+  const [showWatchdogIntro, setShowWatchdogIntro] = useState(false);
 
   useEffect(() => {
     thorpeApi.getProfile().then((profile) => setFirstName(extractFirstName(profile.display_name))).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    Promise.all([thorpeApi.getWatchdogStatus(), thorpeApi.getSettings()])
+      .then(([status, settings]) => {
+        setWatchdogEnabled(status.config.enabled);
+        const dismissed = settings.some(
+          ([key, value]) => key === "watchdog_intro_dismissed" && value === "1"
+        );
+        setShowWatchdogIntro(!status.config.enabled && !dismissed);
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -106,6 +121,47 @@ export function Dashboard() {
           </Link>
         </div>
       </motion.div>
+
+      {showWatchdogIntro && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card flex flex-col gap-4 border-thorpe-primary/25 bg-thorpe-primary/5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <Radar className="mt-0.5 h-5 w-5 shrink-0 text-thorpe-primary" />
+            <div>
+              <h2 className="font-medium text-white">Enable proactive monitoring</h2>
+              <p className="mt-1 text-sm text-steel">
+                Jonathan can watch for CPU spikes, memory pressure, and low disk space every 15
+                minutes while Thorpe is open — and alert you before things get worse.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              className="btn-secondary text-sm"
+              onClick={async () => {
+                await thorpeApi.updateSettings("watchdog_intro_dismissed", "1");
+                setShowWatchdogIntro(false);
+              }}
+            >
+              Not now
+            </button>
+            <Link to="/settings" className="btn-primary text-sm">
+              Enable in Settings
+            </Link>
+          </div>
+        </motion.div>
+      )}
+
+      {watchdogEnabled && (
+        <p className="flex items-center gap-2 text-xs text-steel">
+          <Radar className="h-3.5 w-3.5 text-thorpe-primary" />
+          Proactive Watchdog is monitoring CPU, memory, disk, and health score in the background.
+        </p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <motion.div

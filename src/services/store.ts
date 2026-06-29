@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { DiagnosticReport, LicenseInfo, SystemScanResult } from "../services/types";
+import type { DiagnosticReport, LicenseInfo, SystemScanResult } from "./types";
+import type { WatchdogHandoff } from "../lib/watchdog";
 
 export interface Notification {
   id: string;
@@ -8,6 +9,8 @@ export interface Notification {
   message: string;
   timestamp: string;
   read: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface AppStore {
@@ -17,6 +20,7 @@ interface AppStore {
   notifications: Notification[];
   sidebarCollapsed: boolean;
   searchQuery: string;
+  watchdogHandoff: WatchdogHandoff | null;
 
   setLicense: (license: LicenseInfo) => void;
   setLastScan: (scan: SystemScanResult | null) => void;
@@ -26,6 +30,7 @@ interface AppStore {
   clearNotifications: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSearchQuery: (query: string) => void;
+  setWatchdogHandoff: (handoff: WatchdogHandoff | null) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -35,6 +40,7 @@ export const useAppStore = create<AppStore>((set) => ({
   notifications: [],
   sidebarCollapsed: false,
   searchQuery: "",
+  watchdogHandoff: null,
 
   setLicense: (license) => set({ license }),
   setLastScan: (scan) => set({ lastScan: scan }),
@@ -63,4 +69,5 @@ export const useAppStore = create<AppStore>((set) => ({
   clearNotifications: () => set({ notifications: [] }),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  setWatchdogHandoff: (handoff) => set({ watchdogHandoff: handoff }),
 }));

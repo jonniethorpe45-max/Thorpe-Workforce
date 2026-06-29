@@ -769,14 +769,39 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "get_watchdog_status":
       return {
         config: {
-          enabled: false,
-          interval_minutes: 30,
+          enabled: true,
+          interval_minutes: 15,
           health_threshold: 70,
           auto_notify: true,
           auto_plan: true,
           updated_at: new Date().toISOString(),
         },
-        recent_events: [],
+        recent_events: [
+          {
+            id: "watchdog-mock-1",
+            event_type: "high_cpu",
+            health_score: 68,
+            message: "CPU usage is 88.0% — a process may be spiking or overloading the system.",
+            plan_json: JSON.stringify({
+              hypotheses: ["A background process is consuming CPU"],
+              confidence: 0.8,
+              steps: [{ tool_id: "high-resource-id", reason: "Identify heavy process", risk: "low", requires_approval: false }],
+              citations: [],
+              escalate_if: [],
+            }),
+            issues_json: JSON.stringify([
+              {
+                id: "high-cpu",
+                title: "High CPU usage",
+                description: "CPU hot",
+                severity: "medium",
+                category: "performance",
+              },
+            ]),
+            acknowledged: false,
+            created_at: new Date().toISOString(),
+          },
+        ],
       } as T;
 
     case "update_watchdog_config":

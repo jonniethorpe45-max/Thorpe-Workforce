@@ -23,6 +23,8 @@ import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { thorpeApi } from "../../services/tauri";
 import { ThorpeLogo } from "../brand/ThorpeLogo";
+import type { WatchdogAlertPayload } from "../../services/types";
+import { handoffFromWatchdogEvent, watchdogEventLabel } from "../../lib/watchdog";
 
 const primaryNav = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -43,7 +45,7 @@ const secondaryNav = [
 ];
 
 export function AppLayout() {
-  const { sidebarCollapsed, setSidebarCollapsed, searchQuery, setSearchQuery, setLicense, license, addNotification } =
+  const { sidebarCollapsed, setSidebarCollapsed, searchQuery, setSearchQuery, setLicense, license, addNotification, setWatchdogHandoff } =
     useAppStore();
   const navigate = useNavigate();
 
@@ -54,17 +56,33 @@ export function AppLayout() {
   useEffect(() => {
     if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
     let unlisten: (() => void) | undefined;
-    listen<{ message: string; health_score: number }>("watchdog-alert", (event) => {
+    listen<WatchdogAlertPayload>("watchdog-alert", (event) => {
+      const payload = event.payload;
+      const handoff = handoffFromWatchdogEvent({
+        id: payload.id,
+        event_type: payload.event_type,
+        health_score: payload.health_score,
+        message: payload.message,
+        plan_json: payload.plan_json ?? null,
+        issues_json: payload.issues_json ?? null,
+        acknowledged: false,
+        created_at: new Date().toISOString(),
+      });
       addNotification({
         type: "warning",
-        title: "Watchdog alert",
-        message: event.payload.message || `Health score dropped to ${event.payload.health_score}/100`,
+        title: `Watchdog: ${watchdogEventLabel(payload.event_type)}`,
+        message: payload.message,
+        actionLabel: "Send to Jonathan",
+        onAction: () => {
+          setWatchdogHandoff(handoff);
+          navigate("/jonathan");
+        },
       });
     }).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, [addNotification]);
+  }, [addNotification, navigate, setWatchdogHandoff]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

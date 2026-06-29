@@ -479,8 +479,18 @@ export interface WatchdogEvent {
   health_score: number;
   message: string;
   plan_json: string | null;
+  issues_json?: string | null;
   acknowledged: boolean;
   created_at: string;
+}
+
+export interface WatchdogAlertPayload {
+  id: string;
+  event_type: string;
+  health_score: number;
+  message: string;
+  plan_json?: string | null;
+  issues_json?: string | null;
 }
 
 export interface WatchdogStatus {

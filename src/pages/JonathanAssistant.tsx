@@ -6,6 +6,7 @@ import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import { buildJonathanWelcome } from "../prompts/jonathan";
 import { extractFirstName } from "../lib/userName";
+import { buildWatchdogJonathanPrompt } from "../lib/watchdog";
 import { JonathanAvatar } from "../components/brand/JonathanAvatar";
 import { WordByWordReply } from "../components/ui/WordByWordReply";
 import { getJonathanSourceLabel, isCloudAiActive } from "../lib/jonathanMode";
@@ -72,8 +73,10 @@ export function JonathanAssistant() {
   const [skillLevel, setSkillLevel] = useState("beginner");
   const [aiConfig, setAiConfig] = useState<AiConfig | null>(null);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
-  const { lastScan, addNotification } = useAppStore();
+  const [chatReady, setChatReady] = useState(false);
+  const { lastScan, addNotification, watchdogHandoff, setWatchdogHandoff } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const handoffStartedRef = useRef(false);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -93,9 +96,66 @@ export function JonathanAssistant() {
           setMessages(restored);
           setTypingMessageIndex(null);
         }
+        setChatReady(true);
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!chatReady || !watchdogHandoff || handoffStartedRef.current) return;
+    handoffStartedRef.current = true;
+    const handoff = watchdogHandoff;
+    setWatchdogHandoff(null);
+    const prompt = buildWatchdogJonathanPrompt(handoff);
+
+    setMessages((prev) => {
+      const withUser: Message[] = [...prev, { role: "user", content: prompt }];
+      void (async () => {
+        setLoading(true);
+        try {
+          const history = withUser.map((m) => ({ role: m.role, content: m.content }));
+          const response = await thorpeApi.chatWithJonathan({
+            message: prompt,
+            skill_level: skillLevel,
+            scan_context: lastScan ? JSON.stringify(lastScan) : undefined,
+            history,
+          });
+          setMessages((current) => {
+            const nextIndex = current.length;
+            setTypingMessageIndex(nextIndex);
+            return [
+              ...current,
+              {
+                role: "assistant",
+                content: response.message,
+                source: response.source,
+                repairs: response.repairs_executed,
+                pendingRepairs: response.pending_repairs,
+                pendingResolved: (response.pending_repairs?.length ?? 0) === 0,
+                verification: response.verification,
+                escalationCaseId: response.escalation_case_id,
+                agentPlan: response.agent_plan ?? handoff.plan ?? null,
+                agentSessionId: response.agent_session_id,
+                kbSuggestions: response.kb_suggestions,
+                connectivityReport: response.connectivity_report,
+              },
+            ];
+          });
+          await thorpeApi.acknowledgeWatchdogEvent(handoff.eventId);
+        } catch (err) {
+          addNotification({
+            type: "error",
+            title: "Watchdog handoff failed",
+            message: String(err),
+          });
+        } finally {
+          setLoading(false);
+          handoffStartedRef.current = false;
+        }
+      })();
+      return withUser;
+    });
+  }, [chatReady, watchdogHandoff, setWatchdogHandoff, skillLevel, lastScan, addNotification]);
 
   useEffect(() => {
     scrollToBottom();
