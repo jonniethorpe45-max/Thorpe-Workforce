@@ -34,7 +34,9 @@ This package is a **technical invention disclosure** prepared from the Thorpe De
 | 07 | [07-EXECUTIVE-BRIEF-ONE-PAGE.md](./07-EXECUTIVE-BRIEF-ONE-PAGE.md) | Non-technical one-page summary for counsel |
 | 08 | [08-ATTORNEY-TRANSMITTAL-LETTER.md](./08-ATTORNEY-TRANSMITTAL-LETTER.md) | Cover letter template (fill in and send) |
 | 09 | [09-FIGURE-SCREENSHOT-GUIDE.md](./09-FIGURE-SCREENSHOT-GUIDE.md) | Figure numbering, screenshots, diagram conversion |
-| — | [dist/Thorpe-Desktop-Patent-Package.pdf](./dist/Thorpe-Desktop-Patent-Package.pdf) | Combined PDF (run `bash scripts/build-patent-package.sh`) |
+| 10 | [10-PROBLEMS-SOLVED-FOR-COUNSEL.md](./10-PROBLEMS-SOLVED-FOR-COUNSEL.md) | Problems solved — patent counsel brief |
+| — | [dist/Thorpe-Desktop-Problems-Solved-For-Counsel.pdf](./dist/Thorpe-Desktop-Problems-Solved-For-Counsel.pdf) | **Direct download:** problems solved (counsel) |
+| — | [dist/Thorpe-Desktop-Patent-Package.pdf](./dist/Thorpe-Desktop-Patent-Package.pdf) | Combined full patent package PDF |
 | — | [screenshots/](./screenshots/) | UI captures for specification figures |
 
 ---
