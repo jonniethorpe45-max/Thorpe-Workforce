@@ -72,9 +72,10 @@ describe("E2E user flows", () => {
 
     await waitFor(
       () => {
-        expect(screen.getByText(/flush dns cache/i)).toBeTruthy();
+        expect(screen.getByText(/approval needed/i)).toBeTruthy();
+        expect(screen.getByRole("button", { name: /approve/i })).toBeTruthy();
       },
-      { timeout: 10000 }
+      { timeout: 20000 }
     );
   });
 

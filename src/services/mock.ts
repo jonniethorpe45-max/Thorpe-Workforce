@@ -93,6 +93,14 @@ function requireMockFeature(feature: string): void {
   }
 }
 
+export function resetMockState(): void {
+  mockLicense.tier = "free";
+  mockLicense.license_key = null;
+  mockLicense.activated_at = null;
+  mockLicense.expires_at = null;
+  mockLicense.organization = null;
+}
+
 const mockScan: SystemScanResult = {
   id: "mock-scan-1",
   timestamp: new Date().toISOString(),

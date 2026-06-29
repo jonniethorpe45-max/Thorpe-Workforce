@@ -23,14 +23,18 @@ export function TechnicianWorkspace() {
   }, []);
 
   const loadData = async () => {
-    const [c, cs, n] = await Promise.all([
-      thorpeApi.listClients(),
-      thorpeApi.listCases(),
-      thorpeApi.listTechnicianNotes(),
-    ]);
-    setClients(c);
-    setCases(cs);
-    setNotes(n);
+    try {
+      const [c, cs, n] = await Promise.all([
+        thorpeApi.listClients(),
+        thorpeApi.listCases(),
+        thorpeApi.listTechnicianNotes(),
+      ]);
+      setClients(c);
+      setCases(cs);
+      setNotes(n);
+    } catch (err) {
+      addNotification({ type: "error", title: "Workspace load failed", message: String(err) });
+    }
   };
 
   if (featureAllowed === false) {
