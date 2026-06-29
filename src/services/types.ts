@@ -288,6 +288,16 @@ export interface UpdateInfo {
   download_url: string;
 }
 
+export interface ReleaseDownloads {
+  release_version: string;
+  releases_page: string;
+  windows_exe: string | null;
+  windows_msi: string | null;
+  macos_dmg: string | null;
+  linux_appimage: string | null;
+  linux_deb: string | null;
+}
+
 export interface AiProviderRecord {
   id: string;
   name: string;

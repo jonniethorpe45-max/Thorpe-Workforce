@@ -25,6 +25,7 @@ import type {
   SystemScanResult,
   TechnicianNote,
   UpdateInfo,
+  ReleaseDownloads,
   UpsertAiAgentRequest,
   UpsertAiProviderRequest,
   UpdateAiOrgPolicyRequest,
@@ -54,6 +55,7 @@ async function invokeOrMock<T>(cmd: string, args?: Record<string, unknown>): Pro
 export const thorpeApi = {
   getAppInfo: () => invokeOrMock<AppInfo>("get_app_info"),
   checkForUpdates: () => invokeOrMock<UpdateInfo>("check_for_updates"),
+  getReleaseDownloads: () => invokeOrMock<ReleaseDownloads>("get_release_downloads"),
 
   getProfile: () => invokeOrMock<Profile>("get_profile"),
   updateProfile: (displayName: string, email: string | null, skillLevel: string, role?: string) =>

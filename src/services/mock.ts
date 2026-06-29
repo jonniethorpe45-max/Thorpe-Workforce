@@ -530,10 +530,27 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "check_for_updates":
       return {
         current_version: "1.1.0",
-        latest_version: "1.1.0",
+        latest_version: "1.0.8",
         update_available: false,
         release_notes: "You are running the latest version.",
-        download_url: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
+        download_url:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_x64-setup.exe",
+      } as T;
+
+    case "get_release_downloads":
+      return {
+        release_version: "1.0.8",
+        releases_page: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
+        windows_exe:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_x64-setup.exe",
+        windows_msi:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_x64_en-US.msi",
+        macos_dmg:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_aarch64.dmg",
+        linux_appimage:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_amd64.AppImage",
+        linux_deb:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_amd64.deb",
       } as T;
 
     case "list_intel_items":

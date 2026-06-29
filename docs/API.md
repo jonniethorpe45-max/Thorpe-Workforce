@@ -8,6 +8,7 @@ All commands are invoked from the frontend via `@tauri-apps/api/core` `invoke()`
 |---------|------|---------|-------------|
 | `get_app_info` | — | `AppInfo` | Application name, version, platform |
 | `check_for_updates` | — | `UpdateInfo` | Check for available updates |
+| `get_release_downloads` | — | `ReleaseDownloads` | Published installer URLs from GitHub Releases |
 
 ## Profile & Settings
 
