@@ -25,6 +25,8 @@ import type {
   SystemScanResult,
   TechnicianNote,
   UpdateInfo,
+  ConnectivityReport,
+  ConnectivityDiagnosticRecord,
   UpsertAiAgentRequest,
   UpsertAiProviderRequest,
   UpdateAiOrgPolicyRequest,
@@ -54,6 +56,15 @@ async function invokeOrMock<T>(cmd: string, args?: Record<string, unknown>): Pro
 export const thorpeApi = {
   getAppInfo: () => invokeOrMock<AppInfo>("get_app_info"),
   checkForUpdates: () => invokeOrMock<UpdateInfo>("check_for_updates"),
+  runConnectivityDiagnostics: (userMessage?: string, sessionId?: string) =>
+    invokeOrMock<ConnectivityReport>("run_connectivity_diagnostics", {
+      userMessage: userMessage ?? null,
+      sessionId: sessionId ?? null,
+    }),
+  listConnectivityDiagnostics: (limit?: number) =>
+    invokeOrMock<ConnectivityDiagnosticRecord[]>("list_connectivity_diagnostics", {
+      limit: limit ?? 20,
+    }),
 
   getProfile: () => invokeOrMock<Profile>("get_profile"),
   updateProfile: (displayName: string, email: string | null, skillLevel: string, role?: string) =>

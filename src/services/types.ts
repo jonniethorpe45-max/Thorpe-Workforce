@@ -259,6 +259,7 @@ export interface ChatResponse {
   kb_suggestions?: KbSuggestion[];
   agent_plan?: AgentPlan | null;
   agent_session_id?: string | null;
+  connectivity_report?: ConnectivityReport | null;
 }
 
 export interface ChatMessage {
@@ -278,6 +279,32 @@ export interface AssistantChatMetadata {
   kb_suggestions?: KbSuggestion[];
   agent_plan?: AgentPlan | null;
   agent_session_id?: string | null;
+  connectivity_report?: ConnectivityReport | null;
+}
+
+export interface ConnectivityCheck {
+  name: string;
+  status: string;
+  detail: string;
+}
+
+export interface ConnectivityReport {
+  checks: ConnectivityCheck[];
+  overall_status: string;
+  recommended_actions: string[];
+  playbook_summary: string;
+  offline_capable: boolean;
+}
+
+export interface ConnectivityDiagnosticRecord {
+  id: string;
+  session_id: string | null;
+  user_message: string | null;
+  overall_status: string;
+  playbook_summary: string;
+  results_json: string;
+  recommended_actions_json: string;
+  created_at: string;
 }
 
 export interface UpdateInfo {

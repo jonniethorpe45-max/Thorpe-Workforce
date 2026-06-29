@@ -8,6 +8,8 @@ All commands are invoked from the frontend via `@tauri-apps/api/core` `invoke()`
 |---------|------|---------|-------------|
 | `get_app_info` | — | `AppInfo` | Application name, version, platform |
 | `check_for_updates` | — | `UpdateInfo` | Check for available updates |
+| `run_connectivity_diagnostics` | `user_message?`, `session_id?` | `ConnectivityReport` | Offline layered network diagnostics (adapter, gateway, DNS, internet) |
+| `list_connectivity_diagnostics` | `limit?` | `ConnectivityDiagnosticRecord[]` | History of connectivity diagnostic runs |
 
 ## Profile & Settings
 

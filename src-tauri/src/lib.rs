@@ -3,6 +3,7 @@ mod updates;
 pub mod agent;
 pub mod billing;
 pub mod ai;
+pub mod connectivity;
 pub mod db;
 pub mod enterprise_ai;
 pub mod evidence;
@@ -120,6 +121,8 @@ pub fn run() {
             billing::open_external_url,
             pdf::export_report_pdf,
             pdf::export_agent_session_pdf,
+            connectivity::run_connectivity_diagnostics,
+            connectivity::list_connectivity_diagnostics,
             get_app_info,
             check_for_updates,
         ])

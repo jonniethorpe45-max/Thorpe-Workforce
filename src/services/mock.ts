@@ -282,14 +282,40 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       const req = args?.request as { message: string };
       const msg = req?.message?.toLowerCase() || "";
       const firstName = extractFirstName("Alex Johnson");
+      const isNetwork = msg.includes("wifi") || msg.includes("network") || msg.includes("internet");
+      const connectivityReport = isNetwork
+        ? {
+            checks: [
+              { name: "Network adapter", status: "pass", detail: "Active interface: wlan0" },
+              { name: "Default gateway", status: "pass", detail: "Reachable: 192.168.1.1" },
+              { name: "DNS resolution", status: "fail", detail: "Could not resolve example.com" },
+              { name: "Internet (1.1.1.1)", status: "pass", detail: "Reachable: 1.1.1.1" },
+            ],
+            overall_status: "degraded",
+            recommended_actions: ["dns-flush", "connectivity-suite"],
+            playbook_summary:
+              "Internet reachability looks OK but DNS resolution failed. Flushing the DNS cache is the next step.",
+            offline_capable: true,
+          }
+        : null;
       const repairs =
-        msg.includes("wifi") || msg.includes("network")
+        isNetwork
           ? [
+              {
+                success: true,
+                message: "Offline connectivity diagnostics complete.",
+                details:
+                  "Overall status: degraded\n\nChecks:\n  ✓ Network adapter — Active interface: wlan0\n  ✗ DNS resolution — Could not resolve example.com",
+                record_id: "mock-repair-1",
+                action_id: "connectivity-suite",
+                action_name: "Offline Connectivity Suite",
+                action_kind: "diagnostic",
+              },
               {
                 success: true,
                 message: "DNS cache flushed successfully.",
                 details: null,
-                record_id: "mock-repair-1",
+                record_id: "mock-repair-2",
                 action_id: "dns-flush",
                 action_name: "Flush DNS Cache",
                 action_kind: "mutating",
@@ -300,10 +326,14 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       const closing = firstName
         ? `Let me know if you need anything else, ${firstName}.`
         : "Let me know if you need anything else.";
-      const response =
+      let response =
         repairs.length > 0
-          ? `${greeting}\n\n**Repairs applied:**\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n${closing}`
-          : `${greeting}\n\nI analyzed your request but no automated actions were run.\n\n${closing}`;
+          ? `${greeting}\n\n**Diagnostics run:**\n- ✓ **Offline Connectivity Suite** — Offline connectivity diagnostics complete.\n\n**Repairs applied:**\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n`
+          : `${greeting}\n\nI analyzed your request but no automated actions were run.\n\n`;
+      if (connectivityReport) {
+        response += `**Offline connectivity check** (runs locally — no internet required):\n- Overall: **degraded**\n- ${connectivityReport.playbook_summary}\n`;
+      }
+      response += closing;
       return {
         message: response,
         source: "local",
@@ -333,9 +363,34 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
             }
           : null,
         escalation_case_id: msg.includes("virus") ? "mock-case-1" : null,
-        kb_suggestions: [],
+        kb_suggestions: isNetwork
+          ? [
+              {
+                id: "kb-network-dns",
+                title: "DNS Resolution Failures",
+                summary: "Websites won't load but ping works.",
+                source: "knowledge_base",
+              },
+            ]
+          : [],
+        connectivity_report: connectivityReport,
       } as T;
     }
+
+    case "run_connectivity_diagnostics":
+      return {
+        checks: [
+          { name: "Network adapter", status: "pass", detail: "Active interface: wlan0" },
+          { name: "Internet (1.1.1.1)", status: "pass", detail: "Reachable: 1.1.1.1" },
+        ],
+        overall_status: "healthy",
+        recommended_actions: ["connectivity-suite"],
+        playbook_summary: "Core connectivity checks passed.",
+        offline_capable: true,
+      } as T;
+
+    case "list_connectivity_diagnostics":
+      return [] as T;
 
     case "get_chat_history":
       return [] as T;

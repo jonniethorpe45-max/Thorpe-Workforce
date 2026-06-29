@@ -29,6 +29,7 @@ impl Database {
         let db = Self { conn };
         db.migrate()?;
         db.seed_knowledge_base()?;
+        db.seed_connectivity_kb()?;
         Ok(db)
     }
 
@@ -300,6 +301,17 @@ impl Database {
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS connectivity_diagnostics (
+                id TEXT PRIMARY KEY,
+                session_id TEXT,
+                user_message TEXT,
+                overall_status TEXT NOT NULL,
+                playbook_summary TEXT NOT NULL,
+                results_json TEXT NOT NULL,
+                recommended_actions_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL
+            );
+
             CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
                 article_id UNINDEXED,
                 title,
@@ -407,6 +419,28 @@ impl Database {
         for article in articles {
             self.conn.execute(
                 "INSERT INTO knowledge_base (id, category, title, symptoms, causes, fixes, prevention, when_to_escalate, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    article.id,
+                    article.category,
+                    article.title,
+                    article.symptoms,
+                    article.causes,
+                    article.fixes,
+                    article.prevention,
+                    article.when_to_escalate,
+                    article.tags,
+                    Utc::now().to_rfc3339(),
+                ],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn seed_connectivity_kb(&self) -> DbResult<()> {
+        let articles = connectivity_kb_seed::articles();
+        for article in articles {
+            self.conn.execute(
+                "INSERT OR IGNORE INTO knowledge_base (id, category, title, symptoms, causes, fixes, prevention, when_to_escalate, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     article.id,
                     article.category,
@@ -630,6 +664,42 @@ impl Database {
                 details: row.get(4)?,
                 risk_level: row.get(5)?,
                 created_at: row.get(6)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn save_connectivity_diagnostic(&self, record: &ConnectivityDiagnosticRecord) -> DbResult<()> {
+        self.conn.execute(
+            "INSERT INTO connectivity_diagnostics (id, session_id, user_message, overall_status, playbook_summary, results_json, recommended_actions_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                record.id,
+                record.session_id,
+                record.user_message,
+                record.overall_status,
+                record.playbook_summary,
+                record.results_json,
+                record.recommended_actions_json,
+                record.created_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_connectivity_diagnostics(&self, limit: i64) -> DbResult<Vec<ConnectivityDiagnosticRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_id, user_message, overall_status, playbook_summary, results_json, recommended_actions_json, created_at FROM connectivity_diagnostics ORDER BY created_at DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(ConnectivityDiagnosticRecord {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                user_message: row.get(2)?,
+                overall_status: row.get(3)?,
+                playbook_summary: row.get(4)?,
+                results_json: row.get(5)?,
+                recommended_actions_json: row.get(6)?,
+                created_at: row.get(7)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
@@ -1411,6 +1481,18 @@ pub struct RepairRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectivityDiagnosticRecord {
+    pub id: String,
+    pub session_id: Option<String>,
+    pub user_message: Option<String>,
+    pub overall_status: String,
+    pub playbook_summary: String,
+    pub results_json: String,
+    pub recommended_actions_json: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KnowledgeArticle {
     pub id: String,
     pub category: String,
@@ -1693,6 +1775,58 @@ mod knowledge_seed {
             SeedArticle { id: "kb-security-malware", category: "Security", title: "Suspected Malware Infection", symptoms: "Unexpected pop-ups; browser redirects; high CPU from unknown processes; files encrypted with ransom note.", causes: "Phishing emails; malicious downloads; outdated software; disabled security software; USB infections.", fixes: "1. Disconnect from network immediately if ransomware suspected.\n2. Run a full antivirus scan.\n3. Boot into Safe Mode and scan again.\n4. Check startup programs and browser extensions.\n5. Update all software and change passwords from a clean device.", prevention: "Enable automatic updates; use reputable antivirus; never open suspicious attachments; maintain backups.", when_to_escalate: "Immediately for ransomware. Contact cybersecurity professional for business systems.", tags: "[\"security\", \"malware\", \"ransomware\"]" },
             SeedArticle { id: "kb-perf-high-cpu", category: "Performance", title: "High CPU Usage", symptoms: "Fan runs constantly; system is slow; Task Manager shows high CPU from unknown process.", causes: "Background updates; malware; runaway processes; browser with many tabs; indexing services; thermal throttling.", fixes: "1. Identify the process in Task Manager / Activity Monitor.\n2. End non-essential high-CPU tasks.\n3. Disable unnecessary startup programs.\n4. Check for pending updates (may resolve after completion).\n5. Scan for malware if process is suspicious.", prevention: "Monitor startup programs; keep system clean; ensure adequate cooling.", when_to_escalate: "If CPU usage stays at 100% with no identifiable cause after reboot.", tags: "[\"performance\", \"cpu\", \"troubleshooting\"]" },
             SeedArticle { id: "kb-software-crash", category: "Software", title: "Application Keeps Crashing", symptoms: "App closes unexpectedly; error dialogs on launch; app freezes and requires force quit.", causes: "Corrupted preferences; incompatible OS update; insufficient memory; conflicting software; damaged installation.", fixes: "1. Restart the application and computer.\n2. Check for app updates.\n3. Reset app preferences/cache.\n4. Reinstall the application.\n5. Check system requirements and available RAM.", prevention: "Keep apps updated; maintain sufficient free RAM and disk space; backup app data.", when_to_escalate: "If crashes affect critical business software or data loss occurs.", tags: "[\"software\", \"crashes\", \"troubleshooting\"]" },
+        ]
+    }
+}
+
+mod connectivity_kb_seed {
+    pub struct SeedArticle {
+        pub id: &'static str,
+        pub category: &'static str,
+        pub title: &'static str,
+        pub symptoms: &'static str,
+        pub causes: &'static str,
+        pub fixes: &'static str,
+        pub prevention: &'static str,
+        pub when_to_escalate: &'static str,
+        pub tags: &'static str,
+    }
+
+    pub fn articles() -> Vec<SeedArticle> {
+        vec![
+            SeedArticle {
+                id: "kb-offline-no-internet",
+                category: "Networking",
+                title: "No Internet Connection (Offline Troubleshooting)",
+                symptoms: "Browser shows 'No Internet'; apps cannot sync; Wi-Fi icon shows connected but pages won't load.",
+                causes: "Router/modem issue; DNS failure; VPN stuck; adapter disabled; ISP outage; captive portal.",
+                fixes: "1. Run Thorpe connectivity diagnostics (Jonathan or Repair Center).\n2. Toggle Wi-Fi off and on.\n3. Restart modem and router (power off 30 seconds).\n4. Flush DNS cache.\n5. Disable VPN temporarily.\n6. Try a mobile hotspot to isolate ISP vs device.",
+                prevention: "Document working DNS settings; keep router firmware updated; note VPN requirements.",
+                when_to_escalate: "If all devices on the network fail, contact ISP. If only one device fails after all steps, hardware repair may be needed.",
+                tags: "[\"networking\", \"offline\", \"connectivity\", \"wifi\"]",
+            },
+            SeedArticle {
+                id: "kb-gateway-unreachable",
+                category: "Networking",
+                title: "Cannot Reach Router or Gateway",
+                symptoms: "Connected to Wi-Fi but no local network access; cannot open router admin page; gateway ping fails.",
+                causes: "Wrong network; DHCP failure; router crashed; Ethernet cable loose; airplane mode.",
+                fixes: "1. Confirm correct Wi-Fi network (not guest/isolated VLAN).\n2. Reconnect to network and obtain new IP (renew DHCP).\n3. Restart router.\n4. For Ethernet, reseat cable and try another port.\n5. Run connectivity diagnostics in Thorpe.",
+                prevention: "Label networks; avoid overlapping guest/main SSIDs without routing.",
+                when_to_escalate: "Corporate managed networks — contact network administrator.",
+                tags: "[\"networking\", \"gateway\", \"router\", \"offline\"]",
+            },
+            SeedArticle {
+                id: "kb-dns-works-ip-only",
+                category: "Networking",
+                title: "Internet Works by IP but Not by Website Name",
+                symptoms: "Ping to 8.8.8.8 succeeds but websites fail; DNS_PROBE errors in browser.",
+                causes: "Corrupted DNS cache; wrong DNS servers; hosts file override; VPN DNS leak.",
+                fixes: "1. Flush DNS cache (Thorpe Repair Center or Jonathan).\n2. Set DNS to 1.1.1.1 and 8.8.8.8.\n3. Check hosts file for bad entries.\n4. Disable VPN and retest.",
+                prevention: "Use reliable DNS; document custom DNS for work networks.",
+                when_to_escalate: "If DNS fails on all networks after flush, malware or policy may block DNS.",
+                tags: "[\"dns\", \"networking\", \"offline\", \"connectivity\"]",
+            },
         ]
     }
 }

@@ -189,6 +189,13 @@ describe("E2E API coverage", () => {
     const updates = await thorpeApi.checkForUpdates();
     expect(updates.current_version).toBeTruthy();
 
+    const connectivity = await thorpeApi.runConnectivityDiagnostics("wifi test");
+    expect(connectivity.offline_capable).toBe(true);
+    expect(connectivity.checks.length).toBeGreaterThan(0);
+
+    const history = await thorpeApi.listConnectivityDiagnostics(5);
+    expect(Array.isArray(history)).toBe(true);
+
     await thorpeApi.deleteAllUserData();
   });
 });

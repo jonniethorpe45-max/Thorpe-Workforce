@@ -172,6 +172,7 @@ pub fn allowed_tool_ids(db: &Database) -> Result<Vec<String>, String> {
         ids = vec![
             "dns-flush".into(),
             "network-diagnostics".into(),
+            "connectivity-suite".into(),
             "disk-analysis".into(),
             "high-resource-id".into(),
             "temp-cleanup".into(),
@@ -191,6 +192,7 @@ fn is_known_repair_action(action_id: &str) -> bool {
         "startup-review",
         "high-resource-id",
         "network-diagnostics",
+        "connectivity-suite",
         "update-check",
         "restart-recommend",
         "print-spooler-restart",
