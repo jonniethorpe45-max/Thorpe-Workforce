@@ -125,6 +125,7 @@ pub fn run() {
             connectivity::list_connectivity_diagnostics,
             get_app_info,
             check_for_updates,
+            get_release_downloads,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Thorpe");
@@ -158,4 +159,9 @@ fn get_app_info(app: tauri::AppHandle) -> Result<AppInfo, String> {
 #[tauri::command]
 async fn check_for_updates() -> Result<updates::UpdateInfo, String> {
     updates::check_for_updates(env!("CARGO_PKG_VERSION"), None).await
+}
+
+#[tauri::command]
+async fn get_release_downloads() -> Result<updates::ReleaseDownloads, String> {
+    updates::get_release_downloads(None).await
 }

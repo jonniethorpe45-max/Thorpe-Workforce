@@ -1,13 +1,8 @@
-import { THORPE_VERSION } from "./version";
+/** Public releases page — prefer runtime links from getReleaseDownloads(). */
+export const THORPE_RELEASES_PAGE =
+  "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest";
 
-const RELEASE_BASE =
-  "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest/download";
-
+/** @deprecated Use thorpeApi.getReleaseDownloads() for installer URLs. */
 export const THORPE_DOWNLOADS = {
-  releasesPage: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
-  windowsExe: `${RELEASE_BASE}/Thorpe_${THORPE_VERSION}_x64-setup.exe`,
-  windowsMsi: `${RELEASE_BASE}/Thorpe_${THORPE_VERSION}_x64_en-US.msi`,
-  macosDmg: `${RELEASE_BASE}/Thorpe_${THORPE_VERSION}_aarch64.dmg`,
-  linuxAppImage: `${RELEASE_BASE}/Thorpe_${THORPE_VERSION}_amd64.AppImage`,
-  linuxDeb: `${RELEASE_BASE}/Thorpe_${THORPE_VERSION}_amd64.deb`,
+  releasesPage: THORPE_RELEASES_PAGE,
 } as const;

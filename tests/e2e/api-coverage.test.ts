@@ -73,6 +73,7 @@ describe("E2E API coverage", () => {
 
     const feature = await thorpeApi.checkFeature("repair_center");
     expect(feature.feature).toBe("repair_center");
+    expect(feature.allowed).toBe(true);
 
     const billing = await thorpeApi.getBillingConfig();
     expect(billing).toBeTruthy();
@@ -151,6 +152,8 @@ describe("E2E API coverage", () => {
   });
 
   it("covers technician workspace", async () => {
+    await thorpeApi.activateLicense("ENT-DEMO-1234-KEYS-B65C");
+
     const client = await thorpeApi.createClient({
       name: "E2E Client",
       email: "client@test.com",
@@ -179,7 +182,7 @@ describe("E2E API coverage", () => {
       author: "E2E Tech",
       content: "Investigating",
     });
-    await thorpeApi.listTechnicianNotes({ caseId: supportCase.id });
+    await thorpeApi.listTechnicianNotes(supportCase.id, undefined);
   });
 
   it("covers settings, updates, and data lifecycle", async () => {
@@ -188,6 +191,10 @@ describe("E2E API coverage", () => {
 
     const updates = await thorpeApi.checkForUpdates();
     expect(updates.current_version).toBeTruthy();
+
+    const downloads = await thorpeApi.getReleaseDownloads();
+    expect(downloads.release_version).toBeTruthy();
+    expect(downloads.windows_exe).toContain("Thorpe_");
 
     const connectivity = await thorpeApi.runConnectivityDiagnostics("wifi test");
     expect(connectivity.offline_capable).toBe(true);

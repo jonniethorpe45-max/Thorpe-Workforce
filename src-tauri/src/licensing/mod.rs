@@ -318,6 +318,16 @@ mod tests {
     }
 
     #[test]
+    fn workspace_requires_enterprise_license() {
+        let db = test_db();
+        assert!(require_feature(&db, "technician_workspace").is_err());
+        let key = keys::signed_key("ENT", "TEST", "WS01", "DEMO");
+        db.activate_license(&key, "enterprise", None, None)
+            .expect("activate");
+        assert!(require_feature(&db, "technician_workspace").is_ok());
+    }
+
+    #[test]
     fn enterprise_tier_has_intelligence_console() {
         let features = tier_features("enterprise");
         assert!(features.contains(&"intelligence_console".to_string()));

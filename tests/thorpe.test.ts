@@ -192,14 +192,24 @@ describe("Mock API", () => {
 });
 
 describe("Production smoke checks", () => {
-  it("keeps version and download URLs aligned", async () => {
+  it("keeps version sources aligned", async () => {
     const { THORPE_VERSION } = await import("../src/config/version");
-    const { THORPE_DOWNLOADS } = await import("../src/config/downloads");
+    const { THORPE_RELEASES_PAGE } = await import("../src/config/downloads");
     const packageJson = await import("../package.json");
 
     expect(THORPE_VERSION).toBe(packageJson.default.version);
-    expect(THORPE_DOWNLOADS.windowsExe).toContain(THORPE_VERSION);
-    expect(THORPE_DOWNLOADS.linuxDeb).toContain(THORPE_VERSION);
+    expect(THORPE_RELEASES_PAGE).toContain("/releases/latest");
+  });
+
+  it("mock release downloads match latest published asset pattern", async () => {
+    const { mockInvoke } = await import("../src/services/mock");
+    const downloads = await mockInvoke<{
+      release_version: string;
+      windows_exe: string | null;
+    }>("get_release_downloads");
+
+    expect(downloads.release_version).toBe("1.0.8");
+    expect(downloads.windows_exe).toContain("Thorpe_1.0.8_x64-setup.exe");
   });
 
   it("mock update check returns structured info", async () => {

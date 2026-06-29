@@ -1,5 +1,97 @@
-import type { KnowledgeArticle, SystemScanResult } from "./types";
+import type { KnowledgeArticle, LicenseInfo, SystemScanResult } from "./types";
 import { extractFirstName } from "../lib/userName";
+
+type MockLicenseState = {
+  tier: string;
+  license_key: string | null;
+  activated_at: string | null;
+  expires_at: string | null;
+  organization: string | null;
+};
+
+const mockLicense: MockLicenseState = {
+  tier: "free",
+  license_key: null,
+  activated_at: null,
+  expires_at: null,
+  organization: null,
+};
+
+function mockTierFeatures(tier: string): string[] {
+  if (tier === "enterprise") {
+    return [
+      "jonathan_ai",
+      "basic_scans",
+      "full_diagnostics",
+      "repair_center",
+      "pdf_export",
+      "unlimited_reports",
+      "technician_workspace",
+      "enterprise_ai_console",
+      "intelligence_console",
+    ];
+  }
+  if (tier === "professional") {
+    return [
+      "jonathan_ai",
+      "basic_scans",
+      "full_diagnostics",
+      "repair_center",
+      "pdf_export",
+      "unlimited_reports",
+    ];
+  }
+  return ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"];
+}
+
+function mockTierDisplay(tier: string): string {
+  if (tier === "enterprise") return "Enterprise";
+  if (tier === "professional") return "Professional";
+  return "Free";
+}
+
+function mockFeatureRequiredTier(feature: string): string {
+  if (["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"].includes(feature)) {
+    return "free";
+  }
+  if (["full_diagnostics", "repair_center", "pdf_export", "unlimited_reports"].includes(feature)) {
+    return "professional";
+  }
+  return "enterprise";
+}
+
+function mockTierLevel(tier: string): number {
+  if (tier === "enterprise") return 3;
+  if (tier === "professional") return 2;
+  return 1;
+}
+
+function mockLicenseInfo(): LicenseInfo {
+  return {
+    tier: mockLicense.tier,
+    tier_display: mockTierDisplay(mockLicense.tier),
+    features: mockTierFeatures(mockLicense.tier),
+    license_key: mockLicense.license_key,
+    activated_at: mockLicense.activated_at,
+    expires_at: mockLicense.expires_at,
+    organization: mockLicense.organization,
+  };
+}
+
+function mockHasFeature(feature: string): boolean {
+  const features = mockTierFeatures(mockLicense.tier);
+  const required = mockFeatureRequiredTier(feature);
+  return features.includes(feature) || mockTierLevel(mockLicense.tier) >= mockTierLevel(required);
+}
+
+function requireMockFeature(feature: string): void {
+  if (!mockHasFeature(feature)) {
+    const required = mockFeatureRequiredTier(feature);
+    throw new Error(
+      `This feature requires a ${mockTierDisplay(required)} license. Upgrade in Licensing settings.`
+    );
+  }
+}
 
 const mockScan: SystemScanResult = {
   id: "mock-scan-1",
@@ -169,7 +261,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         display_name: (args?.displayName as string) || "Alex Johnson",
         email: (args?.email as string | null) ?? null,
         skill_level: (args?.skillLevel as string) || "beginner",
-        role: (args?.role as string) || "admin",
+        role: "admin",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as T;
@@ -178,6 +270,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       return ((args?.outputPath as string) || "/tmp/report.pdf") as T;
 
     case "create_client": {
+      requireMockFeature("technician_workspace");
       const client = args?.client as Record<string, string> | undefined;
       return {
         id: `client-${Date.now()}`,
@@ -192,6 +285,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     }
 
     case "update_client":
+      requireMockFeature("technician_workspace");
       return {
         id: (args?.id as string) || "client-1",
         name: "Acme Corp",
@@ -204,6 +298,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       } as T;
 
     case "create_case": {
+      requireMockFeature("technician_workspace");
       const supportCase = args?.case as Record<string, string> | undefined;
       return {
         id: `case-${Date.now()}`,
@@ -219,6 +314,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     }
 
     case "update_case":
+      requireMockFeature("technician_workspace");
       return {
         id: (args?.id as string) || "case-1",
         client_id: null,
@@ -232,6 +328,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       } as T;
 
     case "add_technician_note":
+      requireMockFeature("technician_workspace");
       return {
         id: `note-${Date.now()}`,
         case_id: null,
@@ -279,8 +376,12 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       return [] as T;
 
     case "chat_with_jonathan": {
-      const req = args?.request as { message: string };
+      const req = args?.request as {
+        message: string;
+        confirmed_repairs?: string[];
+      };
       const msg = req?.message?.toLowerCase() || "";
+      const confirmed = new Set(req?.confirmed_repairs ?? []);
       const firstName = extractFirstName("Alex Johnson");
       const isNetwork = msg.includes("wifi") || msg.includes("network") || msg.includes("internet");
       const connectivityReport = isNetwork
@@ -298,38 +399,81 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
             offline_capable: true,
           }
         : null;
-      const repairs =
-        isNetwork
-          ? [
-              {
-                success: true,
-                message: "Offline connectivity diagnostics complete.",
-                details:
-                  "Overall status: degraded\n\nChecks:\n  ✓ Network adapter — Active interface: wlan0\n  ✗ DNS resolution — Could not resolve example.com",
-                record_id: "mock-repair-1",
-                action_id: "connectivity-suite",
-                action_name: "Offline Connectivity Suite",
-                action_kind: "diagnostic",
-              },
-              {
-                success: true,
-                message: "DNS cache flushed successfully.",
-                details: null,
-                record_id: "mock-repair-2",
-                action_id: "dns-flush",
-                action_name: "Flush DNS Cache",
-                action_kind: "mutating",
-              },
-            ]
-          : [];
+      const repairs = [];
+      if (isNetwork) {
+        repairs.push({
+          success: true,
+          message: "Offline connectivity diagnostics complete.",
+          details:
+            "Overall status: degraded\n\nChecks:\n  ✓ Network adapter — Active interface: wlan0\n  ✗ DNS resolution — Could not resolve example.com",
+          record_id: "mock-repair-1",
+          action_id: "connectivity-suite",
+          action_name: "Offline Connectivity Suite",
+          action_kind: "diagnostic",
+        });
+        if (confirmed.has("dns-flush")) {
+          repairs.push({
+            success: true,
+            message: "DNS cache flushed successfully.",
+            details: null,
+            record_id: "mock-repair-2",
+            action_id: "dns-flush",
+            action_name: "Flush DNS Cache",
+            action_kind: "mutating",
+          });
+        }
+      } else if (msg.includes("slow") && confirmed.has("temp-cleanup")) {
+        repairs.push({
+          success: true,
+          message: "Temporary files cleaned (mock mode).",
+          details: null,
+          record_id: "mock-repair-3",
+          action_id: "temp-cleanup",
+          action_name: "Clean Temporary Files",
+          action_kind: "mutating",
+        });
+      }
+      const pending_repairs = [];
+      if (isNetwork && !confirmed.has("dns-flush")) {
+        pending_repairs.push({
+          id: "dns-flush",
+          name: "Flush DNS Cache",
+          description: "Clear DNS cache.",
+          purpose: "Fix DNS issues.",
+          risk_level: "low",
+          category: "network",
+          requires_confirmation: true,
+          action_kind: "mutating",
+          platform: ["linux"],
+        });
+      }
+      if (msg.includes("slow") && !confirmed.has("temp-cleanup")) {
+        pending_repairs.push({
+          id: "temp-cleanup",
+          name: "Clean Temporary Files",
+          description: "Remove temporary files",
+          purpose: "Free disk space",
+          risk_level: "low",
+          category: "storage",
+          requires_confirmation: true,
+          action_kind: "mutating",
+          platform: ["linux"],
+        });
+      }
       const greeting = firstName ? `**Hi ${firstName}, here's what I did**` : "**Jonathan — here's what I did**";
       const closing = firstName
         ? `Let me know if you need anything else, ${firstName}.`
         : "Let me know if you need anything else.";
       let response =
         repairs.length > 0
-          ? `${greeting}\n\n**Diagnostics run:**\n- ✓ **Offline Connectivity Suite** — Offline connectivity diagnostics complete.\n\n**Repairs applied:**\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n`
+          ? `${greeting}\n\n**Diagnostics run:**\n- ✓ **Offline Connectivity Suite** — Offline connectivity diagnostics complete.\n\n`
           : `${greeting}\n\nI analyzed your request but no automated actions were run.\n\n`;
+      if (repairs.some((r) => r.action_id === "dns-flush")) {
+        response += "**Repairs applied:**\n- ✓ **Flush DNS Cache** — DNS cache flushed successfully.\n\n";
+      }
+      if (repairs.some((r) => r.action_id === "temp-cleanup")) {
+        response += "**Repairs applied:**\n- ✓ **Clean Temporary Files** — Temporary files cleaned.\n\n";
+      }
       if (connectivityReport) {
         response += `**Offline connectivity check** (runs locally — no internet required):\n- Overall: **degraded**\n- ${connectivityReport.playbook_summary}\n`;
       }
@@ -338,22 +482,8 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         message: response,
         source: "local",
         repairs_executed: repairs,
-        pending_repairs: msg.includes("slow")
-          ? [
-              {
-                id: "temp-cleanup",
-                name: "Clean Temporary Files",
-                description: "Remove temporary files",
-                purpose: "Free disk space",
-                risk_level: "low",
-                category: "storage",
-                requires_confirmation: true,
-                action_kind: "mutating",
-                platform: ["linux"],
-              },
-            ]
-          : [],
-        verification: repairs.length
+        pending_repairs,
+        verification: repairs.some((r) => r.action_kind === "mutating")
           ? {
               health_before: 78,
               health_after: 82,
@@ -413,48 +543,17 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     }
 
     case "get_license_info":
-      return {
-        tier: "free",
-        tier_display: "Free",
-        features: ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"],
-        license_key: null,
-        activated_at: null,
-        expires_at: null,
-        organization: null,
-      } as T;
+      return mockLicenseInfo() as T;
 
     case "activate_license": {
       const key = ((args?.request as { license_key?: string })?.license_key ?? "").toUpperCase();
       const tier = key.startsWith("ENT-") ? "enterprise" : key.startsWith("PRO-") ? "professional" : "free";
-      const professionalFeatures = [
-        "jonathan_ai",
-        "basic_scans",
-        "full_diagnostics",
-        "repair_center",
-        "pdf_export",
-        "unlimited_reports",
-      ];
-      const enterpriseFeatures = [
-        ...professionalFeatures,
-        "technician_workspace",
-        "enterprise_ai_console",
-        "intelligence_console",
-      ];
-      const features =
-        tier === "enterprise"
-          ? enterpriseFeatures
-          : tier === "professional"
-            ? professionalFeatures
-            : ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"];
-      return {
-        tier,
-        tier_display: tier === "enterprise" ? "Enterprise" : tier === "professional" ? "Professional" : "Free",
-        features,
-        license_key: key || null,
-        activated_at: new Date().toISOString(),
-        expires_at: null,
-        organization: null,
-      } as T;
+      mockLicense.tier = tier;
+      mockLicense.license_key = key || null;
+      mockLicense.activated_at = tier === "free" ? null : new Date().toISOString();
+      mockLicense.expires_at = null;
+      mockLicense.organization = null;
+      return mockLicenseInfo() as T;
     }
 
     case "get_billing_config":
@@ -485,22 +584,11 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
 
     case "check_feature": {
       const feature = args?.feature as string;
-      const license = {
-        tier: "free",
-        features: ["jonathan_ai", "jonathan_auto_repair", "basic_scans", "limited_reports"],
-      };
-      const enterpriseFeatures = [
-        "technician_workspace",
-        "enterprise_ai_console",
-        "intelligence_console",
-      ];
-      const allowed =
-        license.features.includes(feature) ||
-        (license.tier === "enterprise" && enterpriseFeatures.includes(feature));
+      const allowed = mockHasFeature(feature);
       return {
         feature,
         allowed,
-        required_tier: enterpriseFeatures.includes(feature) ? "enterprise" : "free",
+        required_tier: mockFeatureRequiredTier(feature),
       } as T;
     }
 
@@ -585,10 +673,28 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "check_for_updates":
       return {
         current_version: "1.1.0",
-        latest_version: "1.1.0",
+        latest_version: "1.0.8",
         update_available: false,
         release_notes: "You are running the latest version.",
-        download_url: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
+        download_url:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_x64-setup.exe",
+        check_error: null,
+      } as T;
+
+    case "get_release_downloads":
+      return {
+        release_version: "1.0.8",
+        releases_page: "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest",
+        windows_exe:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_x64-setup.exe",
+        windows_msi:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_x64_en-US.msi",
+        macos_dmg:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_aarch64.dmg",
+        linux_appimage:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_amd64.AppImage",
+        linux_deb:
+          "https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/download/v1.0.8/Thorpe_1.0.8_amd64.deb",
       } as T;
 
     case "list_intel_items":
@@ -707,6 +813,7 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "list_clients":
     case "list_cases":
     case "list_technician_notes":
+      requireMockFeature("technician_workspace");
       return [] as T;
 
     case "get_settings":

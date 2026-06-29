@@ -101,7 +101,7 @@ export function JonathanAssistant() {
     scrollToBottom();
   }, [messages, loading, typingMessageIndex, scrollToBottom]);
 
-  const sendChat = async (userMessage: string, confirmedRepairs?: string[]) => {
+  const sendChat = async (userMessage: string, confirmedRepairs?: string[]): Promise<boolean> => {
     setLoading(true);
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
@@ -159,12 +159,14 @@ export function JonathanAssistant() {
           message: "A support case was opened in Technician Workspace.",
         });
       }
+      return true;
     } catch (err) {
       addNotification({
         type: "error",
         title: "Chat Error",
         message: String(err),
       });
+      return false;
     } finally {
       setLoading(false);
     }
@@ -184,13 +186,15 @@ export function JonathanAssistant() {
     const names = repairs.map((p) => p.name);
     const userMessage = `Approve and run: ${names.join(", ")}`;
 
-    setMessages((prev) =>
-      prev.map((m, idx) =>
-        idx === messageIndex ? { ...m, pendingRepairs: [], pendingResolved: true } : m
-      )
-    );
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    await sendChat(userMessage, ids);
+    const ok = await sendChat(userMessage, ids);
+    if (ok) {
+      setMessages((prev) =>
+        prev.map((m, idx) =>
+          idx === messageIndex ? { ...m, pendingRepairs: [], pendingResolved: true } : m
+        )
+      );
+    }
   };
 
   const cloudAiActive = aiConfig ? isCloudAiActive(aiConfig) : false;

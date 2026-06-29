@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Wrench, AlertTriangle, CheckCircle, XCircle, History } from "lucide-react";
+import { Link } from "react-router-dom";
 import { RiskBadge } from "../components/ui/RiskBadge";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
@@ -69,9 +70,9 @@ export function RepairCenter() {
         <p className="max-w-md text-center text-gray-400">
           Repair Center requires a Professional license. Upgrade to access safe maintenance tools.
         </p>
-        <a href="/licensing" className="btn-primary">
+        <Link to="/licensing" className="btn-primary">
           View Licensing
-        </a>
+        </Link>
       </div>
     );
   }

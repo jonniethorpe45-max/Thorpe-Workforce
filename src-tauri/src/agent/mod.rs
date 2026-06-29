@@ -138,7 +138,10 @@ pub async fn orchestrate_incident(
         .map(|s| s.tool_id.clone())
         .collect();
 
-    let filtered = filter_allowed_tools(state, &tool_ids);
+    let mut filtered = filter_allowed_tools(state, &tool_ids);
+    if connectivity_report.is_some() {
+        filtered.retain(|id| id != "connectivity-suite");
+    }
     let repair_plan = repairs::plan_chat_repairs(&filtered, confirmed_repairs);
 
     let health_before = scan.as_ref().map(|s| s.health_score).unwrap_or(0);

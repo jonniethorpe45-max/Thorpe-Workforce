@@ -4,8 +4,9 @@
 
 **On GitHub**
 - Download only from the **[Latest release](https://github.com/jonniethorpe45-max/Thorpe-Workforce/releases/latest)** page
-- Draft releases (e.g. older v1.0.1) are **not public** — GitHub shows a permissions error for anonymous users
-- Use the direct links in [INSTALLATION.md](INSTALLATION.md) or Thorpe → **Updates**
+- **Wrong filename** — links like `.../latest/download/Thorpe_1.0.0_...` fail when the latest release is newer (e.g. v1.0.8). GitHub returns a permissions-style error. Use version-specific URLs: `.../releases/download/v1.0.8/Thorpe_1.0.8_x64-setup.exe`
+- Draft releases are **not public** — GitHub shows a permissions error for anonymous users
+- Use the direct links in [INSTALLATION.md](INSTALLATION.md) or Thorpe → **Updates** (loads links from GitHub automatically)
 
 **After download (Windows)**
 - Unsigned builds may show SmartScreen: click **More info → Run anyway**

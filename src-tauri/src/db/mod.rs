@@ -1680,14 +1680,11 @@ pub mod commands {
         skill_level: String,
         role: Option<String>,
     ) -> Result<Profile, String> {
+        let _ = role;
         let db = state.lock_db()?;
         db.update_profile(&display_name, email.as_deref(), &skill_level)
             .map_err(|e| e.to_string())?;
-        if let Some(r) = role {
-            db.update_profile_role(&r).map_err(|e| e.to_string())
-        } else {
-            db.get_profile().map_err(|e| e.to_string())
-        }
+        db.get_profile().map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -1707,46 +1704,62 @@ pub mod commands {
 
     #[tauri::command]
     pub fn list_clients(state: State<AppState>) -> Result<Vec<Client>, String> {
-        state.lock_db()?.list_clients().map_err(|e| e.to_string())
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        db.list_clients().map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn create_client(state: State<AppState>, client: CreateClient) -> Result<Client, String> {
-        state.lock_db()?.create_client(&client).map_err(|e| e.to_string())
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        db.create_client(&client).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn update_client(state: State<AppState>, id: String, client: CreateClient) -> Result<Client, String> {
-        state.lock_db()?.update_client(&id, &client).map_err(|e| e.to_string())
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        db.update_client(&id, &client).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn list_cases(state: State<AppState>) -> Result<Vec<SupportCase>, String> {
-        state.lock_db()?.list_cases().map_err(|e| e.to_string())
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        db.list_cases().map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn create_case(state: State<AppState>, case: CreateCase) -> Result<SupportCase, String> {
-        let created = state.lock_db()?.create_case(&case).map_err(|e| e.to_string())?;
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        let created = db.create_case(&case).map_err(|e| e.to_string())?;
         crate::integrations::psa::spawn_case_event(&state, "case.created", created.clone());
         Ok(created)
     }
 
     #[tauri::command]
     pub fn update_case(state: State<AppState>, id: String, case: UpdateCase) -> Result<SupportCase, String> {
-        let updated = state.lock_db()?.update_case(&id, &case).map_err(|e| e.to_string())?;
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        let updated = db.update_case(&id, &case).map_err(|e| e.to_string())?;
         crate::integrations::psa::spawn_case_event(&state, "case.updated", updated.clone());
         Ok(updated)
     }
 
     #[tauri::command]
     pub fn add_technician_note(state: State<AppState>, note: CreateNote) -> Result<TechnicianNote, String> {
-        state.lock_db()?.add_note(&note).map_err(|e| e.to_string())
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        db.add_note(&note).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
     pub fn list_technician_notes(state: State<AppState>, case_id: Option<String>, report_id: Option<String>) -> Result<Vec<TechnicianNote>, String> {
-        state.lock_db()?.list_notes(case_id.as_deref(), report_id.as_deref()).map_err(|e| e.to_string())
+        let db = state.lock_db()?;
+        crate::licensing::require_feature(&db, "technician_workspace")?;
+        db.list_notes(case_id.as_deref(), report_id.as_deref()).map_err(|e| e.to_string())
     }
 }
 

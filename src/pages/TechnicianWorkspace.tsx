@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Briefcase, Plus, Users, FileText, StickyNote } from "lucide-react";
+import { Link } from "react-router-dom";
 import { thorpeApi } from "../services/tauri";
 import { useAppStore } from "../services/store";
 import type { Client, SupportCase, TechnicianNote } from "../services/types";
@@ -41,9 +42,9 @@ export function TechnicianWorkspace() {
           The Technician Workspace requires an Enterprise license for case management, client
           records, and team collaboration.
         </p>
-        <a href="/licensing" className="btn-primary">
+        <Link to="/licensing" className="btn-primary">
           View Licensing
-        </a>
+        </Link>
       </div>
     );
   }
