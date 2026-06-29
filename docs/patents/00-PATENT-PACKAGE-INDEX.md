@@ -31,6 +31,11 @@ This package is a **technical invention disclosure** prepared from the Thorpe De
 | 04 | [04-CLAIM-SEEDS-FOR-ATTORNEY.md](./04-CLAIM-SEEDS-FOR-ATTORNEY.md) | Seed independent/dependent claims for attorney drafting |
 | 05 | [05-PRIOR-ART-DIFFERENTIATION.md](./05-PRIOR-ART-DIFFERENTIATION.md) | Known art categories and differentiation arguments |
 | 06 | [06-INVENTOR-AND-ASSIGNMENT-SHEET.md](./06-INVENTOR-AND-ASSIGNMENT-SHEET.md) | Inventor information template and assignment checklist |
+| 07 | [07-EXECUTIVE-BRIEF-ONE-PAGE.md](./07-EXECUTIVE-BRIEF-ONE-PAGE.md) | Non-technical one-page summary for counsel |
+| 08 | [08-ATTORNEY-TRANSMITTAL-LETTER.md](./08-ATTORNEY-TRANSMITTAL-LETTER.md) | Cover letter template (fill in and send) |
+| 09 | [09-FIGURE-SCREENSHOT-GUIDE.md](./09-FIGURE-SCREENSHOT-GUIDE.md) | Figure numbering, screenshots, diagram conversion |
+| — | [dist/Thorpe-Desktop-Patent-Package.pdf](./dist/Thorpe-Desktop-Patent-Package.pdf) | Combined PDF (run `bash scripts/build-patent-package.sh`) |
+| — | [screenshots/](./screenshots/) | UI captures for specification figures |
 
 ---
 
@@ -78,6 +83,34 @@ The recommended filing strategy (detailed in Document 02) centers on **one broad
 4. Evaluate whether to file **Patent B–F** as continuations or separate applications.
 5. Request code listing or appendix if filing requires software-related enablement (Alice/Mayo analysis for US).
 6. Coordinate trademark (Jonathan, Thorpe) separately from utility patents.
+
+---
+
+## Building the package
+
+From the repository root:
+
+```bash
+npm run patent:package
+```
+
+Or directly:
+
+```bash
+bash scripts/build-patent-package.sh
+```
+
+**Requirements:** Node.js, `npm run build` dependencies, Google Chrome at `/usr/local/bin/google-chrome` (or set `CHROME_PATH`). The script builds the frontend, starts a Vite preview server, captures six UI screenshots with Puppeteer, and exports `docs/patents/dist/Thorpe-Desktop-Patent-Package.html` plus PDF when Chrome print-to-PDF succeeds.
+
+**Outputs:**
+
+| Path | Description |
+|------|-------------|
+| `docs/patents/screenshots/*.png` | Figure captures (dashboard, Jonathan, watchdog, repairs) |
+| `docs/patents/dist/Thorpe-Desktop-Patent-Package.html` | Combined attorney package |
+| `docs/patents/dist/Thorpe-Desktop-Patent-Package.pdf` | Print-ready PDF (if Chrome available) |
+
+Submit the `docs/patents/` folder (markdown sources + `dist/` + `screenshots/`) to patent counsel.
 
 ---
 
