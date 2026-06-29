@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Thorpe Desktop — Problems Solved (Patent Counsel)</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; max-width: 8.5in; margin: 0 auto; padding: 0.75in; color: #111; line-height: 1.45; font-size: 11pt; }
+    h1 { font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 6px; }
+    h2 { font-size: 14pt; margin-top: 1.2em; page-break-after: avoid; }
+    h3 { font-size: 12pt; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 10pt; }
+    th, td { border: 1px solid #999; padding: 6px 8px; vertical-align: top; text-align: left; }
+    th { background: #f0f0f0; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; font-size: 9pt; white-space: pre-wrap; }
+    code { font-family: Consolas, monospace; font-size: 9.5pt; }
+    ul { margin: 8px 0; }
+    @media print { body { padding: 0.5in; } h2 { page-break-before: auto; } }
+  </style>
+</head>
+<body><h1>Thorpe Desktop — Problems Solved</h1>
+<p><strong>Prepared for:</strong> Patent counsel  <br/><strong>Product:</strong> Thorpe Desktop  <br/><strong>Core invention:</strong> Jonathan — autonomous AI technician with local repair orchestration  <br/><strong>Date:</strong> June 27, 2026  <br/><strong>Software version:</strong> 1.1.0</p>
+<p>---</p>
+<h2>Executive summary</h2>
+<p>Thorpe Desktop is a cross-platform desktop application (Windows, macOS, Linux) that embeds <strong>Jonathan</strong>, an autonomous AI technician. Jonathan does not merely advise users—it <strong>diagnoses, executes, and verifies repairs locally</strong> on the end-user device, then explains what was done in plain language.</p>
+<p>The core technical problem solved: <strong>conventional IT support chatbots recommend manual steps they never perform, cannot verify, and cannot safely execute on the client device.</strong> Thorpe couples a governed, offline-capable local repair engine with an AI that only narrates repairs already executed and recorded.</p>
+<p>---</p>
+<h2>Field of the invention</h2>
+<p>Computer systems diagnostics, automated remediation, and AI-assisted technical support on end-user desktops and laptops across Windows, macOS, and Linux.</p>
+<p>---</p>
+<h2>Problems in the prior art</h2>
+<h3>1. Chat-only support (no local execution)</h3>
+<p>Traditional IT chatbots and virtual assistants tell users to open Settings, run terminal commands, or reboot. They do not execute OS-level diagnostics or repairs on the device. The user must interpret and perform every step manually.</p>
+<h3>2. Cloud dependency</h3>
+<p>Most AI support tools require continuous cloud connectivity. When the network is down—the very condition users often need help with—cloud AI cannot assist with local diagnostics or remediation.</p>
+<h3>3. No verification of outcomes</h3>
+<p>Existing tools do not prove that a suggested or attempted fix improved system health. There is no structured before/after health verification tied to the support interaction.</p>
+<h3>4. Conflation of AI text with system changes</h3>
+<p>In conventional LLM-based support, the model may describe actions it did not perform. Users cannot distinguish between a recommendation and an executed repair. This creates trust, liability, and safety risks.</p>
+<h3>5. Unsafe autonomous agents</h3>
+<p>General-purpose LLM tool-use agents can invoke arbitrary or hallucinated commands. There is no cryptographic allowlist governing which OS-level actions an AI may run on an endpoint.</p>
+<h3>6. Reactive-only support</h3>
+<p>Most consumer and SMB support is user-initiated. Proactive monitoring (CPU, memory, disk) is typically siloed in MSP/RMM tools—not integrated into the same conversational repair pipeline the end user interacts with.</p>
+<h3>7. Fragmented network troubleshooting</h3>
+<p>Network problems are often addressed with disconnected utilities or generic advice. There is no unified, offline-capable connectivity diagnostic suite fused into a single agent incident response.</p>
+<h3>8. Lack of enterprise governance</h3>
+<p>Consumer AI assistants lack role-based controls, repair-pack signing, audit trails, and policy-governed separation between planning AI and narration AI.</p>
+<p>---</p>
+<h2>How Thorpe Desktop solves these problems</h2>
+<table><tr><td>Problem</td><td>Thorpe / Jonathan solution</td></tr>
+</table>
+<table><tr><td>Manual chat-only support</td><td>Executes local diagnostics and repairs (connectivity suite, DNS flush, temp cleanup, resource analysis, disk analysis, etc.)</td></tr>
+<tr><td>Cloud dependency</td><td>Core diagnostics, repair execution, and local narrative operate <strong>offline</strong>; cloud LLM is optional</td></tr>
+<tr><td>No fix verification</td><td>After mutating repairs, runs a <strong>follow-up health scan</strong> and reports before/after metrics in the structured response</td></tr>
+<tr><td>AI invents fixes in text</td><td><strong>Execute-then-narrate:</strong> repairs complete <strong>before</strong> narrative generation; AI constrained to executed repairs only</td></tr>
+<tr><td>Unsafe autonomous execution</td><td><strong>Mutating</strong> actions require explicit user approval; safe diagnostics run automatically</td></tr>
+<tr><td>Uncontrolled tool invocation</td><td>Repair actions filtered by <strong>cryptographically signed repair-pack allowlist</strong></td></tr>
+<tr><td>Reactive-only support</td><td><strong>Proactive Watchdog</strong> monitors CPU, memory, and disk; alerts hand off into the same incident pipeline</td></tr>
+<tr><td>Fragmented troubleshooting</td><td><strong>Offline connectivity suite</strong> fuses layered network diagnostics into one agent response</td></tr>
+<tr><td>No audit trail</td><td>Collects system evidence, persists incident sessions, optional PSA/webhook escalation</td></tr>
+</table>
+---
+<h2>Technical architecture (summary)</h2>
+<p>Jonathan implements a local-first incident pipeline:</p>
+<pre><code>User message → Evidence collection → Security gate → Offline connectivity (if applicable)
+→ Repair planning (LLM JSON or rules) → Repair-pack allowlist filter → Confirmation gate
+→ Local OS repair execution → Post-mutating verification scan → Session persistence
+→ Narrative generation (local template or cloud LLM) → Structured chat response</code></pre>
+<p><strong>Key invariant:</strong> Cloud LLM failure does not prevent repairs from having already executed locally.</p>
+<p><strong>Primary code reference:</strong> <code>orchestrate_incident</code> in <code>src-tauri/src/agent/mod.rs</code></p>
+<p>---</p>
+<h2>Commercial and user problems solved</h2>
+<p><strong>End users without IT staff</strong> — Natural-language fix for “Wi-Fi not working” or “computer is slow” without a help desk or MSP.</p>
+<p><strong>Small businesses</strong> — Reduces paid IT visits for routine maintenance and provides documented, verifiable remediation.</p>
+<p><strong>MSP / enterprise (adjacent)</strong> — Optional PSA webhook escalation; governed AI with feature and policy controls rather than unconstrained autonomous agents.</p>
+<p>---</p>
+<h2>Recommended patent focus</h2>
+<table><tr><td>Priority</td><td>Application</td><td>Description</td></tr>
+</table>
+<table><tr><td><strong>P0</strong></td><td>Patent A — Core orchestration</td><td>Execute-then-narrate autonomous IT incident pipeline on client device</td></tr>
+<tr><td><strong>P0</strong></td><td>Patent B — Repair packs</td><td>Cryptographically signed allowlist gates which OS tools AI may run</td></tr>
+<tr><td><strong>P0</strong></td><td>Patent C — Offline connectivity</td><td>Layered network diagnostics fused into agent; no cloud required</td></tr>
+<tr><td><strong>P1</strong></td><td>Patent D — Watchdog handoff</td><td>Background monitor hands alerts into same agent pipeline</td></tr>
+<tr><td><strong>P1</strong></td><td>Patent E — Dual LLM</td><td>Separate planner and narrator LLMs with independent fallbacks</td></tr>
+</table>
+---
+<h2>One-sentence invention statement</h2>
+<p>Thorpe Desktop solves the problem that AI IT assistants recommend fixes they never perform, cannot verify, and cannot safely execute locally—by coupling a governed, offline-capable repair engine on the client device with an AI that only narrates repairs already executed and verified.</p>
+<p>---</p>
+<h2>Related documents in this package</h2>
+<ul><li><code>01-INVENTION-DISCLOSURE-JONATHAN.md</code> — Full technical disclosure  </li>
+<li><code>02-PATENT-CANDIDATE-INVENTORY.md</code> — Patent applications A–H  </li>
+<li><code>04-CLAIM-SEEDS-FOR-ATTORNEY.md</code> — Seed claims for drafting  </li>
+<li><code>05-PRIOR-ART-DIFFERENTIATION.md</code> — Prior-art categories and differentiation  </li>
+<li><code>07-EXECUTIVE-BRIEF-ONE-PAGE.md</code> — One-page summary  </li>
+</ul>
+<strong>Applicant / assignee:</strong> _[Complete Document 06 before filing]_</body>
+</html>

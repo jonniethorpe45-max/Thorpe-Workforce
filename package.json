@@ -17,7 +17,10 @@
     "test:watch": "vitest",
     "pack-sign": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-pack-sign --",
     "license-key": "cargo run --manifest-path src-tauri/Cargo.toml --bin thorpe-license-key --",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "patent:package": "node scripts/build-patent-package.mjs",
+    "patent:problems-pdf": "node scripts/export-patent-single-pdf.mjs docs/patents/10-PROBLEMS-SOLVED-FOR-COUNSEL.md Thorpe-Desktop-Problems-Solved-For-Counsel",
+    "patent:solution-pdf": "node scripts/export-patent-single-pdf.mjs docs/patents/11-SOLUTION-OFFERED-FOR-COUNSEL.md Thorpe-Desktop-Solution-Offered-For-Counsel"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",
