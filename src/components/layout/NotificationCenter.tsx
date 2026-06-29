@@ -67,6 +67,19 @@ export function NotificationCenter() {
                       <div>
                         <p className={clsx("text-sm font-medium", typeColors[n.type])}>{n.title}</p>
                         <p className="mt-0.5 text-xs text-gray-400">{n.message}</p>
+                        {n.actionLabel && n.onAction && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              n.onAction?.();
+                              markNotificationRead(n.id);
+                              setOpen(false);
+                            }}
+                            className="mt-2 text-xs font-medium text-thorpe-400 hover:text-thorpe-300"
+                          >
+                            {n.actionLabel}
+                          </button>
+                        )}
                       </div>
                       {!n.read && (
                         <button

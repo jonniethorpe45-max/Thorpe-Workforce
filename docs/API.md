@@ -11,6 +11,9 @@ All commands are invoked from the frontend via `@tauri-apps/api/core` `invoke()`
 | `get_release_downloads` | — | `ReleaseDownloads` | Published installer URLs from GitHub Releases |
 | `run_connectivity_diagnostics` | `user_message?`, `session_id?` | `ConnectivityReport` | Offline layered network diagnostics |
 | `list_connectivity_diagnostics` | `limit?` | `ConnectivityDiagnosticRecord[]` | Connectivity diagnostic history |
+| `get_watchdog_status` | — | `WatchdogStatus` | Proactive monitor config + recent metric alerts |
+| `update_watchdog_config` | `enabled`, `intervalMinutes`, `healthThreshold`, `autoNotify`, `autoPlan` | `WatchdogConfig` | Configure background CPU/memory/disk monitoring |
+| `acknowledge_watchdog_event` | `eventId` | — | Acknowledge a watchdog alert |
 
 ## Profile & Settings
 

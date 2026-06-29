@@ -297,6 +297,7 @@ impl Database {
                 health_score INTEGER NOT NULL,
                 message TEXT NOT NULL,
                 plan_json TEXT,
+                issues_json TEXT,
                 acknowledged INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
@@ -326,6 +327,7 @@ impl Database {
 
         self.ensure_column("profiles", "role", "TEXT NOT NULL DEFAULT 'admin'")?;
         self.ensure_column("chat_history", "metadata_json", "TEXT")?;
+        self.ensure_column("watchdog_events", "issues_json", "TEXT")?;
 
         let profile_count: i64 = self
             .conn
@@ -370,7 +372,7 @@ impl Database {
             .query_row("SELECT COUNT(*) FROM watchdog_config", [], |r| r.get(0))?;
         if count == 0 {
             self.conn.execute(
-                "INSERT INTO watchdog_config (id, enabled, interval_minutes, health_threshold, auto_notify, auto_plan, updated_at) VALUES (1, 0, 60, 70, 1, 1, ?1)",
+                "INSERT INTO watchdog_config (id, enabled, interval_minutes, health_threshold, auto_notify, auto_plan, updated_at) VALUES (1, 1, 15, 70, 1, 1, ?1)",
                 params![Utc::now().to_rfc3339()],
             )?;
         }
@@ -1270,10 +1272,10 @@ impl Database {
 
     pub fn save_watchdog_event(&self, event: &WatchdogEvent) -> DbResult<()> {
         self.conn.execute(
-            "INSERT INTO watchdog_events (id, event_type, health_score, message, plan_json, acknowledged, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO watchdog_events (id, event_type, health_score, message, plan_json, issues_json, acknowledged, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 event.id, event.event_type, event.health_score, event.message,
-                event.plan_json, event.acknowledged as i64, event.created_at
+                event.plan_json, event.issues_json, event.acknowledged as i64, event.created_at
             ],
         )?;
         Ok(())
@@ -1281,7 +1283,7 @@ impl Database {
 
     pub fn list_watchdog_events(&self, limit: i64) -> DbResult<Vec<WatchdogEvent>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, event_type, health_score, message, plan_json, acknowledged, created_at FROM watchdog_events ORDER BY created_at DESC LIMIT ?1",
+            "SELECT id, event_type, health_score, message, plan_json, issues_json, acknowledged, created_at FROM watchdog_events ORDER BY created_at DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit], |row| {
             Ok(WatchdogEvent {
@@ -1290,8 +1292,9 @@ impl Database {
                 health_score: row.get(2)?,
                 message: row.get(3)?,
                 plan_json: row.get(4)?,
-                acknowledged: row.get::<_, i64>(5)? == 1,
-                created_at: row.get(6)?,
+                issues_json: row.get(5)?,
+                acknowledged: row.get::<_, i64>(6)? == 1,
+                created_at: row.get(7)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
@@ -1311,6 +1314,20 @@ impl Database {
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    pub fn has_recent_unacked_watchdog_event_of_type(
+        &self,
+        event_type: &str,
+        within_minutes: i64,
+    ) -> DbResult<bool> {
+        let cutoff = (Utc::now() - chrono::Duration::minutes(within_minutes)).to_rfc3339();
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM watchdog_events WHERE acknowledged = 0 AND event_type = ?1 AND created_at > ?2",
+            params![event_type, cutoff],
+            |r| r.get(0),
+        )?;
+        Ok(count > 0)
     }
 
     pub fn has_recent_unacked_watchdog_event(&self, within_minutes: i64) -> DbResult<bool> {
@@ -1442,6 +1459,7 @@ pub struct WatchdogEvent {
     pub health_score: i32,
     pub message: String,
     pub plan_json: Option<String>,
+    pub issues_json: Option<String>,
     pub acknowledged: bool,
     pub created_at: String,
 }
