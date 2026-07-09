@@ -1,0 +1,13 @@
+{
+  "name": "genesis-monorepo",
+  "private": true,
+  "version": "1.6.0",
+  "scripts": {
+    "docs": "echo Genesis docs ready",
+    "test:py": "pytest tests services/*/tests -q",
+    "build:sdk": "npm --prefix packages/sdk/typescript install && npm --prefix packages/sdk/typescript run build",
+    "test:sdk": "npm --prefix packages/sdk/typescript test",
+    "test:web": "npm --prefix apps/jonathan-web test",
+    "test:admin": "npm --prefix apps/admin-console test"
+  }
+}

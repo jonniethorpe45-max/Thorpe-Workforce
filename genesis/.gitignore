@@ -1,0 +1,9 @@
+services/jonathan-core/*.sqlite3
+**/node_modules/
+**/dist/
+.dev-logs/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.vite/

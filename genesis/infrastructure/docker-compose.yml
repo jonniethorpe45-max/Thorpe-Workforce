@@ -1,0 +1,71 @@
+services:
+  knowledge-graph:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+    working_dir: /app/services/knowledge-graph
+    ports: ["8001:8001"]
+
+  identity:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002
+    working_dir: /app/services/identity
+    ports: ["8002:8002"]
+
+  capability-registry:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003
+    working_dir: /app/services/capability-registry
+    ports: ["8003:8003"]
+
+  mock-calendar:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004
+    working_dir: /app/services/mock-calendar
+    ports: ["8004:8004"]
+
+  model-router:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005
+    working_dir: /app/services/model-router
+    ports: ["8005:8005"]
+
+  jonathan-core:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    working_dir: /app/services/jonathan-core
+    environment:
+      CAPABILITY_REGISTRY_URL: http://capability-registry:8003
+      MOCK_CALENDAR_URL: http://mock-calendar:8004
+      GENESIS_ENV: development
+    ports: ["8000:8000"]
+    depends_on:
+      - capability-registry
+      - mock-calendar
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 7999
+    working_dir: /app/services/api-gateway
+    environment:
+      JONATHAN_CORE_URL: http://jonathan-core:8000
+      KNOWLEDGE_GRAPH_URL: http://knowledge-graph:8001
+      CAPABILITY_REGISTRY_URL: http://capability-registry:8003
+    ports: ["7999:7999"]
+    depends_on:
+      - jonathan-core
+      - knowledge-graph
+      - capability-registry
