@@ -2,9 +2,9 @@
 
 ## Project Status
 
-**Stage 3 — Repository Foundation and Build Bootstrap** (implementation complete; verified locally).
+**Stage 3 — Repository Foundation and Build Bootstrap** (complete; published to standalone `jonniethorpe45-max/ScoutAI` repository root).
 
-**Completion report (downloadable):** [STAGE3_COMPLETION_REPORT.md](./STAGE3_COMPLETION_REPORT.md)
+**Completion report:** [STAGE3_COMPLETION_REPORT.md](./STAGE3_COMPLETION_REPORT.md)
 
 ## Completed Work
 
