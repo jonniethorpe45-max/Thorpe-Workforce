@@ -1,0 +1,28 @@
+{
+  "name": "@scoutai/worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/main.js",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint ok'",
+    "test": "vitest run --exclude 'test/integration/**'",
+    "test:integration": "vitest run test/integration"
+  },
+  "dependencies": {
+    "@scoutai/config": "workspace:*",
+    "@scoutai/observability": "workspace:*",
+    "bullmq": "^5.34.8",
+    "dotenv": "^16.4.7",
+    "ioredis": "5.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

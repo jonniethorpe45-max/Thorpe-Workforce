@@ -1,0 +1,34 @@
+{
+  "name": "scoutai",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:infra": "docker compose -f infrastructure/docker/docker-compose.yml up -d || bash infrastructure/scripts/dev-infra-local.sh",
+    "dev:web": "pnpm --filter @scoutai/web dev",
+    "dev:api": "pnpm --filter @scoutai/api dev",
+    "dev:worker": "pnpm --filter @scoutai/worker dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build",
+    "db:generate": "pnpm --filter @scoutai/database generate",
+    "db:migrate": "pnpm --filter @scoutai/database migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @scoutai/database migrate:deploy",
+    "db:seed": "pnpm --filter @scoutai/database seed",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}
