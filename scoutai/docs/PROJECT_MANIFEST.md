@@ -4,6 +4,8 @@
 
 **Stage 3 — Repository Foundation and Build Bootstrap** (implementation complete; verified locally).
 
+**Completion report (downloadable):** [STAGE3_COMPLETION_REPORT.md](./STAGE3_COMPLETION_REPORT.md)
+
 ## Completed Work
 
 - Governing documentation set created and populated (`PRODUCT_CONSTITUTION`, `ARCHITECTURE`, security/privacy/AI/live/video/testing/deployment/dev/handoff, authorization matrix).

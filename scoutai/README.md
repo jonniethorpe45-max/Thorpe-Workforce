@@ -4,6 +4,8 @@
 
 Stage 3 delivers the repository skeleton, authentication baseline, operational endpoints, background worker smoke job, and documentation — **not** the full athlete or recruiter product UI.
 
+**Downloadable Stage 3 report:** [docs/STAGE3_COMPLETION_REPORT.md](docs/STAGE3_COMPLETION_REPORT.md)
+
 ## Architecture
 
 ```text
