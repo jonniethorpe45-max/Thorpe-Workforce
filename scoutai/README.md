@@ -4,6 +4,8 @@
 
 > This folder is a **standalone repository scaffold**. It is currently hosted inside `Thorpe-Workforce` so the cloud agent can push it. Extract it to its own GitHub repo with the script below.
 
+**Want to submit a Cursor agent prompt against ScoutAI?** See [SUBMIT_PROMPT.md](./SUBMIT_PROMPT.md) — create the GitHub repo, grant Cursor access, then paste the starter prompt.
+
 ## Create the GitHub repository
 
 From a machine authenticated as **jonniethorpe45-max** (personal `gh` login, not the Cursor install token):
