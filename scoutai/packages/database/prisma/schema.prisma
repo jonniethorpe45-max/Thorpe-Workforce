@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  PENDING
+}
+
+enum UserRoleType {
+  ATHLETE
+  GUARDIAN
+  RECRUITER
+  COACH
+  ORGANIZATION_ADMIN
+  SCOUTAI_ADMIN
+}
+
+enum OrganizationType {
+  HIGH_SCHOOL
+  CLUB
+  COLLEGE_PROGRAM
+  OTHER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  REMOVED
+}
+
+enum RecruiterVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum GuardianRelationshipStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+enum OrganizationMemberRole {
+  MEMBER
+  COACH
+  ADMIN
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String
+  normalizedEmail String     @unique
+  passwordHash    String
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  roles                 UserRole[]
+  sessions              Session[]
+  organizationMembers   OrganizationMember[]
+  athleteProfile        Athlete?
+  recruiterProfile      Recruiter?
+  guardianRelationships GuardianRelationship[] @relation("GuardianUser")
+  auditEvents           AuditEvent[]
+
+  @@index([email])
+}
+
+model UserRole {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @db.Uuid
+  role      UserRoleType
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorType  String
+  actorId    String?  @db.Uuid
+  action     String
+  targetType String
+  targetId   String?
+  requestId  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([requestId])
+}
+
+model Organization {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String           @unique
+  type      OrganizationType
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  members    OrganizationMember[]
+  recruiters Recruiter[]
+}
+
+model OrganizationMember {
+  id             String                 @id @default(uuid()) @db.Uuid
+  organizationId String                 @db.Uuid
+  userId         String                 @db.Uuid
+  role           OrganizationMemberRole @default(MEMBER)
+  status         MembershipStatus       @default(ACTIVE)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model Athlete {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String?   @unique @db.Uuid
+  displayName String
+  dateOfBirth DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user                  User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guardianRelationships GuardianRelationship[]
+}
+
+model Recruiter {
+  id                 String                       @id @default(uuid()) @db.Uuid
+  userId             String                       @unique @db.Uuid
+  organizationId     String?                      @db.Uuid
+  verificationStatus RecruiterVerificationStatus  @default(UNVERIFIED)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+}
+
+model GuardianRelationship {
+  id               String                      @id @default(uuid()) @db.Uuid
+  guardianUserId   String                      @db.Uuid
+  athleteId        String                      @db.Uuid
+  relationshipType String
+  status           GuardianRelationshipStatus  @default(PENDING)
+  consentGrantedAt DateTime?
+  consentRevokedAt DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  guardian User    @relation("GuardianUser", fields: [guardianUserId], references: [id], onDelete: Cascade)
+  athlete  Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianUserId, athleteId])
+}
